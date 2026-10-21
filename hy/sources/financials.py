@@ -55,6 +55,39 @@ def match_filings(
     return v[v["available_at"].notna()].drop(columns=["cik"]).reset_index(drop=True)
 
 
+def replace_inexact(vintages: pd.DataFrame, filled: pd.DataFrame) -> pd.DataFrame:
+    """Swap flagged quarters (`pit_exact = False`) for their as-first-filed rebuild where one exists.
+
+    Adds `value_source`: "compustat_pit" for history rows, "compustat_current" for flagged rows left in place,
+    and the rebuild's own source (e.g. "edgar_xbrl") for swapped rows.
+    """
+    v = vintages.copy()
+    if "value_source" not in v:
+        v["value_source"] = np.where(v["pit_exact"].astype(bool), "compustat_pit", "compustat_current")
+    if filled is None or filled.empty:
+        return v
+    keys = set(zip(filled["gvkey"], filled["datadate"]))
+    drop = (~v["pit_exact"].astype(bool)) & pd.Series([(g, d) in keys for g, d in zip(v["gvkey"], v["datadate"])], index=v.index)
+    add = filled.drop(columns=["acceptance_10k"], errors="ignore")
+    add = add[[(g, d) in set(zip(v.loc[drop, "gvkey"], v.loc[drop, "datadate"])) for g, d in zip(add["gvkey"], add["datadate"])]]
+    return pd.concat([v[~drop], add], ignore_index=True)
+
+
+def compare_sources(a: pd.DataFrame, b: pd.DataFrame, fields: list[str], rel_tol: float = 0.01) -> dict[str, float]:
+    """Share of common (gvkey, datadate) where two sources agree within `rel_tol`, per field.
+
+    Use it to check the XBRL rebuild against Compustat's latest values for the same quarters.
+    """
+    j = a.merge(b, on=["gvkey", "datadate"], suffixes=("_a", "_b"))
+    out = {"quarters": float(len(j))}
+    for f in fields:
+        x, y = j[f + "_a"].astype(float), j[f + "_b"].astype(float)
+        ok = x.notna() & y.notna()
+        rel = (x[ok] - y[ok]).abs() / y[ok].abs().clip(lower=1e-9)
+        out[f] = float((rel <= rel_tol).mean()) if ok.any() else float("nan")
+    return out
+
+
 def timing_report(matched: pd.DataFrame) -> dict[str, float]:
     """How the two timestamp sources compare on first versions (the cross-check the user asked for)."""
     first = matched[matched["vintage"] == 0]
@@ -115,7 +148,7 @@ def to_records(matched: pd.DataFrame, special_items_cash: bool = False) -> list[
                 debt_long_term=_num(r.debt_long_term),
                 depreciation=_num(r.depreciation),
                 operating_cash_flow=_num(r.operating_cash_flow),
-                source=SOURCE,
+                source=getattr(r, "value_source", SOURCE) or SOURCE,
             )
         )
     return out
