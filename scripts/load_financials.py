@@ -25,7 +25,7 @@ def main() -> None:
     ap.add_argument("--tickers", nargs="+", required=True)
     ap.add_argument("--start", default="2015-01-01")
     ap.add_argument("--end", default="2026-09-30")
-    ap.add_argument("--refresh", action="store_true", help="ignore cached WRDS pulls")
+    ap.add_argument("--refresh", action="store_true", help="ignore cached WRDS and SEC pulls; use after new filings")
     args = ap.parse_args()
 
     con = cp.connect()
@@ -36,11 +36,11 @@ def main() -> None:
     if len(missing_cik):
         print(f"no CIK in Compustat, EDGAR timing skipped: {missing_cik['tic'].tolist()}")
     vint = cp.load_vintages(con, ids["gvkey"].tolist(), args.start, args.end, cache_root=RAW, refresh=args.refresh)
-    idx = pd.concat([edgar.filing_index(c, cache_root=RAW) for c in ids["cik"].dropna().unique()], ignore_index=True)
+    idx = pd.concat([edgar.filing_index(c, cache_root=RAW, refresh=args.refresh) for c in ids["cik"].dropna().unique()], ignore_index=True)
     cik_by_gvkey = dict(zip(ids["gvkey"], ids["cik"]))
     gaps = vint[~vint["pit_exact"]]
     if len(gaps):
-        facts = {edgar._cik10(c): xbrl.company_facts(c, cache_root=RAW) for c in ids["cik"].dropna().unique()}
+        facts = {edgar._cik10(c): xbrl.company_facts(c, cache_root=RAW, refresh=args.refresh) for c in ids["cik"].dropna().unique()}
         filled = xbrl.fill_quarters(gaps, facts, idx, cik_by_gvkey,
                                      pit_first=vint[vint["pit_exact"] & (vint["vintage"] == 0)])
         check = ["revenue", "capex", "operating_cash_flow", "cash", "debt_long_term", "oibdp"]

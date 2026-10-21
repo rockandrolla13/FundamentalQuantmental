@@ -8,10 +8,10 @@ Compustat PIT history lacks about half of fiscal Q4 quarters and, for some issue
 - `available_at` is the filing's acceptance time.
 
 Definition bridge. XBRL tags and Compustat items define cash, debt, and EBITDA differently (Compustat adds
-short-term investments to cash and finance leases to debt, and strips special items from EBITDA). For the
-fields in `BRIDGED`, the rebuilt value is scaled by Compustat / XBRL in the prior quarter, both as first
-reported, so the series keeps one definition. Both prior values were public before the gap's filing, so the
-bridge adds no look-ahead. A ratio outside [0.5, 2] means the definitions differ too much; the field stays NaN.
+short-term investments to cash and leases to debt, and strips special items from EBITDA). Cash and total
+debt are scaled by Compustat / XBRL in the latest earlier Compustat quarter (both as first reported), so the
+series keeps one definition. Both anchor values were public before the gap's filing, so the bridge adds no
+look-ahead. A ratio outside [1/3, 3] means the definitions differ too much; the field stays NaN.
 
 Source: https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json. Values arrive in USD and leave in
 USD millions to match Compustat. Tags differ by filer, so each field tries an ordered list of tags.
@@ -62,14 +62,16 @@ INSTANT_TAGS: dict[str, tuple[str, ...]] = {
     "payables": ("AccountsPayableCurrent",),
     "debt_current": ("LongTermDebtCurrent", "DebtCurrent"),
     "debt_long_term": ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"),
+    "debt_total": ("LongTermDebt", "DebtInstrumentCarryingAmount", "DebtAndCapitalLeaseObligations"),
 }
 
 
-def company_facts(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | None = None) -> pd.DataFrame:
+def company_facts(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | None = None,
+                  refresh: bool = False) -> pd.DataFrame:
     """Long table of USD us-gaap facts: tag, start, end, val, accn, form, filed. Caches the JSON."""
     cik10 = _cik10(cik)
     path = cache_root / "edgar" / f"companyfacts_CIK{cik10}.json" if cache_root else None
-    if path is not None and path.exists():
+    if path is not None and path.exists() and not refresh:
         doc = json.loads(path.read_text())
     else:
         doc = fetch(f"{BASE}CIK{cik10}.json")
@@ -121,8 +123,9 @@ def _instant(facts: pd.DataFrame, tags: Sequence[str], qend: pd.Timestamp, accn:
     return float("nan")
 
 
-BRIDGED = ("cash", "debt_current", "debt_long_term")
-BRIDGE_RANGE = (0.5, 2.0)
+# Cash is bridged on its own; debt is bridged as a total, because filers tag the current / non-current split
+# inconsistently and Compustat adds leases and financing obligations (Caesars: about 2x the XBRL debt).
+BRIDGE_RANGE = (1 / 3, 3.0)
 # EBITDA is not bridged: the prior-quarter ratio carries that quarter's special items. It is kept unscaled only
 # when the prior quarter shows the two definitions agree within this range; otherwise it is NaN.
 CHECKED = ("oibdp",)
@@ -138,7 +141,30 @@ def quarter_from_filing(facts: pd.DataFrame, qend: pd.Timestamp, accn: str, file
     else:
         v["oibdp"] = v["pretax_income"] + v["interest_expense"] + v["depreciation"]
     v["special_items"] = 0.0  # included in oibdp; XBRL does not split it out
+    if np.isnan(v["debt_total"]) and not np.isnan(v["debt_long_term"]):
+        v["debt_total"] = v["debt_long_term"] + (0.0 if np.isnan(v["debt_current"]) else v["debt_current"])
     return v
+
+
+def _bridge_debt(vals: dict[str, float], anchor_compustat: pd.Series, anchor_xbrl: dict[str, float]) -> list[str]:
+    """Scale total debt by the anchor's Compustat / XBRL total-debt ratio, then split it (in place).
+
+    Compustat total = dlcq + dlttq (a missing current part counts as 0). The current part keeps the filed
+    current debt times the same ratio; the long-term part is the remainder. When the filing has no current debt,
+    the whole total goes to `debt_long_term`, `debt_current` is 0, and the label `debt_split_unknown` is returned.
+    """
+    cur_c = float(anchor_compustat["debt_current"]) if pd.notna(anchor_compustat["debt_current"]) else 0.0
+    r = bridge_ratio(cur_c + float(anchor_compustat["debt_long_term"]), anchor_xbrl["debt_total"])
+    total = vals["debt_total"] * r
+    if np.isnan(total):
+        vals["debt_current"] = vals["debt_long_term"] = float("nan")
+        return []
+    if np.isnan(vals["debt_current"]):
+        vals["debt_current"], vals["debt_long_term"] = 0.0, total
+        return ["debt", "debt_split_unknown"]
+    vals["debt_current"] = vals["debt_current"] * r
+    vals["debt_long_term"] = total - vals["debt_current"]
+    return ["debt"]
 
 
 def _first_filing(filings: pd.DataFrame, cik10: str, qend: pd.Timestamp) -> pd.Series | None:
@@ -155,6 +181,24 @@ def bridge_ratio(compustat_prior: float, xbrl_prior: float, bounds: tuple[float,
     return r if bounds[0] <= r <= bounds[1] else float("nan")
 
 
+BRIDGE_LOOKBACK_DAYS = 400
+
+
+def _bridge_anchor(g, d, pit_first, facts, filings, cik10):
+    """Most recent first-version Compustat PIT quarter before `d` (within `BRIDGE_LOOKBACK_DAYS`) that also has a
+    filing, with its XBRL values. The latest Compustat quarters are often missing too, so the anchor may sit two
+    or three quarters back; balance-sheet definition gaps are stable over that span."""
+    if pit_first is None:
+        return None, None
+    cand = pit_first[(pit_first["gvkey"] == g) & (pit_first["datadate"] < d)
+                     & ((d - pit_first["datadate"]).dt.days <= BRIDGE_LOOKBACK_DAYS)]
+    for _, row in cand.sort_values("datadate", ascending=False).iterrows():
+        filing = _first_filing(filings, cik10, row["datadate"])
+        if filing is not None:
+            return row, quarter_from_filing(facts, row["datadate"], filing["accession"], filing["filing_date"])
+    return None, None
+
+
 def fill_quarters(
     gaps: pd.DataFrame,
     facts_by_cik: dict[str, pd.DataFrame],
@@ -164,10 +208,10 @@ def fill_quarters(
 ) -> pd.DataFrame:
     """Rebuild each (gvkey, datadate) in `gaps` from the filing that first reported it; skip rows with no filing.
 
-    `pit_first` holds first-version Compustat PIT rows; when given, `BRIDGED` fields are scaled by the
-    prior-quarter Compustat / XBRL ratio and `bridged` lists the fields that were scaled, and `CHECKED` fields
-    are kept only when the prior-quarter ratio lies in `CHECK_RANGE`. Without a usable prior quarter, those
-    fields stay NaN. A quarter with neither revenue nor EBITDA is skipped.
+    `pit_first` holds first-version Compustat PIT rows. Cash and total debt are scaled by the Compustat / XBRL
+    ratio of the most recent PIT quarter with a filing (see `_bridge_anchor` and `_bridge_debt`); `bridged` lists
+    what was scaled. `CHECKED` fields are kept only when that quarter's ratio lies in `CHECK_RANGE`. Without an
+    anchor quarter, cash, debt, and the checked fields stay NaN. A quarter with neither revenue nor EBITDA is skipped.
     Output columns match the Compustat vintages, with `pit_exact = True`, `value_source = "edgar_xbrl"`,
     and no snapshot date.
     """
@@ -183,22 +227,18 @@ def fill_quarters(
             continue
         vals = quarter_from_filing(facts, d, first["accession"], first["filing_date"])
         bridged = []
-        prior_row = None
-        if pit_first is not None:
-            cand = pit_first[(pit_first["gvkey"] == g) & (d - pit_first["datadate"]).dt.days.between(80, 100)]
-            prior_row = cand.iloc[0] if len(cand) else None
-        prior_filing = _first_filing(filings, cik10, prior_row["datadate"]) if prior_row is not None else None
-        prior_vals = (quarter_from_filing(facts, prior_row["datadate"], prior_filing["accession"], prior_filing["filing_date"])
-                      if prior_filing is not None else None)
-        for f in BRIDGED:
-            r = bridge_ratio(float(prior_row[f]), prior_vals[f]) if prior_vals is not None else float("nan")
-            vals[f] = vals[f] * r
-            if not np.isnan(vals[f]):
-                bridged.append(f)
-        for f in CHECKED:
-            r = bridge_ratio(float(prior_row[f]), prior_vals[f], CHECK_RANGE) if prior_vals is not None else float("nan")
-            if np.isnan(r):
+        prior_row, prior_vals = _bridge_anchor(g, d, pit_first, facts, filings, cik10)
+        if prior_row is None:
+            for f in ("cash", "debt_current", "debt_long_term", *CHECKED):
                 vals[f] = float("nan")
+        else:
+            vals["cash"] = vals["cash"] * bridge_ratio(float(prior_row["cash"]), prior_vals["cash"])
+            if not np.isnan(vals["cash"]):
+                bridged.append("cash")
+            bridged += _bridge_debt(vals, prior_row, prior_vals)
+            for f in CHECKED:
+                if np.isnan(bridge_ratio(float(prior_row[f]), prior_vals[f], CHECK_RANGE)):
+                    vals[f] = float("nan")
         if np.isnan(vals["revenue"]) and np.isnan(vals["oibdp"]):
             continue  # nothing usable was filed under known tags; keep the flagged Compustat row
         rows.append({"gvkey": g, "datadate": d, **vals, "bridged": ",".join(bridged)})

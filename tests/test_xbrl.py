@@ -59,7 +59,7 @@ def test_bridge_scales_balances_by_prior_quarter_ratio():
     assert out["cash"] == pytest.approx(1_900.0 * 1.1)
     assert out["debt_long_term"] == pytest.approx(38_000.0 * 1.05)
     assert out["oibdp"] == pytest.approx(3_500.0)  # checked, not scaled: prior ratio 3250/3250 = 1
-    assert out["bridged"] == "cash,debt_long_term" and out["pit_exact"]
+    assert out["bridged"] == "cash,debt,debt_split_unknown" and out["pit_exact"]
 
 
 def test_ebitda_dropped_when_definitions_disagree():
@@ -72,7 +72,7 @@ def test_ebitda_dropped_when_definitions_disagree():
 
 def test_bridge_ratio_bounds():
     assert xbrl.bridge_ratio(110.0, 100.0) == pytest.approx(1.1)
-    assert np.isnan(xbrl.bridge_ratio(300.0, 100.0))
+    assert np.isnan(xbrl.bridge_ratio(400.0, 100.0))
     assert np.isnan(xbrl.bridge_ratio(np.nan, 100.0))
     assert np.isnan(xbrl.bridge_ratio(1.0, 0.0))
 
@@ -95,3 +95,37 @@ def test_replace_inexact_swaps_only_flagged_rows():
     out = financials.replace_inexact(v, filled).set_index("datadate")
     assert out.loc[Q3, "revenue"] == 17_000.0 and out.loc[Q3, "value_source"] == "compustat_pit"
     assert out.loc[Q4, "revenue"] == 19_000.0 and out.loc[Q4, "value_source"] == "edgar_xbrl"
+
+
+def test_bridge_anchors_on_latest_pit_quarter_when_prior_is_also_missing():
+    q2 = pd.Timestamp("2024-06-30")
+    facts = pd.concat([_facts(), pd.DataFrame([
+        _fact("CashAndCashEquivalentsAtCarryingValue", 0.8e9, q2, "q2", "2024-08-01"),
+        _fact("LongTermDebtNoncurrent", 36e9, q2, "q2", "2024-08-01")])], ignore_index=True)
+    filings = pd.concat([FILINGS, pd.DataFrame({"cik": [CIK], "form": ["10-Q"], "report_date": [q2], "accession": ["q2"],
+                                                "filing_date": [pd.Timestamp("2024-08-01")],
+                                                "acceptance": [pd.Timestamp("2024-08-01 20:30")]})], ignore_index=True)
+    pit = pd.DataFrame({"gvkey": [G], "datadate": [q2], "cash": [880.0], "debt_current": [np.nan],
+                        "debt_long_term": [37_800.0], "oibdp": [np.nan]})  # Q3 absent from PIT too
+    out = xbrl.fill_quarters(pd.DataFrame({"gvkey": [G], "datadate": [Q4]}), {CIK: facts}, filings,
+                             {G: "860730"}, pit_first=pit).iloc[0]
+    assert out["cash"] == pytest.approx(1_900.0 * 1.1)
+    assert out["debt_long_term"] == pytest.approx(38_000.0 * 1.05)
+    too_old = pit.assign(datadate=pd.Timestamp("2023-06-30"))
+    out_old = xbrl.fill_quarters(pd.DataFrame({"gvkey": [G], "datadate": [Q4]}), {CIK: facts}, filings,
+                                 {G: "860730"}, pit_first=too_old).iloc[0]
+    assert np.isnan(out_old["cash"])  # anchor beyond the 400-day lookback
+
+
+def test_total_debt_bridge_keeps_lease_heavy_definition_and_split():
+    # Caesars-like: Compustat debt is twice the XBRL debt (leases); the filing tags both parts.
+    facts = pd.concat([_facts(), pd.DataFrame([
+        _fact("LongTermDebtCurrent", 1e9, Q4, "k", "2025-02-14"),
+        _fact("LongTermDebtCurrent", 1e9, Q3, "q3", "2024-10-31")])], ignore_index=True)
+    pit = pd.DataFrame({"gvkey": [G], "datadate": [Q3], "cash": [1_000.0], "debt_current": [2_000.0],
+                        "debt_long_term": [74_000.0], "oibdp": [3_250.0]})  # total 76bn vs XBRL 38bn -> ratio 2
+    out = xbrl.fill_quarters(pd.DataFrame({"gvkey": [G], "datadate": [Q4]}), {CIK: facts}, FILINGS,
+                             {G: "860730"}, pit_first=pit).iloc[0]
+    assert out["debt_current"] + out["debt_long_term"] == pytest.approx(2 * 39_000.0)
+    assert out["debt_current"] == pytest.approx(2_000.0)
+    assert "debt_split_unknown" not in out["bridged"]

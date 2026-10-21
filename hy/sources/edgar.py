@@ -57,7 +57,8 @@ def _frame(block: dict, cik: str) -> pd.DataFrame:
     return df
 
 
-def filing_index(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | None = None) -> pd.DataFrame:
+def filing_index(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | None = None,
+                  refresh: bool = False) -> pd.DataFrame:
     """All filings for one CIK: form, report date, filing date, and acceptance time (naive UTC).
 
     Reads the recent block and every older page. Caches the raw JSON pages under `cache_root/edgar/`.
@@ -66,7 +67,7 @@ def filing_index(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | N
 
     def get(name: str) -> dict:
         path = cache_root / "edgar" / name if cache_root else None
-        if path is not None and path.exists():
+        if path is not None and path.exists() and not refresh:
             return json.loads(path.read_text())
         doc = fetch(BASE + name)
         if path is not None:
