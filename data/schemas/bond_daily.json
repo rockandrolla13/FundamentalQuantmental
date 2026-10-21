@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hy/bond_daily.json",
+  "title": "bond_daily",
+  "description": "Methodology Section 10.1: one row per bond per day. Rule: available_at <= date.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "cusip": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "issuer_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tranche_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "price_mid": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "oas": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ytw": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "spread_duration": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "mod_duration": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "bid_ask_bp": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "adv": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s_el": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "kappa_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s_anchor": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "eta_sector_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s_fair": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "resid_bp": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "resid_log": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sigma_x": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "z": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "q_alpha_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "flag_cheap": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "flag_rich": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "rho": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "half_life": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "exp_conv_ret_h": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "event_contaminated": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "s1": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s2": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s3": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s5": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s6": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s7": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "composite": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "force_rank": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "replaces_position": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "beta_mkt": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "beta_g": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "beta_p": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sdv01_per_mm": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rdv01_eff_per_mm": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pd_12m": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pd_5y": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lgd_k_adj": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "recovery_price_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "jtd_per_mm": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "el_h": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "next_event_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_event_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "event_var_alpha": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "worst_outcome_pnl": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "date",
+    "available_at",
+    "cusip",
+    "issuer_id",
+    "tranche_id",
+    "price_mid",
+    "oas",
+    "ytw",
+    "spread_duration",
+    "mod_duration",
+    "bid_ask_bp",
+    "adv",
+    "s_el",
+    "kappa_t",
+    "s_anchor",
+    "eta_sector_t",
+    "s_fair",
+    "resid_bp",
+    "resid_log",
+    "sigma_x",
+    "z",
+    "q_alpha_t",
+    "flag_cheap",
+    "flag_rich",
+    "rho",
+    "half_life",
+    "exp_conv_ret_h",
+    "event_contaminated",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6",
+    "s7",
+    "composite",
+    "force_rank",
+    "replaces_position",
+    "beta_mkt",
+    "beta_g",
+    "beta_p",
+    "sdv01_per_mm",
+    "rdv01_eff_per_mm",
+    "pd_12m",
+    "pd_5y",
+    "lgd_k_adj",
+    "recovery_price_k",
+    "jtd_per_mm",
+    "el_h",
+    "next_event_type",
+    "next_event_date",
+    "event_var_alpha",
+    "worst_outcome_pnl"
+  ],
+  "x-keys": [
+    "date",
+    "cusip"
+  ],
+  "additionalProperties": true
+}

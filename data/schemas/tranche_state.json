@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hy/tranche_state.json",
+  "title": "tranche_state",
+  "description": "Methodology Section 10.3: one row per tranche per issuer update. Rule: available_at <= date.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "tranche_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rank": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "tranche_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "issuer_entity": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lev_face_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_mkt_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ltv_k_low": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ltv_k_mid": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ltv_k_high": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "recovery_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "recovery_k_adj": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lgd_k_adj": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "recovery_price_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "spt_observed": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "spt_model": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "s4_pairs": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "coc_put_price": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "coc_fall_away": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "call_state": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lme_score_k": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "date",
+    "available_at",
+    "tranche_id",
+    "rank",
+    "tranche_type",
+    "issuer_entity",
+    "lev_face_k",
+    "lev_mkt_k",
+    "ltv_k_low",
+    "ltv_k_mid",
+    "ltv_k_high",
+    "recovery_k",
+    "recovery_k_adj",
+    "lgd_k_adj",
+    "recovery_price_k",
+    "spt_observed",
+    "spt_model",
+    "s4_pairs",
+    "coc_put_price",
+    "coc_fall_away",
+    "call_state",
+    "lme_score_k"
+  ],
+  "x-keys": [
+    "date",
+    "tranche_id"
+  ],
+  "additionalProperties": true
+}

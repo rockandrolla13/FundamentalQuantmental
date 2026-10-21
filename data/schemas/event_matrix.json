@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hy/event_matrix.json",
+  "title": "event_matrix",
+  "description": "Methodology Section 10.4: one row per position, event, outcome, and macro path. Rule: available_at <= date.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "position_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cusip": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "date_confirmed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "outcome": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "macro_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "p_path": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "p_outcome_given_path": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dspread_bp": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dpnl": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "features_delta": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    }
+  },
+  "required": [
+    "date",
+    "available_at",
+    "position_id",
+    "cusip",
+    "event_id",
+    "event_type",
+    "event_date",
+    "date_confirmed",
+    "outcome",
+    "macro_path",
+    "p_path",
+    "p_outcome_given_path",
+    "dspread_bp",
+    "dpnl",
+    "features_delta"
+  ],
+  "x-keys": [
+    "date",
+    "position_id",
+    "event_id",
+    "outcome",
+    "macro_path"
+  ],
+  "additionalProperties": true
+}

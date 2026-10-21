@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hy/portfolio_risk.json",
+  "title": "portfolio_risk",
+  "description": "Methodology Section 10.5: one row per day. Rule: available_at <= date.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "gross": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "net": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sdv01_total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rdv01_eff_total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "beta_mkt_net": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "jtd_by_issuer": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "jtd_by_sector_driver": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "el_h_total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pnl_by_macro_path": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "event_var_alpha": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "worst_event_pnl": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "worst_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cdx_notional": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "sector_basket_notional": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "tsy_futures_dv01": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "residual_basis": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "jtd_limit_utilisation": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "wall_limit_utilisation": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "correlated_event_utilisation": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "band_gate_scale": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cycle_phase": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "w_down_universe_mean": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "kappa_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "q_alpha_t_mean": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "date",
+    "available_at",
+    "gross",
+    "net",
+    "sdv01_total",
+    "rdv01_eff_total",
+    "beta_mkt_net",
+    "jtd_by_issuer",
+    "jtd_by_sector_driver",
+    "el_h_total",
+    "pnl_by_macro_path",
+    "event_var_alpha",
+    "worst_event_pnl",
+    "worst_event_id",
+    "cdx_notional",
+    "sector_basket_notional",
+    "tsy_futures_dv01",
+    "residual_basis",
+    "jtd_limit_utilisation",
+    "wall_limit_utilisation",
+    "correlated_event_utilisation",
+    "band_gate_scale",
+    "cycle_phase",
+    "w_down_universe_mean",
+    "kappa_t",
+    "q_alpha_t_mean"
+  ],
+  "x-keys": [
+    "date"
+  ],
+  "additionalProperties": true
+}

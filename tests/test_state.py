@@ -1,0 +1,226 @@
+"""Tests for hy/state.py (methodology Section 4)."""
+
+from __future__ import annotations
+
+import math
+from datetime import datetime
+
+import numpy as np
+import pytest
+
+from hy import state as st
+from hy.inputs import IssuerFinancials, LookAheadError, NonRecurringItem, Tranche
+
+T0 = datetime(2025, 3, 31)
+T1 = datetime(2025, 5, 1)
+
+
+def _tr(key: str, rank: int, face: float, price: float = 100.0, **kw) -> Tranche:
+    return Tranche(key=key, as_of=T0, available_at=T1, issuer_id="X", rank=rank, face=face, price=price, **kw)
+
+
+ITEMS = (
+    NonRecurringItem("restructuring_cash", 10.0, recurs=False, cash=True),
+    NonRecurringItem("impairment", 5.0, recurs=False, cash=False),
+    NonRecurringItem("recurring_restructuring", 7.0, recurs=True, cash=True),
+    NonRecurringItem("asset_sale_gain", -3.0, recurs=False, cash=False),
+)
+
+
+# 4.1 ---------------------------------------------------------------------------
+
+
+def test_ebitda_adj_adds_back_only_nonrecurring():
+    assert st.ebitda_adj_analyst(100.0, ITEMS) == pytest.approx(100 + 10 + 5 - 3)
+
+
+def test_cash_nonrecurring_counts_only_added_back_cash_items():
+    assert st.cash_nonrecurring(ITEMS) == pytest.approx(10.0)
+
+
+def test_gaps():
+    assert st.addback_gap(120.0, 100.0) == pytest.approx(0.2)
+    assert st.covenant_gap(130.0, 100.0) == pytest.approx(0.3)
+    assert math.isnan(st.addback_gap(1.0, 0.0))
+
+
+def test_margin_and_peer_gap():
+    m = st.margin(17.3, 100.0)
+    assert st.margin_peer_gap(m, [0.059, 0.10, 0.12]) == pytest.approx(0.173 - 0.10)
+
+
+def test_margin_trend_sign_and_strength(rng):
+    t = np.arange(8)
+    up = 0.10 + 0.005 * t + rng.normal(0, 0.001, 8)
+    down = 0.10 - 0.005 * t + rng.normal(0, 0.001, 8)
+    assert st.margin_trend(up) > 3
+    assert st.margin_trend(down) < -3
+    assert math.isnan(st.margin_trend([0.1, 0.2]))
+    # Only the last 8 quarters count.
+    assert st.margin_trend(np.r_[np.zeros(20) + 5.0, up]) == pytest.approx(st.margin_trend(up))
+
+
+def test_organic_growth_and_surprise():
+    assert st.organic_growth(0.10, 0.02, 0.05, 0.01) == pytest.approx(0.02)
+    assert st.surprise(110.0, 100.0) == pytest.approx(0.10)
+
+
+# 4.2 ---------------------------------------------------------------------------
+
+
+def test_fcf_charges_cash_addbacks():
+    assert st.fcf(130.0, 10.0, 30.0, 20.0, 5.0, 5.0) == pytest.approx(60.0)
+
+
+def test_liquidity_caps_commitment_by_borrowing_base():
+    assert st.liquidity_L(50.0, 200.0, 150.0, 40.0, 10.0) == pytest.approx(150.0)
+    assert st.liquidity_L(50.0, 200.0, math.inf, 40.0, 10.0) == pytest.approx(200.0)
+
+
+def test_runway_and_wall_cover():
+    assert st.runway_q(100.0, -25.0) == pytest.approx(4.0)
+    assert st.runway_q(100.0, 5.0) == math.inf
+    sched = (100.0, 200.0, 0.0, 0.0, 0.0)
+    assert st.maturities_to_h(sched, 4) == 100.0
+    assert st.maturities_to_h(sched, 8) == 300.0
+    assert st.wall_cover_h(50.0, [10.0] * 8, 300.0, 8) == pytest.approx(130.0 / 300.0)
+    assert st.wall_cover_h(50.0, [10.0] * 8, 0.0, 4) == math.inf
+
+
+def test_capex_flex_and_cash_cycle():
+    assert st.capex_flex(40.0, 30.0) == pytest.approx(0.25)
+    d = st.working_capital_days(100.0, 200.0, 50.0, 365.0, 730.0, period_days=365.0)
+    assert d == pytest.approx({"inventory_days": 100.0, "receivable_days": 100.0, "payable_days": 50.0})
+    assert st.cash_cycle(**d) == pytest.approx(150.0)
+    assert st.payable_days_trend([60, 58, 55, 52, 45]) == pytest.approx(-15.0)
+
+
+# 4.3 ---------------------------------------------------------------------------
+
+STRUCT = [_tr("tl", 1, 300.0), _tr("ssn", 2, 200.0, price=80.0), _tr("ssn2", 2, 100.0), _tr("sub", 3, 100.0, price=50.0)]
+
+
+def test_face_and_market_leverage():
+    assert st.lev_face_k(STRUCT, "tl", 100.0) == pytest.approx(3.0)
+    assert st.lev_face_k(STRUCT, "ssn", 100.0) == pytest.approx(6.0)  # pari passu included
+    assert st.lev_mkt_k(STRUCT, "ssn", 100.0) == pytest.approx((300 + 0.8 * 200) / 100)
+    assert st.lev_mkt_k(STRUCT, "sub", 100.0) == pytest.approx((600 + 50) / 100)
+
+
+def test_ltv_rises_when_peer_multiple_falls():
+    # Skill example: 6x leverage on a 10x business is 60% LTV; at 8x it is 75%.
+    s = [_tr("a", 1, 600.0)]
+    assert st.ltv_k(s, "a", 10 * 100.0) == pytest.approx(0.60)
+    assert st.ltv_k(s, "a", 8 * 100.0) == pytest.approx(0.75)
+
+
+def test_lease_adjusted_leverage_hand_check():
+    # (500 + 8 x 50) / (100 + 50) = 900 / 150 = 6.0x, against 5.0x unadjusted.
+    assert st.lev_lease_adj(500.0, 50.0, 100.0) == pytest.approx(6.0)
+    assert st.lev_gross(500.0, 100.0) == pytest.approx(5.0)
+
+
+def test_other_ratios():
+    assert st.coverage(100.0, 20.0, 40.0) == pytest.approx(2.0)
+    assert st.debt_adj(500.0, 30.0, 20.0) == pytest.approx(550.0)
+    assert st.debt_adj(500.0, -30.0, 0.0) == pytest.approx(500.0)  # overfunded pension is no asset
+    assert st.net_lev(500.0, 100.0, 100.0) == pytest.approx(4.0)
+    assert st.fccr(100.0, 30.0, 20.0) == pytest.approx(2.0)
+
+
+# 4.4 ---------------------------------------------------------------------------
+
+
+def test_q_vector_keeps_order_and_bounds():
+    v = st.q_vector({"cyclicality": 2, "sponsor_behavior": 1})
+    assert v.shape == (10,)
+    assert v[st.Q_FLAGS.index("cyclicality")] == 2
+    assert st.q_score(v) == 3
+    with pytest.raises(ValueError):
+        st.q_vector({"commodity": 3})
+    with pytest.raises(KeyError):
+        st.q_vector({"weather": 1})
+
+
+# 4.5 ---------------------------------------------------------------------------
+
+
+def test_ordinal_model_recovers_ratings(rng):
+    n, k = 3000, 5
+    X = rng.normal(size=(n, 3))
+    beta = np.array([1.5, -1.0, 0.5])
+    theta = np.array([-2.0, -0.7, 0.7, 2.0])
+    latent = X @ beta + rng.logistic(size=n)
+    y = np.searchsorted(theta, latent)  # class j when theta_{j-1} < latent <= theta_j
+    model = st.OrdinalLogit().fit(X, y)
+    # Coefficients come back on the standardised scale; rescale to compare.
+    assert model.beta / model._scale == pytest.approx(beta, abs=0.15)
+    # Fitted ratings agree with the argmax under the true parameters (the oracle).
+    from scipy.special import expit
+    cum = np.hstack([np.zeros((n, 1)), expit(theta[None, :] - (X @ beta)[:, None]), np.ones((n, 1))])
+    oracle = np.argmax(np.diff(cum, axis=1), axis=1)
+    pred = model.predict(X)
+    assert np.mean(pred == oracle) > 0.95
+    assert np.mean(np.abs(pred - y) <= 1) >= np.mean(np.abs(oracle - y) <= 1) - 0.02
+    assert model.predict_proba(X).sum(axis=1) == pytest.approx(np.ones(n))
+
+
+def test_rating_gap_sign():
+    assert st.rating_gap(3, 5) == -2
+    assert list(st.rating_gap(np.array([3, 5]), np.array([3, 4]))) == [0, 1]
+
+
+# 4.6 ---------------------------------------------------------------------------
+
+
+def test_covenant_origination_book_example():
+    # p. 356: a 15% cushion on a 4.0x plan gives a 4.7x covenant.
+    assert st.lev_max_origination(400.0, 100.0, 0.15) == pytest.approx(4.0 / 0.85)
+    assert round(st.lev_max_origination(400.0, 100.0, 0.15), 1) == 4.7
+    with pytest.raises(ValueError):
+        st.lev_max_origination(400.0, 100.0, 0.05)
+
+
+def test_headroom_is_ebitda_decline_to_breach():
+    lev_max = 4.0 / 0.85
+    h = st.covenant_headroom(4.0, lev_max)
+    assert h == pytest.approx(0.15)
+    assert 4.0 / (1 - h) == pytest.approx(lev_max)
+
+
+# 10.2 --------------------------------------------------------------------------
+
+
+def _fin(**kw) -> IssuerFinancials:
+    base = dict(
+        key="X", as_of=T0, available_at=T1, revenue=500.0, ebitda_reported=100.0,
+        nonrecurring_items=ITEMS, ebitda_adj_company=125.0, ebitda_covenant=130.0,
+        cash_interest=20.0, cash_taxes=5.0, capex_total=30.0, capex_maintenance=20.0,
+        inventory=80.0, receivables=100.0, payables=60.0, cogs=300.0, cash=50.0,
+        revolver_commitment=200.0, revolver_drawn=40.0, borrowing_base=150.0, letters_of_credit=10.0,
+        maturity_schedule=(100.0, 200.0, 0.0, 0.0, 0.0), rent_expense=5.0,
+        pension_underfunded=20.0, guarantees_weak=10.0,
+    )
+    base.update(kw)
+    return IssuerFinancials(**base)
+
+
+def test_issuer_state_fields():
+    out = st.issuer_state(_fin(), STRUCT, flags={"cyclicality": 2}, fcf_forecast=[10.0] * 8,
+                          margin_history=[0.2] * 7, covenant_max=2.0)
+    assert out["ebitda_adj_analyst"] == pytest.approx(112.0)
+    assert out["fcf"] == pytest.approx(112 - 10 - 30 - 20 - 5)
+    assert out["liquidity_L"] == pytest.approx(150.0)
+    assert out["total_debt"] == pytest.approx(700.0)
+    assert out["lev_gross"] == pytest.approx(700 / 448)
+    assert out["lev_adj_total"] == pytest.approx(730 / 448)
+    assert out["lev_lease_adj"] == pytest.approx((700 + 8 * 20) / (448 + 20))
+    assert out["wall_cover_4"] == pytest.approx((150 + 40) / 100)
+    assert out["q_score"] == 2 and out["q_vector"].shape == (10,)
+    assert out["H_t"] == pytest.approx(1 - (700 / 520) / 2.0)
+    assert math.isnan(out["surprise"])
+
+
+def test_issuer_state_blocks_look_ahead():
+    with pytest.raises(LookAheadError):
+        st.issuer_state(_fin(), STRUCT, decision_time=datetime(2025, 4, 15))

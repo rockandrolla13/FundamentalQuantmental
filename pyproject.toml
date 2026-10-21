@@ -1,0 +1,15 @@
+[project]
+name = "hy"
+version = "0.1.0"
+description = "HY Analyst: high yield bond mispricing from fundamentals, forward estimates, and macro forecasts"
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26", "scipy>=1.11", "pandas>=2.1", "scikit-learn>=1.4"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["hy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

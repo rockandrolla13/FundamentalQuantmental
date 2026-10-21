@@ -1,0 +1,490 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hy/issuer_state.json",
+  "title": "issuer_state",
+  "description": "Methodology Section 10.2: one row per issuer per filing or re-estimate. Rule: available_at <= date.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "issuer_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "filing_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "forecast_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ebitda_adj_analyst": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "addback_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "covenant_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "margin": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "margin_trend": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "margin_peer_gap": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "organic_growth": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "book_to_bill": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "surprise": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "eq_flags_sum": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "fcf": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "fcf_conversion": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "fcf_to_debt": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cash_cycle": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "payable_days_trend": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "liquidity_L": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "runway_q": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "wall_cover_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "wall_cover_8": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "capex_flex": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "refi_access": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_adj_total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "net_lev": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "coverage": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_lease_adj": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "debt_adj": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "q_vector": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "minItems": 10,
+      "maxItems": 10
+    },
+    "q_score": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "mgmt_change": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "sponsor_behavior": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rating_agency": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rating_model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "gap_rating": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "H_t": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "test_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "rp_capacity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "debt_capacity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lien_capacity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "investment_capacity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_fwd_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_fwd_8": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "delev_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_fwd_sd_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lev_peak_down": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "liq_min_down": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "p_breach_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "p_liq_short_8": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "p_refi_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "fcf_debt_fwd": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cov_fwd_4": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rev_lev": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "gap_consensus": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "gap_mgmt": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "w_down": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "tev_low": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "tev_mid": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "tev_high": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "tev_default": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "v_sigma": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lme_score": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pi_lme": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "date",
+    "issuer_id",
+    "filing_date",
+    "available_at",
+    "forecast_source",
+    "ebitda_adj_analyst",
+    "addback_gap",
+    "covenant_gap",
+    "margin",
+    "margin_trend",
+    "margin_peer_gap",
+    "organic_growth",
+    "book_to_bill",
+    "surprise",
+    "eq_flags_sum",
+    "fcf",
+    "fcf_conversion",
+    "fcf_to_debt",
+    "cash_cycle",
+    "payable_days_trend",
+    "liquidity_L",
+    "runway_q",
+    "wall_cover_4",
+    "wall_cover_8",
+    "capex_flex",
+    "refi_access",
+    "lev_adj_total",
+    "net_lev",
+    "coverage",
+    "lev_lease_adj",
+    "debt_adj",
+    "q_vector",
+    "q_score",
+    "mgmt_change",
+    "sponsor_behavior",
+    "rating_agency",
+    "rating_model",
+    "gap_rating",
+    "H_t",
+    "test_date",
+    "rp_capacity",
+    "debt_capacity",
+    "lien_capacity",
+    "investment_capacity",
+    "lev_fwd_4",
+    "lev_fwd_8",
+    "delev_4",
+    "lev_fwd_sd_4",
+    "lev_peak_down",
+    "liq_min_down",
+    "p_breach_4",
+    "p_liq_short_8",
+    "p_refi_4",
+    "fcf_debt_fwd",
+    "cov_fwd_4",
+    "rev_lev",
+    "gap_consensus",
+    "gap_mgmt",
+    "w_down",
+    "tev_low",
+    "tev_mid",
+    "tev_high",
+    "tev_default",
+    "v_sigma",
+    "lme_score",
+    "pi_lme"
+  ],
+  "x-keys": [
+    "date",
+    "issuer_id"
+  ],
+  "additionalProperties": true
+}
