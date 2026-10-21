@@ -67,6 +67,11 @@ class IssuerFinancials(Stamped):
     rent_expense: float = 0.0
     pension_underfunded: float = 0.0
     guarantees_weak: float = 0.0
+    debt_current: float = 0.0
+    debt_long_term: float = 0.0
+    depreciation: float = 0.0
+    operating_cash_flow: float = 0.0  # cross-check for the FCF waterfall
+    source: str = ""  # provenance, e.g. "compustat_pit+edgar"
 
 
 @dataclass(frozen=True)
@@ -109,15 +114,29 @@ class PointInTimeStore(Generic[R]):
         self._records.append(record)
 
     def view(self, decision_time: datetime) -> dict[str, R]:
-        """Latest available version per key, as the market saw it at `decision_time`."""
+        """Latest period per key, in its latest available version, as the market saw it at `decision_time`.
+
+        The period wins first, so a late restatement of an old quarter never hides a newer quarter.
+        """
         out: dict[str, R] = {}
         for r in self._records:
             if r.available_at > decision_time:
                 continue
             prev = out.get(r.key)
-            if prev is None or (r.available_at, r.as_of) > (prev.available_at, prev.as_of):
+            if prev is None or (r.as_of, r.available_at) > (prev.as_of, prev.available_at):
                 out[r.key] = r
         return out
+
+    def as_known(self, decision_time: datetime) -> list[R]:
+        """Every period per key, each in its latest version available at `decision_time`, sorted by key and `as_of`."""
+        best: dict[tuple[str, datetime], R] = {}
+        for r in self._records:
+            if r.available_at > decision_time:
+                continue
+            k = (r.key, r.as_of)
+            if k not in best or r.available_at > best[k].available_at:
+                best[k] = r
+        return [best[k] for k in sorted(best)]
 
     def history(self, decision_time: datetime) -> list[R]:
         """Every record available at `decision_time`, sorted by `as_of`."""
