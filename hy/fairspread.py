@@ -664,3 +664,24 @@ def event_contaminated(as_of: Sequence, last_event_date: Sequence, window_days: 
     with np.errstate(invalid="ignore"):
         flag = (gap >= 0) & (gap <= window_days)
     return np.where(np.isnan(gap), 0, flag.astype(int))
+
+
+def peer_fair_spread(s: float, esp: float | None, peer_sd: float | None, s_index: float) -> dict:
+    """Fair spread from sector peers, with the HY index as fallback (methodology 7.2; decision page
+    2026-10-23-peer-fair-spread).
+
+        fair = s exp(-ESP) = the median spread of the peers in the GICS sector x rating x maturity cell (hy.peers)
+        fallback, no peer cell: fair = S_index, the high yield index spread
+        noise_log = the peers' robust sd of log spread (NaN on the fallback)
+    Intuition: a bond is fair when it pays what bonds of the same sector, rating and maturity pay.
+    """
+    if esp is not None and esp == esp:
+        return {"fair": float(s * math.exp(-esp)), "basis": "sector peers",
+                "noise_log": float(peer_sd) if peer_sd is not None and peer_sd == peer_sd else float("nan")}
+    return {"fair": float(s_index), "basis": "HY index", "noise_log": float("nan")}
+
+
+def dts_beta(s_bond: float, s_index: float) -> float:
+    """Hedge ratio on the HY index by duration times spread (methodology 7.5 hedge; hy.walkforward): s_bond / S_index.
+    Intuition: a bond with twice the index spread moves about twice as much when the market's spreads move."""
+    return float(s_bond / s_index) if s_index and s_index > 0 else float("nan")

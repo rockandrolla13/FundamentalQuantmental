@@ -38,7 +38,8 @@ import rv_pair  # noqa: E402
 import scenarios  # noqa: E402
 
 from hy import alpha as hal  # noqa: E402
-from hy import books, forward, groups, peers, recovery, rv, skills  # noqa: E402
+from hy import events as hev  # noqa: E402
+from hy import books, fairspread, forward, groups, peers, recovery, rv, skills  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import edgar  # noqa: E402
@@ -684,14 +685,21 @@ def step_valuation(con, blk, decision, mcap_src: tuple | None = None) -> Step:
     return s
 
 
-def step_rv(t, xs, fits, a_, b_, lev_gross=None) -> Step:
+def step_rv(t, xs, s_index: float, lev_gross=None) -> Step:
+    """Step 9: the bond against its sector peers and the HY index (methodology 7.2, 7.4; decision page
+    2026-10-23-peer-fair-spread). z_rv = log(s / fair) / the peers' robust sd of log spread."""
     s = Step("9 Relative value", "Methodology 7.4")
     row = xs.loc[t]
+    nz = row["noise_log"]
     s.outputs = {"spread_5y_bp": _f(row["s5"] * 1e4, 0), "fair_5y_bp": _f(row["fair_s5"] * 1e4, 0),
                  "cheap_by_bp": _f((row["s5"] - row["fair_s5"]) * 1e4, 0), "lev_lease_adj": _f(row["lev"]),
-                 "z_rv": _f(row["resid_log"] / xs["resid_log"].std(ddof=1)) if len(xs) > 2 else None,
+                 "z_rv": _f(row["resid_log"] / nz) if nz == nz and nz > 0 else None,
+                 "hy_index_bp": _f(s_index * 1e4, 0), "vs_index_bp": _f((row["s5"] - s_index) * 1e4, 0),
+                 "dts_beta": _f(fairspread.dts_beta(row["s5"], s_index)),
                  "spt_total": _f(books.spread_per_turn_bp(row["s5"] * 1e4, lev_gross), 1) if lev_gross else None,
-                 "fair_line": f"log spread = {a_:.2f} + {b_:.3f} x leverage, fitted on {len(xs)} issuers in this run"}
+                 "fair_basis": row["fair_basis"],
+                 "fair_line": ("median 5-year spread of sector x rating x maturity peers on the TRACE panel"
+                               if row["fair_basis"] == "sector peers" else "HY index spread (no peer cell)")}
     s.status = "partial"
     s.open_questions.append("Rating-index and sector-index spreads (F12 full memo, section 9): no licensed source.")
     return s
@@ -702,33 +710,50 @@ GICS_SECTORS = {"10": "Energy", "15": "Materials", "20": "Industrials", "25": "C
                 "50": "Communication Services", "55": "Utilities", "60": "Real Estate"}
 
 
-def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None:
-    """Step 9 peer block: ESP and spread per turn against peers by sector, by rating, and by both (hy.peers;
-    decision page 2026-10-22-esp-peer-groups). Peers are the TRACE high yield panel's bonds in the latest month.
-    Values are log differences: +0.20 means the issuer pays about 22% more than the peer median."""
+def peer_table(blocks: dict, xs, decision: pd.Timestamp) -> pd.DataFrame | None:
+    """Peers for the run's issuers: ESP, spread per turn, SPiDER and OneScore by sector, by rating, and by both
+    (hy.peers; decision pages 2026-10-22-esp-peer-groups, 2026-10-23-peer-fair-spread). Peers are the TRACE high yield
+    panel's bonds in the latest month at or before `decision`. Each issuer enters as its 5-year point with the panel's
+    own leverage (Compustat debt / LTM EBITDA, point in time), so it joins the cell by the same rule as its peers.
+    Returns None when the panel files are missing; the fair spread then falls back to the HY index."""
     bt_dir = RAW / "backtest"
     need = ["panel_full.parquet", "leverage_full.parquet", "gics_history.parquet", "sp_ratings.parquet"]
     if not all((bt_dir / f).exists() for f in need):
-        return
+        return None
+    lev = pd.read_parquet(bt_dir / "leverage_full.parquet")
+    lev["gvkey"] = lev["gvkey"].astype(str)
+    known = lev[(lev["date"] <= decision) & (lev["available_at"] <= decision)].sort_values("date")
+    last = known.groupby("gvkey").tail(1).set_index("gvkey")
     rows = []
-    for t, st in steps_all.items():
-        lev = st.get("5").outputs.get("lev_gross") if st.get("5") else None
+    for t in blocks:
         gv = ci.values(blocks[t]["inputs"]).get("gvkey")
-        if t in xs.index and lev and gv:
-            rows.append({"ticker": t, "gvkey": str(gv), "spread": float(xs.loc[t, "s5"]), "leverage": float(lev),
-                         "ebitda_pos": (st["5"].outputs.get("ebitda_ltm_m") or 0) > 0,
-                         "debt": float(st["5"].outputs.get("debt_m") or np.nan)})
+        if t not in xs.index or not gv:
+            continue
+        r = last.loc[str(gv)] if str(gv) in last.index else None
+        rows.append({"ticker": t, "gvkey": str(gv), "spread": float(xs.loc[t, "s5"]),
+                     "leverage": float(r["leverage"]) if r is not None else np.nan,
+                     "ebitda_pos": bool(r is not None and float(r["ltm_ebitda"]) > 0),
+                     "debt": float(r["debt"]) if r is not None else np.nan})
     if not rows:
+        return None
+    return peers.live_peers(pd.DataFrame(rows),
+                            pd.read_parquet(bt_dir / "panel_full.parquet", columns=["date", "gvkey", "years", "g_spread"]),
+                            lev, pd.read_parquet(bt_dir / "gics_history.parquet"),
+                            pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision,
+                            annual=pd.read_parquet(bt_dir / "annual_ebitda.parquet")
+                            if (bt_dir / "annual_ebitda.parquet").exists() else None,
+                            equity=pd.read_parquet(bt_dir / "equity_monthly.parquet")
+                            if (bt_dir / "equity_monthly.parquet").exists() else None)
+
+
+def add_peers(steps_all: dict, res: pd.DataFrame | None) -> None:
+    """Step 9 peer block from `peer_table`. Values are log differences: +0.20 means the issuer pays about 22% more
+    than the peer median."""
+    if res is None:
         return
-    res = peers.live_peers(pd.DataFrame(rows),
-                           pd.read_parquet(bt_dir / "panel_full.parquet", columns=["date", "gvkey", "years", "g_spread"]),
-                           pd.read_parquet(bt_dir / "leverage_full.parquet"), pd.read_parquet(bt_dir / "gics_history.parquet"),
-                           pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision,
-                           annual=pd.read_parquet(bt_dir / "annual_ebitda.parquet")
-                           if (bt_dir / "annual_ebitda.parquet").exists() else None,
-                           equity=pd.read_parquet(bt_dir / "equity_monthly.parquet")
-                           if (bt_dir / "equity_monthly.parquet").exists() else None)
     for t, r in res.iterrows():
+        if t not in steps_all or "9" not in steps_all[t]:
+            continue
         o = steps_all[t]["9"].outputs
         o["peers"] = {
             "sector": GICS_SECTORS.get(str(r["sector"]), str(r["sector"])), "rating_class": r["rclass"],
@@ -744,7 +769,8 @@ def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None
             "onescore": _f(r.get("onescore"), 3),
             "spider_note": None if r.get("spider") == r.get("spider") else
             "No SPiDER: fewer than 6 annual EBITDA figures, a financial issuer, or non-positive sustainable EBITDA.",
-            "cell_esp_sr": r["cell_esp_sr"], "cell_e13_sr": r["cell_e13_sr"]}
+            "cell_esp_sr": r["cell_esp_sr"], "cell_e13_sr": r["cell_e13_sr"],
+            "peer_sd_log": _f(r.get("esp_sd_sr"), 3), "n_peers": int(r.get("esp_n_sr") or 0)}
         steps_all[t]["9"].open_questions = [q for q in steps_all[t]["9"].open_questions if "Rating-index" not in q]
         steps_all[t]["9"].open_questions.append(
             "Peer rating class is implied by leverage: no rating source after February 2017 (decision page "
@@ -1041,7 +1067,7 @@ def step_alpha(sc_out, ref: dict | None = None) -> Step:
     return s
 
 
-def step_gate(t, steps: dict, xs, b_, sc_out, ref: dict | None = None) -> Step:
+def step_gate(t, steps: dict, xs, sc_out, ref: dict | None = None) -> Step:
     """Framework F9: what the price implies against our view, row by row; then the gate rules G1, G2, G3, G6.
 
     Mapping C2: the spread-to-PD row (1 - exp(-s / (kappa LGD)) at a fixed v0 kappa) is not a physical PD, so it is
@@ -1056,8 +1082,7 @@ def step_gate(t, steps: dict, xs, b_, sc_out, ref: dict | None = None) -> Step:
     implied_pd = 1 - np.exp(-row["s5"] / (k * lgd))
     tab = sc_out["table"]
     view_pd = float((tab["p_path"] * tab["pd_12m"]).sum())
-    resid_sd = float(xs["resid_log"].std(ddof=1))
-    implied_lev = row["lev"] + float(np.log(row["s5"] / row["fair_s5"])) / b_
+    nz = float(row["noise_log"])  # the peers' robust sd of log spread; NaN on the index fallback
     l_def = (ref or {}).get("l_def") or (1 - G1_V0["recovery"])
     be = float(row["s5"]) / l_def if l_def > 0 else np.nan
     sp = steps["5"].outputs.get("sp", {})
@@ -1066,10 +1091,9 @@ def step_gate(t, steps: dict, xs, b_, sc_out, ref: dict | None = None) -> Step:
          "our_view": _f(view_pd, 3), "gap": _f(view_pd - implied_pd, 3), "noise": None, "tested": False},
         {"row": "Breakeven default probability, 12 months (loss on price)", "market_implies": _f(be, 3),
          "our_view": _f(view_pd, 3), "gap": _f(view_pd - be, 3), "noise": _f(0.5 * be, 3), "tested": True},
-        {"row": "Leverage the spread is pricing", "market_implies": _f(implied_lev), "our_view": _f(row["lev"]),
-         "gap": _f(row["lev"] - implied_lev), "noise": _f(resid_sd / b_), "tested": True},
-        {"row": "Spread against fair (bp)", "market_implies": _f(row["s5"] * 1e4, 0), "our_view": _f(row["fair_s5"] * 1e4, 0),
-         "gap": _f((row["fair_s5"] - row["s5"]) * 1e4, 0), "noise": _f(resid_sd * row["fair_s5"] * 1e4, 0), "tested": True},
+        {"row": f"Spread against fair, {row['fair_basis']} (bp)", "market_implies": _f(row["s5"] * 1e4, 0),
+         "our_view": _f(row["fair_s5"] * 1e4, 0), "gap": _f((row["fair_s5"] - row["s5"]) * 1e4, 0),
+         "noise": _f(nz * row["fair_s5"] * 1e4, 0) if nz == nz else None, "tested": nz == nz},
         {"row": "Rating class", "market_implies": None, "our_view": sp.get("sp_anchor_class"), "gap": None, "noise": None,
          "tested": False},
         {"row": "Recovery if default (per 1 of face, discounted for delay)", "market_implies": None,
@@ -1079,7 +1103,7 @@ def step_gate(t, steps: dict, xs, b_, sc_out, ref: dict | None = None) -> Step:
     for r in rows:
         r["passes_G1"] = bool(r["tested"] and r["gap"] is not None and r["noise"] is not None and abs(r["gap"]) > r["noise"])
     g1 = any(r["passes_G1"] for r in rows)
-    # Signs: our PD above the breakeven is bearish; a positive leverage gap is bearish; a negative spread-vs-fair gap
+    # Signs: our PD above the breakeven is bearish; a negative spread-vs-fair gap
     # (bond pays more than fair) is bullish. Map to "bond cheap" = +1. Untested rows do not vote.
     cheap_votes = [-np.sign(r["gap"]) for r in rows if r["tested"] and r["gap"] is not None]
     g6 = len(set(v for v in cheap_votes if v != 0)) == 1
@@ -1112,7 +1136,8 @@ def step_events(blk, decision, st: dict | None = None, sc_out=None) -> Step:
     lad = blk["case"]["ladders"]["debt"]
     if lad:
         first_len = blk["case"]["ladders"]["debt_first_length"] or 1.0
-        ev.append({"event": f"Debt due by {first_len:.1f} years out", "amount_m": _f(lad[0], 0), "confirmed": True})
+        ev.append({"event": f"Debt due by {first_len:.1f} years out", "amount_m": _f(lad[0], 0), "years": float(first_len),
+                   "confirmed": True})
     s.outputs = {"events": ev}
     if st is not None:
         s.outputs.update(monitoring_block(blk, st, sc_out))
@@ -1159,7 +1184,7 @@ def reference_bond(bonds: pd.DataFrame) -> dict | None:
             "dirty_price": float(b["price"]) + acc, "g_spread": float(b["g_spread"])}
 
 
-def step_decision(t, ref: dict, sc_out, mac, xs, curve_now) -> Step:
+def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: list | None = None) -> Step:
     """Decision against cash (spec S15; RV PDF Section 9, E50 to E60; mapping Top 10 item 1 and C1, C3).
 
     Reference bond = the one nearest 5 years. Horizon h = V0 h_years. Per macro path m and default state:
@@ -1168,8 +1193,11 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now) -> Step:
                remaining tenor; default: 100 x R_PV with R_PV = R / (1 + k)^tau.
     Unhedged: excess over cash mu, P(loss), P(below cash), ES95 (the PDF decision quantities).
     Hedged (shown beside it): rates held at today's curve and the market move removed, s_H = s_b - (1 - rho^(4h))
-    (s5 - s_fair) S_m / S; subtract a Treasury of the same tenor and beta x (index carry - index expected loss), beta = 1
-    (spec K15). E10 of the combined view uses the unhedged mu. Intuition: the same money in the bond or in cash; then the same with the market hedged out.
+    (s5 - s_fair) S_m / S; subtract a Treasury of the same tenor and beta x (index carry - index expected loss), with
+    beta = s_b / S, the DTS hedge on the HY index (decision page 2026-10-23-peer-fair-spread; the walk-forward realises
+    the same hedge). The total hedged return is that hedged mu. Catalysts: the step 12 events dated within the horizon.
+    E10 of the combined view uses the unhedged mu. Intuition: the same money in the bond or in cash; then the same with
+    the market hedged out.
     """
     s = Step("15 Decision against cash", "RV PDF Section 9; methodology 7.5, 8; framework F1 R8")
     if not ref:
@@ -1197,7 +1225,7 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now) -> Step:
     hed = hal.decision_against_cash(P, c, T, h, pd.DataFrame(hd), rpv, r_cash)
     y_T = float(tr.interpolate(curve_now, T))
     r_tsy = hal.treasury_return(y_T, y_left_now, T, h)
-    beta = 1.0  # spec K15: one hedge beta for prediction and test, 1 until estimated
+    beta = fairspread.dts_beta(sb, S)  # DTS hedge on the HY index; the walk-forward realises the same beta
     idx = sum(p.prob * (S * h - float(np.mean(p.index_spread[:4])) / kappa * h) for p in mac.paths.paths)
     mu_h = hed["mu_excess"] + r_cash * h - r_tsy - beta * idx
     st = dec["states"]
@@ -1207,6 +1235,8 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now) -> Step:
         "mu_excess": _f(dec["mu_excess"], 4), "mu_excess_bp_yr": _f(dec["mu_excess"] / h * 1e4, 0),
         "pi_loss": _f(dec["pi_loss"], 3), "pi_cash": _f(dec["pi_cash"], 3), "es95": _f(dec["es95"], 3),
         "expected_wealth": _f(dec["expected_wealth"], 2), "mu_hedged_bp_yr": _f(mu_h / h * 1e4, 0),
+        "total_hedged_return_bp_yr": _f(mu_h / h * 1e4, 0), "hedge": "Treasury of the same tenor + DTS beta x HY index",
+        "fair_basis": xs.loc[t, "fair_basis"], "catalysts": hev.catalysts_in_horizon(events or [], decision, h),
         "beta": _f(beta), "states": [{k: (_f(v, 4) if isinstance(v, float) else v) for k, v in r.items()}
                                      for r in st.to_dict("records")],
     }
@@ -1245,12 +1275,19 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         bd = blk["bonds"]
         fits[t] = rv.curve_fit(bd["maturity_years"], bd["g_spread"]) if len(bd) else (float("nan"), 0.0)
         steps_all[t] = {"1": s1}
-    # Universe step: the fair line across the issuers in this run (methodology 7.2, small).
+    # Universe step: the fair spread from sector peers on the TRACE panel, the HY index where no peer cell exists
+    # (methodology 7.2; decision page 2026-10-23-peer-fair-spread). It does not depend on the other tickers in the run.
     xs = pd.DataFrame({t: {"s5": rv.curve_at(fits[t], TENOR), "lev": blocks[t]["risk"].lev_lease_adj} for t in blocks}).T
     xs = xs.astype(float).dropna()
     xs = xs[xs["s5"] > 0]
-    b_, a_ = np.polyfit(xs["lev"], np.log(xs["s5"]), 1)
-    xs["fair_s5"] = np.exp(a_ + b_ * xs["lev"])
+    ptab = peer_table(blocks, xs, decision)
+    fair = {t: fairspread.peer_fair_spread(float(xs.loc[t, "s5"]),
+                                   ptab.loc[t, "esp_sr"] if ptab is not None and t in ptab.index else None,
+                                   ptab.loc[t, "esp_sd_sr"] if ptab is not None and t in ptab.index else None,
+                                             mac.s_index_now) for t in xs.index}
+    xs["fair_s5"] = [fair[t]["fair"] for t in xs.index]
+    xs["fair_basis"] = [fair[t]["basis"] for t in xs.index]
+    xs["noise_log"] = [fair[t]["noise_log"] for t in xs.index]
     xs["resid_log"] = np.log(xs["s5"] / xs["fair_s5"])
     for t, blk in blocks.items():
         st = steps_all[t]
@@ -1290,14 +1327,14 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         st["6"] = step_clocks(blk)
         st["7"] = step_cases(sc_out)
         st["8"] = step_valuation(con, blk, decision, (mcap, mcap_src))
-        st["9"] = step_rv(t, xs, fits, a_, b_, lev_gross=st["5"].outputs.get("lev_gross"))
+        st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"))
         st["10"] = step_alpha(sc_out, ref)
-        st["11"] = step_gate(t, st, xs, b_, sc_out, ref)
+        st["11"] = step_gate(t, st, xs, sc_out, ref)
         st["12"] = step_events(blk, decision, st, sc_out)
         st["13"] = step_metrics(st, sc_out)
-        st["15"] = step_decision(t, ref, sc_out, mac, xs, curve_now)
+        st["15"] = step_decision(t, ref, sc_out, mac, xs, curve_now, decision, st["12"].outputs.get("events", []))
         print(f"{t}: " + " | ".join(f"{k}:{v.status[0]}" for k, v in st.items()))
-    add_peers(steps_all, blocks, xs, decision)
+    add_peers(steps_all, ptab)
     # Pair step (methodology 7.4, 7.5): spread per unit of risk, gap half-life, and the pair under each path.
     curves = pd.concat([tr.par_curve(y, cache_root=RAW) for y in sorted({start[:4], str(end.year)})]).sort_index()
     curves = curves[~curves.index.duplicated()]
@@ -1343,7 +1380,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         dump = {"ticker": t, "name": blocks[t]["name"], "macro": macro, "steps": {k: asdict(v) for k, v in st.items()}}
         (out_dir / f"{t}.json").write_text(json.dumps(dump, indent=2, default=str))
     (out_dir / "_run.json").write_text(json.dumps({"tickers": list(steps_all), "macro": macro, "decision": str(decision.date()),
-                                               "fair_line": {"a": a_, "b": b_, "n": int(len(xs))},
+                                               "fair_line": {"basis": xs["fair_basis"].value_counts().to_dict(), "n": int(len(xs))},
                                                "group_weights": groups.GROUP_WEIGHTS, "estimates": groups.ESTIMATES,
                                                "g1_v0": G1_V0}, indent=2, default=str))
     return steps_all

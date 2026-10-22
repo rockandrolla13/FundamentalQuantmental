@@ -215,3 +215,25 @@ def test_event_contaminated():
         pd.to_datetime(["2024-06-07", "2024-06-01", "2024-06-12", None]),
     )
     assert flag.tolist() == [1, 0, 0, 0]
+
+
+# --- 7.2 peer fair spread (decision page 2026-10-23-peer-fair-spread) ---------
+
+
+def test_peer_fair_spread_is_the_peer_median():
+    # ESP = log s - median log s of peers, so the fair spread is s exp(-ESP): the peers' median spread.
+    f = fs.peer_fair_spread(0.05, np.log(0.05 / 0.04), 0.3, s_index=0.03)
+    assert f["fair"] == pytest.approx(0.04)
+    assert f["basis"] == "sector peers" and f["noise_log"] == pytest.approx(0.3)
+
+
+def test_peer_fair_spread_falls_back_to_the_index():
+    for esp in (None, float("nan")):
+        f = fs.peer_fair_spread(0.05, esp, None, s_index=0.03)
+        assert f["fair"] == pytest.approx(0.03) and f["basis"] == "HY index"
+        assert f["noise_log"] != f["noise_log"]  # NaN: no peer dispersion, so the gate does not test it
+
+
+def test_dts_beta():
+    assert fs.dts_beta(0.06, 0.03) == pytest.approx(2.0)
+    assert fs.dts_beta(0.06, 0.0) != fs.dts_beta(0.06, 0.0)  # NaN without an index spread

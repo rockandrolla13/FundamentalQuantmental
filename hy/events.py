@@ -852,3 +852,23 @@ def event_matrix_risk(em: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(out)
+
+
+def catalysts_in_horizon(events: Sequence[Mapping], decision, h_years: float) -> list[dict]:
+    """Catalysts for the call (framework F9 G2, F11; methodology 9.1): the events that fall inside the holding horizon.
+
+    An event with a `date` counts when decision < date <= decision + h_years. An event with `years` (time from the
+    decision, such as debt due) counts when years <= h_years. An undated event does not count. Order is kept.
+    Intuition: a gap closes on a date, so only the events before the exit can close it.
+    """
+    t0 = pd.Timestamp(decision)
+    t1 = t0 + pd.Timedelta(round(h_years * 365.25), unit="D")
+    out = []
+    for e in events:
+        if e.get("date"):
+            d = pd.Timestamp(e["date"])
+            if t0 < d <= t1:
+                out.append(dict(e))
+        elif e.get("years") is not None and e["years"] == e["years"] and e["years"] <= h_years:
+            out.append(dict(e))
+    return out

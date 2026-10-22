@@ -136,3 +136,23 @@ def test_onescore_ranks_within_sector_and_needs_both_parts():
     assert out.loc["g5", "esp_sec"] == pytest.approx(1.0) and out.loc["g5", "emc_sec"] == pytest.approx(1 / 6)
     assert out.loc["g0", "onescore"] == pytest.approx((1 / 6 + 1.0) / 2)
     assert np.isnan(out.loc["h0", "onescore"])                      # sector too small, and no EMC
+
+
+def test_peer_spread_dispersion_follows_the_cell_used():
+    # Seven issuers in one sector x rating x maturity cell, log spreads spaced 0.1 apart: the leave-own-out robust
+    # sd of the peers' log spread is reported beside ESP, with the number of peers.
+    df = _cell(7, lambda i: 0.04 * np.exp(0.1 * i))
+    out = peers.peer_signals(df)
+    r = out.iloc[3]
+    others = np.log(df["spread"].drop(3).to_numpy())
+    mad_sd = 1.4826 * np.median(np.abs(others - np.median(others)))
+    assert r["cell_esp_sr"] == "sr"
+    assert r["esp_sd_sr"] == pytest.approx(mad_sd)
+    assert r["esp_n_sr"] == 6
+
+
+def test_peer_spread_dispersion_is_nan_without_any_peer_cell():
+    # Three issuers only: no cell reaches MIN_PEERS at any level, so ESP and its dispersion are missing.
+    out = peers.peer_signals(_cell(3, lambda i: 0.04 + 0.01 * i))
+    assert out["esp_sr"].isna().all() and out["esp_sd_sr"].isna().all()
+    assert (out["esp_n_sr"] == 0).all()

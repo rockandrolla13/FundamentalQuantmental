@@ -262,9 +262,12 @@ def memo(d: dict) -> str:
         L.append(group_box(cb, "G1", f"Best alternative for the same money: {esc(rep or 'n/a')}."))
     cheap = rvo.get("cheap_by_bp")
     L.append("\\subsection*{G1.1 Thesis}")
-    L.append(f"The bond pays {num(rvo.get('spread_5y_bp'), 0)} bp over Treasuries at 5 years. A company with its leverage "
-             f"({num(rvo.get('lev_lease_adj'), 1, 'x')} with leases) pays {num(rvo.get('fair_5y_bp'), 0)} bp on the fair line, so the bond is "
-             f"{'cheap' if (cheap or 0) > 0 else 'expensive'} by {num(abs(cheap or 0), 0)} bp. "
+    peer_words = ("Bonds of the same sector, rating and maturity pay"
+                  if rvo.get("fair_basis") == "sector peers" else "With no peer group, the high yield index pays")
+    L.append(f"The bond pays {num(rvo.get('spread_5y_bp'), 0)} bp over Treasuries at 5 years. {peer_words} "
+             f"{num(rvo.get('fair_5y_bp'), 0)} bp, so the bond is "
+             f"{'cheap' if (cheap or 0) > 0 else 'expensive'} by {num(abs(cheap or 0), 0)} bp. The high yield index pays "
+             f"{num(rvo.get('hy_index_bp'), 0)} bp. "
              + ("The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. "
                 if ck.get("breakeven_margin") is not None else "")
              + "What would reveal it, and when: open question.")
@@ -353,10 +356,15 @@ def memo(d: dict) -> str:
             ["Chance of a loss over six months", pct(dc.get("pi_loss"), 1)],
             ["Chance of doing worse than cash", pct(dc.get("pi_cash"), 1)],
             ["Average loss in the worst 5\\% of outcomes", pct(dc.get("es95"), 1)],
-            ["Same, with rates and the market hedged out, bp a year", bp(dc.get("mu_hedged_bp_yr"))],
+            ["Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year",
+             bp(dc.get("total_hedged_return_bp_yr", dc.get("mu_hedged_bp_yr")))],
+            ["Hedge ratio on the HY index (DTS beta)", num(dc.get("beta"), 2)],
             ["Best alternative in this run (worst 5\\% loss within the 25\\% budget)", esc(dc.get("best_admissible"))],
             ["Return given up against that alternative, bp a year", bp(dc.get("opportunity_cost_bp_yr"))],
         ], "lr"))
+        cats = dc.get("catalysts") or []
+        L.append("Catalysts inside the horizon: " + ("; ".join(
+            esc(c["event"]) + (f" ({esc(c['date'])})" if c.get("date") else "") for c in cats) if cats else "none found."))
 
     # ------------------------------------------------------------------ G2
     L.append("\\section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}")
@@ -406,7 +414,7 @@ def memo(d: dict) -> str:
                     for r in cases.get("by_path", [])]))
 
     L.append("\\subsection*{G2.3 Relative value and the pair}")
-    L.append(f"Fair line: {esc(rvo.get('fair_line'))}. 5-year spread {num(rvo.get('spread_5y_bp'), 0)} bp against a fair {num(rvo.get('fair_5y_bp'), 0)} bp.")
+    L.append(f"Fair spread: {esc(rvo.get('fair_line'))}. 5-year spread {num(rvo.get('spread_5y_bp'), 0)} bp against a fair {num(rvo.get('fair_5y_bp'), 0)} bp.")
     pe = rvo.get("peers")
     if pe:
         def rel(x):

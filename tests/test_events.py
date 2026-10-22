@@ -161,3 +161,14 @@ def test_event_grid_and_matrix():
     assert set(em.columns) >= {"outcome", "macro_path", "dpnl", "dspread_bp", "features_delta"}
     with pytest.raises(ValueError):
         ev.build_event_matrix([blk.assign(p_outcome_given_path=0.1)])
+
+
+def test_catalysts_in_horizon_keep_dated_and_near_events_only():
+    evs = [{"event": "Next quarterly results", "date": "2026-11-20", "confirmed": False},
+           {"event": "Results after the horizon", "date": "2027-09-01", "confirmed": False},
+           {"event": "Debt due by 0.4 years out", "years": 0.4, "amount_m": 500, "confirmed": True},
+           {"event": "Debt due by 2.0 years out", "years": 2.0, "amount_m": 900, "confirmed": True},
+           {"event": "Undated note", "confirmed": False}]
+    got = ev.catalysts_in_horizon(evs, datetime(2026, 9, 18), 0.5)
+    assert [c["event"] for c in got] == ["Next quarterly results", "Debt due by 0.4 years out"]
+    assert ev.catalysts_in_horizon([], datetime(2026, 9, 18), 0.5) == []

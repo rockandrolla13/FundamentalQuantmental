@@ -137,11 +137,13 @@ def _cell_key(df: pd.DataFrame, level: str) -> pd.Series:
     return m
 
 
-def _peer_median(df: pd.DataFrame, col: str, level: str) -> tuple[pd.Series, pd.Series]:
-    """Leave-own-issuer-out median of `col` within the cell at `level`, and the number of other issuers."""
+def _peer_median(df: pd.DataFrame, col: str, level: str) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Leave-own-issuer-out median of `col` within the cell at `level`, the number of other issuers, and the peers'
+    robust sd, 1.4826 x the median absolute deviation (decision page 2026-10-23-peer-fair-spread)."""
     key = _cell_key(df, level)
     med = pd.Series(np.nan, index=df.index)
     npeer = pd.Series(0, index=df.index)
+    sd = pd.Series(np.nan, index=df.index)
     ok = df[col].notna() & key.notna() & ~key.str.contains("nan|None")
     for _, idx in df[ok].groupby(key[ok]).groups.items():
         cell = df.loc[idx]
@@ -152,8 +154,10 @@ def _peer_median(df: pd.DataFrame, col: str, level: str) -> tuple[pd.Series, pd.
             rows = cell.index[own]
             npeer.loc[rows] = n_iss - 1
             if n_iss - 1 >= MIN_PEERS:
-                med.loc[rows] = float(np.median(vals[~own]))
-    return med, npeer
+                v = vals[~own]
+                med.loc[rows] = float(np.median(v))
+                sd.loc[rows] = 1.4826 * float(np.median(np.abs(v - np.median(v))))
+    return med, npeer, sd
 
 
 def _slope(y: pd.Series, x: pd.Series) -> float:
@@ -169,7 +173,7 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
 
     `bonds` columns: gvkey, years, spread (decimal), leverage, sector, rclass; optional debt, sust_ebitda. Returns,
     per row: mat, log_s, log_spt, esp_<level>, esp_lev_<level>, e13_<level>, cell_<name>_<level> (the level used
-    after FALLBACK), and, when SPiDER inputs exist, spider (log, absolute) and spider_<level> (against peers).
+    after FALLBACK), esp_sd_<level> and esp_n_<level> (robust sd and count of the peers' log spread in that cell), and, when SPiDER inputs exist, spider (log, absolute) and spider_<level> (against peers).
     The ESP leverage slope per level is in attrs["esp_lev_slope"].
     """
     df = bonds.copy()
@@ -189,9 +193,13 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
         df["spider"] = np.where(ok, np.log(iss_s.clip(lower=1e-9) / de.where(ok)), np.nan)
         pairs.append(("spider", "spider"))
     cache: dict[tuple[str, str], pd.Series] = {}
+    spread_disp: dict[str, tuple[pd.Series, pd.Series]] = {}  # level -> (peer sd, peer count) of log spread
     for col in [c for c, _ in pairs] + ["log_lev"]:
         for lvl in ("sr", "s", "r", "all"):
-            cache[(col, lvl)] = _peer_median(df, col, lvl)[0]
+            med, npeer, sd = _peer_median(df, col, lvl)
+            cache[(col, lvl)] = med
+            if col == "log_s":
+                spread_disp[lvl] = (sd, npeer)
     slopes = {}
     for level in levels:
         for col, name in pairs:
@@ -206,6 +214,9 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
                 used[fill] = lvl
             df[f"{name}_{level}"] = out
             df[f"cell_{name}_{level}"] = used
+            if name == "esp":  # the dispersion and size of the cell ESP used: the fair spread's noise
+                df[f"esp_sd_{level}"] = [spread_disp[u][0].loc[i] if isinstance(u, str) else np.nan for i, u in used.items()]
+                df[f"esp_n_{level}"] = [int(spread_disp[u][1].loc[i]) if isinstance(u, str) else 0 for i, u in used.items()]
             if name == "esp":
                 b = _slope(out, xl)
                 slopes[level] = b
