@@ -1,0 +1,115 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs,tabularx,xcolor,hyperref,enumitem}
+\hypersetup{colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black}
+\setlist{itemsep=1pt,topsep=2pt}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\definecolor{ph1}{HTML}{4E79A7}\definecolor{ph2}{HTML}{F28E2B}\definecolor{ph3}{HTML}{59A14F}
+\newcommand{\step}[5]{%
+\par\medskip\noindent\textbf{#1}\par
+\noindent\begin{tabularx}{\linewidth}{@{}lX@{}}
+Do & #2\\
+Why & #3\\
+You get & #4\\
+Where & #5\\
+\end{tabularx}}
+
+\title{How the HY Analyst works, step by step}
+\author{FundamentalQuantmental}
+\date{22 October 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+\textbf{The whole method in one line.} Measure the issuer today, project it under each macro story, price what the bond should pay, and buy only where the market is wrong by more than the cost.
+
+\smallskip
+\textbf{Three phases, eleven steps.}
+\textcolor{ph1}{\textbf{Measure}} (steps 1 to 4) $\rightarrow$
+\textcolor{ph2}{\textbf{Forecast}} (steps 5 to 7) $\rightarrow$
+\textcolor{ph3}{\textbf{Decide}} (steps 8 to 11).
+
+\smallskip
+\textbf{One rule over all of it.} Every number carries the date the market could first read it. No step reads a number from the future.}}
+
+\section*{\textcolor{ph1}{Phase 1: Measure the issuer today}}
+
+\step{1. Load the data with its release time}
+{Pull financials (Compustat point-in-time, SEC filings), bond prices (TRACE), and the Treasury curve. Stamp each number with \code{available\_at}.}
+{A backtest that reads a number before its release finds profit that never existed.}
+{Quarterly records, every version of every quarter.}
+{Methodology \S3; \code{hy/inputs.py}, \code{hy/sources/}}
+
+\step{2. Frame the business}
+{Pick one archetype (for example lease-heavy, cyclical, asset-heavy contracted) and up to two modifiers (sponsor, decline, concentration).}
+{The archetype sets which EBITDA to use, how the business fails, and which events to watch.}
+{\code{archetype}, \code{modifiers}, a one-line reason.}
+{Framework F2}
+
+\step{3. Measure health now}
+{Adjust EBITDA for one-off items. Compute free cash flow, liquidity, leverage, coverage, covenant headroom, risk flags, and the rating gap.}
+{These are the inputs every later step uses.}
+{One state vector per issuer per filing.}
+{Methodology \S4; \code{hy/state.py}}
+
+\step{4. Check the two clocks}
+{Put fixed charges (rent, debt, interest) and signed revenue on one yearly grid.}
+{When the bills outlast the contracts, the bond is a bet on renewal.}
+{Breakeven margin, renewal-dependent charges, largest shortfall.}
+{Methodology \S4.7; \code{hy/clocks.py}}
+
+\section*{\textcolor{ph2}{Phase 2: Forecast under each macro story}}
+
+\step{5. Turn forecasts into macro paths}
+{Read GDP, inflation, rate, and spread forecasts with their vintages. Build five paths: soft landing, recession, higher for longer, disinflation rally, stagflation. Weight each path by the forecasts, then update with the cycle phase.}
+{The forecasters' own uncertainty sets the odds, not the analyst's mood.}
+{Five paths of eight quarters, each with a probability; prior, forecast mass, and posterior recorded.}
+{Methodology \S5.4; \code{hy/forecasts.py}, \code{hy/macro.py}}
+
+\step{6. Run every case under every path}
+{Build six cases (management, consensus, base, moderate downside, severe downside, upside). Run each one under each path. Refinance each maturity at the forward Treasury plus fair spread, or record a failure.}
+{One case on one path hides the tail; the grid shows it.}
+{30 projected paths of revenue, EBITDA, debt, cash, and headroom.}
+{Methodology \S5.1; framework F6; \code{hy/forward.py}}
+
+\step{7. Weight the cases and average}
+{Weight the cases from the F6 table (later the fitted logistic). If the downside weight passes 0.5, shift every weight down one step (F6.6). Average across cases and paths.}
+{The expected number must include how likely each story is.}
+{Expected leverage and its spread, breach, liquidity, and refinance odds, per path and weighted.}
+{Methodology \S5.3; framework F6.6}
+
+\section*{\textcolor{ph3}{Phase 3: Decide what to own}}
+
+\step{8. Price what the bond should pay}
+{Spread from expected loss (default probability times loss), times the market price of risk, plus a model for the rest. Compare with the market spread. Flag cheap only outside the error band.}
+{A bond is cheap against everything the model knows, not against a noisy point.}
+{Fair spread, residual, cheap or rich flag.}
+{Methodology \S6, \S7; \code{hy/recovery.py}, \code{hy/fairspread.py}}
+
+\step{9. Convert to expected alpha}
+{Per path: carry less the hedge, plus the part of the gap that closes, less expected default loss. Weight by path, add event P\&L, subtract trading cost.}
+{The number you act on is return after risk and cost, not spread.}
+{\code{exp\_alpha}, its parts, its spread across paths, and the information ratio.}
+{Methodology \S7.5; \code{hy/alpha.py}}
+
+\step{10. Signal, gate, and rank}
+{Score nine signals. Pass the gate: a gap larger than its noise, a dated catalyst, alpha above cost, one observable that would prove the call wrong. Rank the whole universe and name the position each new one replaces.}
+{A credit opinion is not a trade until the price is wrong by enough.}
+{The force rank, with \code{replaces\_position} and \code{invalidation} for each entry.}
+{Methodology \S8; framework F9, F10; \code{hy/signals.py}}
+
+\step{11. Size for events, then check the record}
+{For each dated event, list outcomes and their odds under each path; compute P\&L per outcome; cap size to the event budget. After each event and each exit, record what happened against what was predicted.}
+{The model that calls a bond cheap must also say how much it loses on a miss, and must be scored.}
+{Event matrix, limits, hedges, postmortem.}
+{Methodology \S9 to \S11; framework F11, F13; \code{hy/events.py}}
+
+\section*{What you supply, and what the system computes}
+\begin{itemize}
+\item \textbf{You:} the archetype, analyst cases and gaps to consensus, ratings, document terms, and any override in \code{data/analyst\_inputs/}.
+\item \textbf{The system:} everything else, each number with its source and release time.
+\item \textbf{Every hand-set number} has a decision page in \code{docs/decisions/} with the test that would change it.
+\end{itemize}
+
+\end{document}

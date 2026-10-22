@@ -92,6 +92,24 @@
         "null"
       ]
     },
+    "dy_growth": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dy_policy": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ds_sys": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
     "features_delta": {
       "type": [
         "array",
@@ -120,6 +138,9 @@
     "p_outcome_given_path",
     "dspread_bp",
     "dpnl",
+    "dy_growth",
+    "dy_policy",
+    "ds_sys",
     "features_delta"
   ],
   "x-keys": [

@@ -596,3 +596,259 @@ def build_event_matrix(blocks: Sequence[pd.DataFrame]) -> pd.DataFrame:
     if not np.allclose(s.to_numpy(), 1.0, atol=1e-6):
         raise ValueError(f"P(o | e, m) does not sum to 1: {s[~np.isclose(s, 1.0)].to_dict()}")
     return df
+
+
+# ---------------------------------------------------------------------------
+# Section 10.4 event_matrix from a macro path set and per-path case weights
+# ---------------------------------------------------------------------------
+
+WEIGHTED = "weighted"
+"""Name of the probability-weighted row in a per-path table. It is not a path."""
+
+_DOWN_PREFIX = "down"
+_UP_PREFIX = "up"
+
+
+def _path_feature_rows(path_features: pd.DataFrame | Mapping[str, Mapping[str, float]] | None) -> dict[str, Mapping[str, float]]:
+    """Return {path name: feature row}, without the weighted row.
+
+    Accept a DataFrame with a `macro_path` column (or index) and one row per path,
+    or a plain dict path -> dict of features. Raise ValueError on a duplicate path.
+    """
+    if path_features is None:
+        return {}
+    if isinstance(path_features, pd.DataFrame):
+        df = path_features.set_index("macro_path") if "macro_path" in path_features.columns else path_features
+        names = [str(k) for k in df.index]
+        if len(names) != len(set(names)):
+            raise ValueError("path_features has more than one row for a macro path; pass one issuer at a time")
+        return {str(k): row for k, row in df.iterrows() if str(k) != WEIGHTED}
+    return {str(k): v for k, v in path_features.items() if str(k) != WEIGHTED}
+
+
+def _feature(row: Mapping[str, float], names: Sequence[str], path: str) -> float:
+    for n in names:
+        if n in row and row[n] is not None and not pd.isna(row[n]):
+            return float(row[n])
+    raise KeyError(f"path {path!r}: path_features has none of {list(names)}")
+
+
+def _check_case_weights(w: Mapping[str, float], path: str, tol: float) -> None:
+    vals = np.asarray(list(w.values()), dtype=float)
+    if np.any(vals < -tol) or abs(vals.sum() - 1.0) > tol:
+        raise ValueError(f"path {path!r}: case weights {dict(w)} are not a distribution")
+
+
+def outcome_probs_from_cases(
+    event_type: EventType | str,
+    w_by_path: Mapping[str, Mapping[str, float]],
+    path_features: pd.DataFrame | Mapping[str, Mapping[str, float]] | None = None,
+    *,
+    waiver_share: float = 0.9,
+    extend_share: float = 0.5,
+    default_share: float = 0.5,
+    tol: float = 1e-6,
+) -> pd.DataFrame:
+    """P(o | e, m) for each macro path m from the case weights and the per-path forward features (Section 9.2; framework F11).
+
+    Return a frame with one row per path (index `macro_path`) and one column per outcome in
+    `OUTCOMES[event_type]` order. Each row sums to 1. The weighted row is not a path; it is dropped.
+
+    Earnings: P(miss | m) = w_down(m) = sum of the case weights whose name starts with "down";
+    P(beat | m) = w_up(m), the upside weight; P(in_line | m) = 1 - w_down(m) - w_up(m).
+    Intuition: an earnings miss is the downside case that comes true, so its odds are the downside weight.
+
+    Covenant test: P(breach | m) = p_breach_4(m); P(pass | m) = 1 - P(breach | m);
+    the breach splits into waiver and acceleration by `waiver_share` (default 0.9, a placeholder).
+    Intuition: most breaches end in a waiver at a fee; acceleration is rare (p. 355).
+
+    Maturity and refinance: P(fail | m) = p_refi_4(m) * (1 - p_refi_access(m)); P(refinanced | m) = 1 - P(fail | m).
+    The failure splits into extension, distressed exchange, and default by `extend_share` and `default_share`.
+    Intuition: a refinance fails only when the issuer needs the market and the market is shut.
+
+    `w_by_path` is {path: {case: weight}}; `path_features` carries `p_breach_4`, `p_refi_4`, and
+    `p_refi_access` (or `refi_access`) per path. The share parameters stay placeholders until Section 11 calibrates them.
+    """
+    et = EventType(event_type)
+    paths = [str(m) for m in w_by_path if str(m) != WEIGHTED]
+    if not paths:
+        raise ValueError("w_by_path has no macro path")
+    feats = _path_feature_rows(path_features)
+    rows: dict[str, dict[str, float]] = {}
+    for m in paths:
+        w = w_by_path[m]
+        _check_case_weights(w, m, tol)
+        if et is EventType.EARNINGS:
+            down = float(sum(v for k, v in w.items() if str(k).startswith(_DOWN_PREFIX)))
+            up = float(sum(v for k, v in w.items() if str(k).startswith(_UP_PREFIX)))
+            rows[m] = {"beat": up, "in_line": 1.0 - down - up, "miss": down}
+            continue
+        if m not in feats:
+            raise KeyError(f"path {m!r}: no row in path_features")
+        if et is EventType.COVENANT_TEST:
+            b = float(np.clip(_feature(feats[m], ("p_breach_4",), m), 0.0, 1.0))
+            rows[m] = outcome_probabilities(et, p_breach=b, waiver_share=waiver_share)
+        elif et is EventType.MATURITY_REFI:
+            p_refi = float(np.clip(_feature(feats[m], ("p_refi_4",), m), 0.0, 1.0))
+            access = float(np.clip(_feature(feats[m], ("p_refi_access", "refi_access"), m), 0.0, 1.0))
+            rows[m] = outcome_probabilities(
+                et, p_refi=p_refi, refi_access=access, extend_share=extend_share, default_share=default_share
+            )
+        else:
+            raise NotImplementedError(f"no case-weight rule in Section 9.2 for {et.value}; pass P(o | e, m) directly")
+    out = pd.DataFrame.from_dict(rows, orient="index")[list(OUTCOMES[et])]
+    out.index.name = "macro_path"
+    s = out.sum(axis=1).to_numpy()
+    if np.any(out.to_numpy() < -tol) or not np.allclose(s, 1.0, atol=tol):
+        raise ValueError(f"P(o | e, m) is not a distribution per path: {dict(zip(out.index, s))}")
+    return out
+
+
+def failed_refi_probability(p_refi_4: np.ndarray | float, p_refi_access: np.ndarray | float) -> np.ndarray:
+    """P(fail | m) = p_refi_4(m) * (1 - p_refi_access(m)) (Section 9.2; framework F11, maturity row).
+
+    Intuition: the issuer must need new money and find the window shut; either alone is not a failure.
+    """
+    return np.asarray(p_refi_4, dtype=float) * (1.0 - np.asarray(p_refi_access, dtype=float))
+
+
+def _yield_parts(name: str, paths: Mapping[str, MacroPath] | None, feats: Mapping[str, Mapping[str, float]], h_q: int) -> tuple[float, float]:
+    """(dy_growth, dy_policy) of path `name` at quarter h_q, from MacroPath.extra, else from path_features."""
+    if paths is not None and name in paths:
+        src: Mapping = paths[name].extra
+    elif name in feats:
+        src = feats[name]
+    else:
+        raise KeyError(f"path {name!r}: no dy_growth and dy_policy in paths or path_features")
+    out = []
+    for k in ("dy_growth", "dy_policy"):
+        if k not in src:
+            raise KeyError(f"path {name!r}: missing {k}")
+        a = np.atleast_1d(np.asarray(src[k], dtype=float))
+        out.append(float(a[min(h_q, a.size) - 1]))
+    return out[0], out[1]
+
+
+def event_matrix_from_paths(
+    *,
+    date: datetime,
+    available_at: datetime,
+    position: Mapping[str, object],
+    event: Mapping[str, object],
+    path_probs: Mapping[str, float],
+    w_by_path: Mapping[str, Mapping[str, float]],
+    path_features: pd.DataFrame | Mapping[str, Mapping[str, float]] | None,
+    pnl_fn: Callable[[str, str], float | Mapping[str, object]],
+    paths: Sequence[MacroPath] | Mapping[str, MacroPath] | None = None,
+    h_q: int = 1,
+    tol: float = 1e-6,
+    **share_kwargs: float,
+) -> pd.DataFrame:
+    """Long event_matrix rows for one position and one event, one row per (outcome, path) (Section 10.4; Section 9.2).
+
+    p_path(m) comes from the posterior of the macro path set; P(o | e, m) comes from `outcome_probs_from_cases`.
+    The P&L of each cell follows Section 9.2:
+
+        dP(o, m) = -D dy(m) P - D^s [ds_sys(m) + s_hat(x(o, m)) - s_hat(x)] P + carry_h - 1{default}(P - 100 R_adj(m)),
+        dy(m) = dy_growth(m) + dy_policy(m),  ds_sys(m) = beta_g dy_growth(m) + beta_p dy_policy(m).
+
+    Intuition: one path sets the rate and market spread move, one outcome sets the issuer's own spread move, and the two add.
+
+    `position` holds `position_id`, `cusip`, `price`, `mod_duration`, `spread_duration`, `beta_g`, `beta_p`,
+    `carry_h`, and `recovery_adj` (a number or a dict by path). `event` holds `event_id`, `event_type`,
+    `event_date`, `date_confirmed`. `pnl_fn(outcome, path)` returns ds_idio = s_hat(x(o, m)) - s_hat(x)
+    as a decimal, or a dict with `ds_idio` and optional `features_delta` and `recovery_adj`.
+    `paths` supplies `extra["dy_growth"]` and `extra["dy_policy"]` per path, read at quarter `h_q`
+    (cumulative change from the decision date); without `paths`, `path_features` must carry them.
+    Raise ValueError when p_path does not sum to 1, when the path names disagree, or when P(o | e, m) leaks.
+    """
+    pp = {str(k): float(v) for k, v in path_probs.items() if str(k) != WEIGHTED}
+    vals = np.asarray(list(pp.values()), dtype=float)
+    if vals.size == 0 or np.any(vals < -tol) or abs(vals.sum() - 1.0) > tol:
+        raise ValueError(f"p_path is not a distribution: sum {vals.sum() if vals.size else 0.0}")
+    et = EventType(event["event_type"])
+    p_out = outcome_probs_from_cases(et, w_by_path, path_features, tol=tol, **share_kwargs)
+    if set(p_out.index) != set(pp):
+        raise ValueError(f"path names differ: p_path {sorted(pp)} against case weights {sorted(p_out.index)}")
+    p_out = p_out.loc[list(pp)]
+    pmap: Mapping[str, MacroPath] | None
+    if paths is None:
+        pmap = None
+    elif isinstance(paths, Mapping):
+        pmap = {str(k): v for k, v in paths.items()}
+    else:
+        pmap = {p.name: p for p in paths}
+    feats = _path_feature_rows(path_features)
+
+    price = float(position["price"])
+    d_mod, d_spr = float(position["mod_duration"]), float(position["spread_duration"])
+    beta_g, beta_p = float(position["beta_g"]), float(position["beta_p"])
+    carry = float(position.get("carry_h", 0.0))
+    rec = position.get("recovery_adj", 0.0)
+    outcomes = tuple(p_out.columns)
+    names = tuple(pp)
+    nm, no = len(names), len(outcomes)
+    dsp, pnl = np.zeros((nm, no)), np.zeros((nm, no))
+    fd: list[list[np.ndarray]] = []
+    dyg_col, dyp_col, dss_col = np.zeros(nm), np.zeros(nm), np.zeros(nm)
+    for i, m in enumerate(names):
+        dyg, dyp = _yield_parts(m, pmap, feats, h_q)
+        ds_sys = float(systematic_spread_change(dyg, dyp, beta_g, beta_p))
+        dyg_col[i], dyp_col[i], dss_col[i] = dyg, dyp, ds_sys
+        rec_m = float(rec[m]) if isinstance(rec, Mapping) else float(rec)
+        row = []
+        for j, o in enumerate(outcomes):
+            r = pnl_fn(o, m)
+            if isinstance(r, Mapping):
+                ds_i = float(r["ds_idio"])
+                delta = np.asarray(r.get("features_delta", []), dtype=float)
+                rec_o = float(r.get("recovery_adj", rec_m))
+            else:
+                ds_i, delta, rec_o = float(r), np.zeros(0), rec_m
+            dsp[i, j] = (ds_sys + ds_i) * 1e4
+            pnl[i, j] = position_pnl(price, d_mod, d_spr, dyg + dyp, ds_sys, ds_i, carry, o in DEFAULT_OUTCOMES, rec_o)
+            row.append(delta)
+        fd.append(row)
+    grid = EventGrid(outcomes, names, dsp, pnl, fd)
+    blk = event_matrix_block(
+        date=date,
+        available_at=available_at,
+        position_id=str(position["position_id"]),
+        cusip=str(position.get("cusip", "")),
+        event_id=str(event["event_id"]),
+        event_type=et,
+        event_date=event["event_date"],
+        date_confirmed=bool(event.get("date_confirmed", False)),
+        grid=grid,
+        p_path=pp,
+        p_outcome_given_path=p_out.to_numpy(),
+    )
+    idx = {m: i for i, m in enumerate(names)}
+    k = blk["macro_path"].map(idx).to_numpy()
+    blk["dy_growth"], blk["dy_policy"], blk["ds_sys"] = dyg_col[k], dyp_col[k], dss_col[k]
+    return build_event_matrix([blk])
+
+
+def event_matrix_risk(em: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
+    """E[dP | e], EventVaR_alpha, and the worst dP per (date, position, event) from long event_matrix rows (Section 9.2).
+
+    Reuse `expected_event_pnl` and `event_var` on the (path, outcome) grid of each block.
+    Intuition: the long table holds every cell; the risk numbers are its weighted mean and its alpha quantile.
+    """
+    out = []
+    for (d, pos, evt), g in em.groupby(["date", "position_id", "event_id"], sort=False):
+        pnl = g.pivot(index="macro_path", columns="outcome", values="dpnl")
+        po = g.pivot(index="macro_path", columns="outcome", values="p_outcome_given_path").loc[pnl.index, pnl.columns]
+        p_path = g.groupby("macro_path")["p_path"].first().loc[pnl.index].to_numpy()
+        P, W = pnl.fillna(0.0).to_numpy(), po.fillna(0.0).to_numpy()
+        out.append(
+            {
+                "date": d,
+                "position_id": pos,
+                "event_id": evt,
+                "exp_dpnl": expected_event_pnl(P, p_path, W),
+                "event_var_alpha": event_var(P, p_path, W, alpha),
+                "worst_outcome_pnl": float(g["dpnl"].min()),
+            }
+        )
+    return pd.DataFrame(out)

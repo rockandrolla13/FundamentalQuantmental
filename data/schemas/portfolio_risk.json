@@ -49,6 +49,18 @@
         "null"
       ]
     },
+    "beta_g": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "beta_p": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
     "jtd_by_issuer": {
       "type": [
         "object",
@@ -187,6 +199,8 @@
     "sdv01_total",
     "rdv01_eff_total",
     "beta_mkt_net",
+    "beta_g",
+    "beta_p",
     "jtd_by_issuer",
     "jtd_by_sector_driver",
     "el_h_total",

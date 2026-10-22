@@ -288,6 +288,40 @@ H_t = 1 - \frac{Lev^{cov}_t}{Lev^{max}_t}, \qquad Lev^{max} = \frac{D}{(1-c)\, E
 
 The second formula is how lenders set the level at origination (p. 356). A cushion `c` of 15% on a 4.0x plan gives a 4.7x covenant. Store `H_t`, the test date, and the basket capacities `rp_capacity`, `debt_capacity`, `lien_capacity`, and `investment_capacity` in dollars.
 
+### 4.7 Duration mismatch: the cost clock against the revenue clock
+
+Fixed obligations and contracted revenue run on two clocks. Rent starts when the landlord delivers power. Debt principal falls due on fixed dates. Contracted revenue starts on customer acceptance and stops when the contract ends. When the obligations outlast the contracts, the difference is a bet on renewal. Unsecured creditors carry that bet. Covenant tests and leverage ratios do not show it, because both use one period of earnings. Source: Radhakrishnan (2026), "Where the risk actually sits in the AI buildout"; this section turns the argument into features. Code: `hy/clocks.py`; inputs: `hy/sources/schedules.py`.
+
+Put every fixed obligation and the remaining performance obligation (RPO) on one annual grid from the filing date. Obligations: lease payments in force, signed leases not yet commenced, debt principal, interest on the declining balance, and unconditional purchase commitments.
+
+```latex
+O_t = \sum_{j} o_{j,t}, \qquad C_t = m \cdot R_t, \qquad D_O = \frac{\sum_t (t + \tfrac{1}{2}) O_t}{\sum_t O_t}, \qquad D_R = \frac{\sum_t (t + \tfrac{1}{2}) R_t}{\sum_t R_t}
+```
+
+`R_t` is the RPO recognised in year t on the filer's stated timetable. `m` is an EBITDAR margin, because rent is one of the obligations. `C_t` is the cash that signed contracts pay toward fixed charges.
+
+| Feature | Formula | Intuition |
+| --- | --- | --- |
+| `duration_gap` | `D_O - D_R` | Years by which the fixed charges outlast the contracts |
+| `revenue_runoff` | First year end with 99% of RPO recognised | When the contract book is gone |
+| `renewal_dependent_share` | Share of `O` due after `revenue_runoff` | Fixed charges with no contract behind them |
+| `renewal_dependent_ebitda_years` | Renewal-dependent amount over LTM EBITDA | Size of the bet in years of today's earnings |
+| `coverage_contracted` | `sum C / sum O` | Below 1: contracts cannot pay the fixed charges even at full margin |
+| `breakeven_margin` | `sum O / sum R` | Margin at which signed contracts pay every fixed charge; above 1, no margin is enough. Test it against reported margins |
+| `renewal_revenue_years` | Renewal-dependent amount / `m` / run-rate revenue | Revenue to sign after the runoff, in years of today's revenue |
+| `max_cum_shortfall` | `max(0, -min_t sum_{s<=t} (C_s - O_s))` | Amount that new contracts, renewals, or new debt must fund |
+| `cust_top1`, `cust_top3`, `cust_hhi_floor` | Disclosed revenue shares | Renewal depends on few counterparties; undisclosed is NaN, not 0 |
+| `recourse_share`, `ring_fenced_assets_share` | Recourse debt over total debt; assets in bankruptcy-remote vehicles over total assets | Where the unsecured claim sits in the structure |
+
+Rules:
+1. Read every schedule as filed. Check each maturity ladder against its stated total; a ladder that does not reconcile is reported, not used silently.
+2. A 10-Q ladder starts with the remainder of the fiscal year; the following buckets are full fiscal years.
+3. State every assumption that the filing does not give: the length of the "thereafter" bucket (default: payments continue at the last stated yearly amount), the commencement window and term of signed leases, the timing of RPO after the last stated window, and the margin. Report the sensitivity of `renewal_dependent_share` and `coverage_contracted` to each.
+4. Downside: build it from the issuer's main risk flag (Section 4.4). For customer concentration, remove the top customer's share of RPO.
+5. Early surplus cash in `C_t - O_t` is not free: capex and taxes absorb it. Read `max_cum_shortfall` as a lower bound.
+
+Inputs to Section 7: `duration_gap`, `renewal_dependent_ebitda_years`, and `coverage_contracted` enter the forward block of the fair spread model with a positive sign on spread for the first two and a negative sign for the third. Inputs to Section 9: `revenue_runoff` and the largest contract expiry date are event dates for renewal risk.
+
 ## 5. Forward estimates
 
 Forward estimates turn the issuer state into paths of EBITDA, debt, liquidity, and covenant headroom under named scenarios. The book builds a management case, a base case, and one or more downside cases (p. 285), then assigns a probability to each case by judgement (p. 311). This section keeps the scenario structure and makes the probabilities a function of the macro state. The outputs are forward features that the fair spread model consumes.
@@ -354,6 +388,54 @@ E_t[Lev_{t+h}] = \sum_{s} w_s(m_t)\,Lev^{s}_{h}, \qquad \sigma^{2}_{Lev,h} = \su
 | `gap_mgmt` | Base case `Lev_{t+4}` minus management case `Lev_{t+4}` | Size of the optimism haircut |
 
 The book's own check applies to every output: if the downside case looks likely, it becomes the base case; if the base case looks draconian, it becomes the downside case (p. 311). In the system this check is the comparison of `w_down` with 0.5.
+
+### 5.4 Forecast linkage
+
+This section ties every scenario weight and every driver shift to a named forecast with a vintage, or to a market-implied quantity. No weight or shift enters by hand without a decision page. Code: `hy/forecasts.py` (registry), `hy/sources/forecast_sources.py` (sources), `hy/macro.py` (paths), `hy/forward.py` (cases under paths).
+
+**Registry.** One row per source, variable, horizon, and vintage, with `available_at`, `point`, `q10`, `q50`, `q90`, and `method`. A decision at time t reads only rows with `available_at <= t` (framework R5). A test fails if any read crosses t.
+
+**Paths.** Build five named macro paths of eight quarters: soft landing, recession, higher for longer, disinflation rally, stagflation. Fit a normal to the GDP and CPI quantiles of each horizon, standardise, and split the joint distribution into five regions with cuts at the 20th and 80th percentiles. The quantile mass of each region is the forecast probability of the path.
+
+```latex
+\sigma = \frac{q_{90} - q_{10}}{2 \times 1.2816} \cdot k_{src}, \qquad \mathit{mass}(m) = \Pr\big[(z_G, z_C) \in A_m\big], \quad (z_G, z_C) \sim N(0, \Sigma_\rho)
+```
+
+Intuition: the forecasters' own uncertainty, not the analyst, sets how likely each macro story is. `k_src` is the widen factor from the error accounting below.
+
+**Weight update.** Combine the forecast mass with the phase prior of framework F6 by Bayes' rule. Record the prior, the mass, and the posterior.
+
+```latex
+p(m) = \frac{\pi_{phase}(m)\,\mathit{mass}(m)}{\sum_{m'} \pi_{phase}(m')\,\mathit{mass}(m')}
+```
+
+Intuition: the phase vote says where the cycle usually goes next; the forecasts say what the experts expect now; the posterior keeps both and shows which one moved the weight.
+
+**Yields under a path.** Each path carries the forward Treasury curve plus a shift split into a growth part and a policy part (Section 9.2). `dy = dy_growth + dy_policy`, `ds_sys = beta_g dy_growth + beta_p dy_policy`. Store `beta_g` and `beta_p` by rating bucket and sector.
+
+**Cases under paths.** Every case of framework F6 runs under every path. Each driver links to a forecast variable through `beta_sector`: `g_h(m) = g_h + beta_sector (G_h(m) - G_bar)`. The base case is consensus plus the analyst's stated gap per driver; the gap is stored. Floating interest follows the path's policy rate. A maturity inside the horizon refinances at the forward Treasury for its date plus `s_fair(m)` when `p_refi_access(m) > 0.5`; otherwise the case records a refinance failure and engages the claims view of framework F5.
+
+```latex
+\Delta CashInt_h(m) = M_\tau \big[ y^{fwd}_{T}(m) + s^{fair}(m) - c_{old} \big], \qquad
+E_t[Lev_{t+h}] = \sum_m \sum_s p(m)\, w_s(m)\, Lev^s_h(m), \qquad
+Var_t = \sum_m \sum_s p(m)\, w_s(m)\, \big(Lev^s_h(m) - E_t[Lev_{t+h}]\big)^2
+```
+
+Intuition: a refinancing costs what the market will charge on that date under that path, and the forward features average over both the macro story and the issuer case.
+
+**Case weights.** `w_s(m)` comes from the fitted logistic of Section 5.2 once it is calibrated; until then from the F6 table with the archetype adjustment. A combined downside weight above 0.5 promotes the moderate downside to base (F6.6).
+
+**Outputs.** Per issuer, per path, and a probability-weighted row: `lev_fwd_4`, `lev_fwd_8`, `lev_fwd_sd`, `lev_peak_down`, `liq_min_down`, `p_breach_4`, `p_liq_short_8`, `p_refi_4`, `cov_fwd_4`, `pd_12m`, `s_fair`, `resid_bp`. They enter `issuer_state` and `bond_daily` with a `macro_path` column (Section 10).
+
+**Revisions.** On every new vintage compute `rev_lev`, `gap_consensus`, `gap_mgmt`, and the change in each path's prior, mass, and posterior. Signals S3 and S7 read them.
+
+**Forecast error accounting.** When a forecast's horizon matures, store the realised value beside it. Report bias, mean absolute error, and the coverage of the 10 to 90 band by source, variable, and horizon. A source whose band covered c instead of 0.80 gets its spread scaled by `k = z(0.90) / z((1 + c) / 2)`, with no change below eight matured rows.
+
+```latex
+k_{src} = \frac{\Phi^{-1}(0.90)}{\Phi^{-1}\big((1 + c_{src}) / 2\big)}
+```
+
+Intuition: a source that is often outside its own band gets less power to move a path probability.
 
 ## 6. Valuation, recovery, and loss given default
 
@@ -517,6 +599,14 @@ Fit an AR(1) on each bond's residual to get its persistence and half-life. The e
 ```
 
 Set the signal horizon in Section 8 to about two half-lives. Reject a residual as a signal when the bond had an event in the last five days, because the model has not yet absorbed the new state; Section 9 handles that window.
+
+**Expected alpha.** Section 5.4 gives each macro path m a probability, a fair spread, and a default probability. The expected alpha of a hedged long over h years is the probability-weighted sum of carry, convergence, and expected loss, plus the expected event P&L of Section 10.4, less the round-trip cost. Code: `hy/alpha.py`.
+
+```latex
+\alpha_h = \sum_m p(m) \Big[ (s - \beta_{mkt} S)\,h + D^s \big(1 - \rho^{4h}\big)\big(s - s^{fair}(m)\big) - PD_h(m)\, LGD \Big] + E[\Delta P_{event}] - c, \qquad PD_h = 1 - (1 - PD_{12m})^h
+```
+
+Intuition: the bond pays its spread, the hedge costs the market's spread, the mispricing closes at its measured speed, and defaults take their expected share; alpha is what remains, averaged over the macro stories. Report `alpha_sd`, the dispersion of the bracket across paths, and `info_ratio = alpha / alpha_sd`. Framework F9 G3 passes when `alpha` after cost is above zero. The fields enter `bond_daily` (Section 10.1).
 
 ### 7.6 Outputs of this layer
 

@@ -37,6 +37,18 @@
         "null"
       ]
     },
+    "macro_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "p_path": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
     "price_mid": {
       "type": [
         "number",
@@ -172,6 +184,72 @@
     "event_contaminated": {
       "type": [
         "boolean",
+        "null"
+      ]
+    },
+    "alpha_h_years": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_carry": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_converge": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_loss": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_event": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_cost": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "exp_alpha": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "exp_alpha_bp_ann": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "alpha_sd": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "info_ratio": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "passes_g3": {
+      "type": [
+        "number",
         "null"
       ]
     },
@@ -333,6 +411,8 @@
     "cusip",
     "issuer_id",
     "tranche_id",
+    "macro_path",
+    "p_path",
     "price_mid",
     "oas",
     "ytw",
@@ -356,6 +436,17 @@
     "half_life",
     "exp_conv_ret_h",
     "event_contaminated",
+    "alpha_h_years",
+    "alpha_carry",
+    "alpha_converge",
+    "alpha_loss",
+    "alpha_event",
+    "alpha_cost",
+    "exp_alpha",
+    "exp_alpha_bp_ann",
+    "alpha_sd",
+    "info_ratio",
+    "passes_g3",
     "s1",
     "s2",
     "s3",
@@ -384,7 +475,8 @@
   ],
   "x-keys": [
     "date",
-    "cusip"
+    "cusip",
+    "macro_path"
   ],
   "additionalProperties": true
 }

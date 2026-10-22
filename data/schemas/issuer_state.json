@@ -38,6 +38,37 @@
         "null"
       ]
     },
+    "macro_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "p_path": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "w_down": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "phase": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forecast_vintage": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
     "ebitda_adj_analyst": {
       "type": [
         "number",
@@ -365,7 +396,25 @@
         "null"
       ]
     },
-    "w_down": {
+    "lev_fwd_sd": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "refi_fail_share": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "pd_12m": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "s_fair": {
       "type": [
         "number",
         "null"
@@ -420,6 +469,11 @@
     "filing_date",
     "available_at",
     "forecast_source",
+    "macro_path",
+    "p_path",
+    "w_down",
+    "phase",
+    "forecast_vintage",
     "ebitda_adj_analyst",
     "addback_gap",
     "covenant_gap",
@@ -473,7 +527,10 @@
     "rev_lev",
     "gap_consensus",
     "gap_mgmt",
-    "w_down",
+    "lev_fwd_sd",
+    "refi_fail_share",
+    "pd_12m",
+    "s_fair",
     "tev_low",
     "tev_mid",
     "tev_high",
@@ -484,7 +541,8 @@
   ],
   "x-keys": [
     "date",
-    "issuer_id"
+    "issuer_id",
+    "macro_path"
   ],
   "additionalProperties": true
 }

@@ -16,16 +16,20 @@ no other layer.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence
 
 import numpy as np
-from scipy.stats import norm
+import pandas as pd
+from scipy.stats import binomtest, norm
 from sklearn.linear_model import LogisticRegression
+
+if TYPE_CHECKING:  # duck-typed at run time: this module reads no other layer
+    from hy.events import MacroPath
 
 DAYS_PER_QUARTER = 365.0 / 4.0
 LEV_CAP = 50.0  # leverage when LTM EBITDA <= 0; keeps the scenario moments finite
 RECOVERY_SHAPES = ("v", "u", "structural", "customer_replace")
-FORECAST_SOURCES = ("analyst", "consensus_template", "trend_template")
+FORECAST_SOURCES = ("analyst", "consensus_template", "trend_template", "management", "consensus")
 MAIN_RISKS = (
     "cyclicality",
     "customer_concentration",
@@ -72,6 +76,8 @@ class Scenario:
     recovery_shape: str | None = None
     forecast_source: str = "analyst"
     main_risk: str | None = None
+    gaps: dict[str, Any] | None = None  # analyst gap per driver over consensus (Section 5.4)
+    provenance: dict[str, Any] | None = None  # forecast row behind each driver shift (Section 5.4)
 
     def __post_init__(self) -> None:
         h = int(np.asarray(self.g).size)
@@ -181,6 +187,10 @@ class ScenarioPath:
     effective_rate: np.ndarray  # interest / D_{h-1}, the i_h(m) of Section 5.1
     recovery_shape: str | None = None
     forecast_source: str = "analyst"
+    refi_fail_q: int | None = None  # first quarter of a failed refinance (F6.3)
+    claims_view: bool = False  # True when a refinance fails: the F5 claims view applies
+    refi_coupons: dict[str, dict[str, Any]] | None = None  # per refinanced line: quarter, old and new coupon
+    macro_path: str | None = None  # name of the macro path m that drove the run
 
 
 # ---------------------------------------------------------------------------
@@ -221,33 +231,30 @@ def covenant_headroom(debt: float, ltm_ebitda: float, max_leverage: float, cov_e
     return float(1.0 - lev_cov / max_leverage)
 
 
-def run_scenario(
+# Callback at a maturity: (h, k, line, coupon_k, spread_k) -> (new coupon_k, new spread_k).
+MaturityRule = Callable[[int, int, DebtLine, float, float], tuple[float, float]]
+
+
+def _default_maturity(h: int, k: int, d: DebtLine, coupon_k: float, spread_k: float) -> tuple[float, float]:
+    """Section 5.1 default: a fixed line refinances at `refi_coupon` (else its old coupon); a floating line keeps its terms."""
+    if d.floating:
+        return coupon_k, spread_k
+    return (d.coupon if d.refi_coupon is None else d.refi_coupon), spread_k
+
+
+def _roll_forward(
     start: IssuerStart,
     scenario: Scenario,
-    sofr_path: Sequence[float] | np.ndarray,
-    covenant_max_leverage: float = np.inf,
-) -> ScenarioPath:
-    """Roll the three statements forward under one scenario (Section 5.1; Section 9.2 rate channel).
-
-    Rev_h = Rev_{h-1}(1 + g_h); EBITDA_h = Rev_h(1 - v_h - a_h);
-    FCF_h = EBITDA_h - Capex_h - Interest_h(D_{h-1}, SOFR_h) - Tax_h - dWC_h;
-    each tranche D_{k,h} = D_{k,h-1} - Amort_{k,h}; the revolver draws when
-    cash falls below `min_cash` and repays first from any surplus; the rest
-    of the surplus prepays floating term lines by `sweep_share` and stays
-    in cash otherwise. Hence (D_h - Cash_h) - (D_{h-1} - Cash_{h-1}) = -FCF_h.
-    Tax_h = tax_rate * max(0, EBITDA_h - D&A - Interest_h). Floating lines and
-    the revolver pay max(SOFR_h, floor) + spread; undrawn revolver pays the
-    commitment fee. Outputs per h: liquidity L, leverage D / LTM EBITDA
-    (gross, and net of cash),
-    coverage LTM EBITDA / LTM interest, headroom H against
-    `covenant_max_leverage`, and wall cover (L_0 + sum FCF) / sum principal due.
-    Intuition: one recursion makes EBITDA, cash, debt, and liquidity move together.
-    """
+    sofr: np.ndarray,
+    covenant_max_leverage: float,
+    on_maturity: MaturityRule = _default_maturity,
+) -> dict[str, np.ndarray]:
+    """The one recursion of Section 5.1. `run_scenario` and `run_case_under_path` both call it."""
     H = scenario.horizon
-    sofr = _as_path(sofr_path, H, "sofr_path")
     lines = list(start.debt_lines)
     bal = np.array([d.face for d in lines], dtype=float)
     coupon = np.array([d.coupon for d in lines], dtype=float)
+    spread = np.array([d.spread for d in lines], dtype=float)
     avail_cap = min(start.revolver_commitment, start.borrowing_base) - start.letters_of_credit
 
     rev_prev = start.revenue_q0
@@ -263,6 +270,7 @@ def run_scenario(
         "liquidity", "leverage", "net_leverage", "coverage", "headroom", "wall_cover", "effective_rate")}
     cum_fcf = 0.0
     cum_due = 0.0
+    is_float = np.array([d.floating for d in lines], dtype=bool)
 
     for i in range(H):
         h = i + 1
@@ -271,8 +279,7 @@ def run_scenario(
 
         # Interest on D_{h-1}: no circular link to this quarter's cash (rule 5).
         debt_prev = float(bal.sum() + drawn)
-        float_rate = np.array([max(sofr[i], d.floor) + d.spread for d in lines])
-        is_float = np.array([d.floating for d in lines], dtype=bool)
+        float_rate = np.array([max(sofr[i], d.floor) for d in lines]) + spread if lines else np.zeros(0)
         line_rate = np.where(is_float, float_rate, coupon) if lines else np.zeros(0)
         rcf_rate = max(sofr[i], start.revolver_floor) + start.revolver_spread
         undrawn_prev = max(0.0, avail_cap - drawn)
@@ -283,15 +290,14 @@ def run_scenario(
         dwc = wc - wc_prev
         fcf = ebitda - scenario.capex[i] - interest - tax - dwc
 
-        # Scheduled principal: amortisation is paid from cash; a bullet maturity refinances.
+        # Scheduled principal: amortisation is paid from cash; a bullet maturity refinances (or fails, F6.3).
         amort = np.minimum(np.array([d.amort for d in lines], dtype=float), bal) if lines else np.zeros(0)
         bal = bal - amort
         due = float(amort.sum())
         for k, d in enumerate(lines):
             if d.maturity_q == h:
                 due += bal[k]
-                if not d.floating:
-                    coupon[k] = d.coupon if d.refi_coupon is None else d.refi_coupon
+                coupon[k], spread[k] = on_maturity(h, k, d, float(coupon[k]), float(spread[k]))
 
         # Cash waterfall: draw on a shortfall, repay the revolver from a surplus.
         cash_pre = cash + fcf - float(amort.sum())
@@ -338,6 +344,33 @@ def run_scenario(
 
         rev_prev, wc_prev = rev, wc
 
+    return out
+
+
+def run_scenario(
+    start: IssuerStart,
+    scenario: Scenario,
+    sofr_path: Sequence[float] | np.ndarray,
+    covenant_max_leverage: float = np.inf,
+) -> ScenarioPath:
+    """Roll the three statements forward under one scenario (Section 5.1; Section 9.2 rate channel).
+
+    Rev_h = Rev_{h-1}(1 + g_h); EBITDA_h = Rev_h(1 - v_h - a_h);
+    FCF_h = EBITDA_h - Capex_h - Interest_h(D_{h-1}, SOFR_h) - Tax_h - dWC_h;
+    each tranche D_{k,h} = D_{k,h-1} - Amort_{k,h}; the revolver draws when
+    cash falls below `min_cash` and repays first from any surplus; the rest
+    of the surplus prepays floating term lines by `sweep_share` and stays
+    in cash otherwise. Hence (D_h - Cash_h) - (D_{h-1} - Cash_{h-1}) = -FCF_h.
+    Tax_h = tax_rate * max(0, EBITDA_h - D&A - Interest_h). Floating lines and
+    the revolver pay max(SOFR_h, floor) + spread; undrawn revolver pays the
+    commitment fee. Outputs per h: liquidity L, leverage D / LTM EBITDA
+    (gross, and net of cash),
+    coverage LTM EBITDA / LTM interest, headroom H against
+    `covenant_max_leverage`, and wall cover (L_0 + sum FCF) / sum principal due.
+    Intuition: one recursion makes EBITDA, cash, debt, and liquidity move together.
+    """
+    sofr = _as_path(sofr_path, scenario.horizon, "sofr_path")
+    out = _roll_forward(start, scenario, sofr, covenant_max_leverage)
     return ScenarioPath(name=scenario.name, recovery_shape=scenario.recovery_shape,
                         forecast_source=scenario.forecast_source, **out)
 
@@ -784,3 +817,759 @@ def forward_features(
     f["downside_is_base"] = w_down > 0.5
     f["forecast_source"] = paths[base].forecast_source if base in paths else ""
     return f
+
+
+# ===========================================================================
+# Forecast-linked scenarios, Section 5.4
+# ===========================================================================
+#
+# This section links the scenario engine to the forecast registry and to the
+# macro paths of Section 9.2. Every case runs under every macro path m. The
+# path sets the policy rate (floating interest, F6.4), the refinance coupon
+# (F6.3), and the growth driver shift (Section 9.2 growth channel). The case
+# weights w_s(m) come from the Section 5.2 logistic once it is calibrated,
+# else from the F6 table. Outputs are per path plus a probability-weighted row.
+#
+# Stated assumptions (each needs a decision page before production use):
+#   REFI_TENOR_YEARS = 5      tenor of the Treasury that prices a refinance
+#   REFI_ACCESS_THRESHOLD = 0.5   F6.3 cut-off on p_refi_access
+#   distressed_coupon_add = 0.05  coupon step-up while a failed maturity stays outstanding
+#   floating refinance: the new margin over the policy rate equals s_fair(m)
+#   path arrays shorter than the case horizon hold their last value
+#   SEVERE_TROUGH_BUFFER = 0.01   severe margin sits 1 point below the historic trough
+#   SEVERE_EXTRA_SQUEEZE = 0.02   severe variable cost add when no trough margin is given
+#   CONTRACTED_DEFAULT = True     A2 and A5 take the 0.7 downside multiplier unless told otherwise
+#   promotion (F6.6) applies once per path; it does not iterate
+
+PHASES = ("expansion", "late_cycle", "downturn", "repair", "recovery")
+ARCHETYPES = ("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8")
+MODIFIERS = ("M1", "M2", "M3")
+WEIGHTED_CASES = ("base", "down_moderate", "down_severe", "upside")
+LOSS_OF_CONTRACT = "down_moderate_loss_contract"
+
+# Framework F6, macro phase weight table: base, moderate, severe, upside.
+F6_WEIGHT_TABLE: dict[str, dict[str, float]] = {
+    "expansion": {"base": 0.60, "down_moderate": 0.15, "down_severe": 0.05, "upside": 0.20},
+    "late_cycle": {"base": 0.50, "down_moderate": 0.25, "down_severe": 0.10, "upside": 0.15},
+    "downturn": {"base": 0.35, "down_moderate": 0.35, "down_severe": 0.20, "upside": 0.10},
+    "repair": {"base": 0.50, "down_moderate": 0.25, "down_severe": 0.10, "upside": 0.15},
+    "recovery": {"base": 0.55, "down_moderate": 0.15, "down_severe": 0.05, "upside": 0.25},
+}
+CYCLICAL_DOWN_MULT = 1.3  # A3, A4
+CONTRACTED_DOWN_MULT = 0.7  # A2, A5 with contracted revenue
+
+# F2 downside driver mapped onto the engine's main-risk switch (template can override).
+ARCHETYPE_MAIN_RISK = {
+    "A1": "discretionary_consumer",  # same-store sales decline
+    "A2": "none",  # reimbursement change: a revenue step set by the template
+    "A3": "cyclicality",  # price deck at the 10th percentile, as an annual revenue path
+    "A4": "cyclicality",  # own peak-to-trough revenue in the last recession
+    "A5": "customer_concentration",  # contract roll-off: a one-step loss, then re-let
+    "A6": "none",  # worst net retention year, as an annual revenue path
+    "A7": "customer_concentration",  # asset-specific shock: a one-step loss
+}
+
+REFI_TENOR_YEARS = 5.0
+REFI_ACCESS_THRESHOLD = 0.5
+SEVERE_DEPTH = 1.5
+SEVERE_EXTRA_RECOVERY_Q = 4
+SEVERE_PAYABLE_CUT = 10.0
+SEVERE_TROUGH_BUFFER = 0.01
+SEVERE_EXTRA_SQUEEZE = 0.02
+DEFAULT_MACRO_FIELDS = ("index_spread", "default_rate", "pmi")
+DEFAULT_DRIVER_LINKS = {"g": "gdp_growth"}
+
+
+def _norm_phase(phase: str) -> str:
+    p = phase.strip().lower().replace(" ", "_").replace("-", "_")
+    if p not in F6_WEIGHT_TABLE:
+        raise ValueError(f"phase {phase!r} not in {PHASES}")
+    return p
+
+
+def _check_archetype(archetype: str, modifiers: Sequence[str]) -> None:
+    if archetype not in ARCHETYPES:
+        raise ValueError(f"archetype {archetype!r} not in {ARCHETYPES}")
+    if archetype == "A8":
+        raise ValueError("A8 financials are out of scope (framework F2); route to a separate rulebook")
+    bad = set(modifiers) - set(MODIFIERS)
+    if bad:
+        raise ValueError(f"modifiers {sorted(bad)} not in {MODIFIERS}")
+
+
+def _path_array(path: "MacroPath", field_name: str, horizon: int) -> np.ndarray:
+    """Read one path variable as an H-quarter array; a short path holds its last value (stated assumption)."""
+    if hasattr(path, field_name):
+        a = np.asarray(getattr(path, field_name), dtype=float)
+    else:
+        extra = getattr(path, "extra", {}) or {}
+        if field_name not in extra:
+            raise KeyError(f"path {getattr(path, 'name', '?')!r} has no variable {field_name!r}")
+        a = np.asarray(extra[field_name], dtype=float)
+    a = np.atleast_1d(a)
+    if a.size >= horizon:
+        return a[:horizon].copy()
+    return np.concatenate([a, np.full(horizon - a.size, a[-1])])
+
+
+def _path_provenance(path: "MacroPath", variable: str, forecast_row: Any) -> dict[str, Any]:
+    """Source and vintage of the forecast behind a path variable.
+
+    Order: the explicit `forecast_row` (a mapping, a ForecastRow, or the hy.macro
+    `PathSet.sources[variable]` tuple (source, vintage, available_at, method)); then `path.provenance[variable]` or `path.extra["provenance"]`
+    when the path builder stored one; else a logged assumption with the path name and no vintage.
+    """
+    if forecast_row is not None:
+        if isinstance(forecast_row, tuple):  # hy.macro PathSet.sources: (source, vintage, available_at, method)
+            keys = ("source", "vintage", "available_at", "method")
+            row = dict(zip(keys, forecast_row))
+        elif isinstance(forecast_row, Mapping):
+            row = dict(forecast_row)
+        else:
+            row = dict(vars(forecast_row))
+        return {**{k: row.get(k) for k in ("source", "vintage", "available_at", "method") if k in row},
+                "source": row.get("source"), "vintage": row.get("vintage"), "basis": "forecast_row"}
+    for holder in (getattr(path, "provenance", None), (getattr(path, "extra", {}) or {}).get("provenance")):
+        if isinstance(holder, Mapping):
+            rec = holder.get(variable, holder)
+            if isinstance(rec, Mapping) and "source" in rec:
+                return {"source": rec.get("source"), "vintage": rec.get("vintage"), "basis": "path_builder"}
+    return {"source": f"macro_path:{getattr(path, 'name', '?')}", "vintage": None, "basis": "logged_assumption"}
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (1) Driver linkage
+# ---------------------------------------------------------------------------
+
+
+def driver_shift(beta_sector: float, forecast_path: Sequence[float] | np.ndarray, trend: float) -> np.ndarray:
+    """Shift of one driver per quarter: delta_h(m) = beta_sector (G_h(m) - G_bar) (Sections 5.2, 9.2).
+
+    `forecast_path` holds G_h(m), the forecast variable under path m, in the units in which
+    `beta_sector` was fitted (see `fit_sector_beta`). `trend` is G_bar. Pass as G_bar the forecast
+    that the base drivers already embed (for a consensus base, the consensus path), so that path
+    equal to that forecast leaves the base unchanged.
+    Intuition: a path below the embedded forecast pulls the driver down in proportion to the sector beta.
+    """
+    return growth_shift(beta_sector, forecast_path, trend)
+
+
+def link_drivers(
+    base_drivers: Scenario | Mapping[str, Any],
+    path: "MacroPath",
+    betas: Mapping[str, float],
+    trend: float | Mapping[str, float],
+    links: Mapping[str, str] | None = None,
+    forecast_rows: Mapping[str, Any] | None = None,
+) -> Scenario | dict[str, np.ndarray]:
+    """Shift each linked driver by its path forecast: x_h(m) = x_h + beta_x (G^x_h(m) - G_bar^x) (Section 9.2).
+
+    `betas` maps a driver ("g", "v", ...) to its sensitivity; `links` maps the driver to the path
+    variable (default: "g" -> "gdp_growth"). `trend` is G_bar, one number or one per driver.
+    With a Scenario input the result is a Scenario whose `provenance[driver]` records the path,
+    variable, beta, trend, and the forecast row (source, vintage). `forecast_rows` is keyed by
+    driver or by path variable; `PathSet.sources` from hy.macro passes as is. With a mapping input the
+    result is a dict of shifted per-quarter arrays and a "provenance" key.
+    Intuition: the case stays issuer specific; the macro path moves its level.
+    """
+    links = {**DEFAULT_DRIVER_LINKS, **(links or {})}
+    forecast_rows = forecast_rows or {}
+    is_scen = isinstance(base_drivers, Scenario)
+    if is_scen:
+        H = base_drivers.horizon
+        drivers = {k: getattr(base_drivers, k) for k in betas}
+    else:
+        drivers = dict(base_drivers)
+        H = next((np.asarray(v).size for v in drivers.values() if np.ndim(v) == 1), 1)
+    shifted: dict[str, np.ndarray] = {}
+    prov: dict[str, Any] = {}
+    for drv, beta in betas.items():
+        if drv not in links:
+            raise KeyError(f"driver {drv!r} has no linked path variable; pass links")
+        var = links[drv]
+        t = trend[drv] if isinstance(trend, Mapping) else trend
+        G = _path_array(path, var, H)
+        shifted[drv] = shift_growth(_as_path(drivers[drv], H, drv), driver_shift(beta, G, float(t)))
+        prov[drv] = {"path": getattr(path, "name", None), "variable": var, "beta": float(beta), "trend": float(t),
+                     **_path_provenance(path, var, forecast_rows.get(drv, forecast_rows.get(var)))}
+    if is_scen:
+        old = dict(base_drivers.provenance or {})
+        return replace(base_drivers, **shifted, provenance={**old, **prov})
+    return {**{k: np.asarray(v, dtype=float) for k, v in drivers.items()}, **shifted, "provenance": prov}
+
+
+def _to_scenario(x: Scenario | Mapping[str, Any], name: str, source: str, horizon: int,
+                 fill: Scenario | None = None) -> Scenario:
+    """Turn a driver mapping into a Scenario; drivers it omits come from `fill` and are recorded."""
+    if isinstance(x, Scenario):
+        return replace(x, name=name, forecast_source=source)
+    keys = ("g", "v", "a", "inventory_days", "receivable_days", "payable_days", "capex")
+    given = {k: x[k] for k in keys if k in x}
+    filled = [k for k in keys if k not in given]
+    if filled and fill is None:
+        raise ValueError(f"{name}: drivers {filled} missing and no case to fill them from")
+    for k in filled:
+        given[k] = getattr(fill, k)
+    prov = dict(x.get("provenance", {})) if isinstance(x.get("provenance", {}), Mapping) else {}
+    if filled:
+        prov["filled_from"] = {"case": fill.name, "drivers": filled}  # type: ignore[union-attr]
+    return Scenario(name=name, forecast_source=source, provenance=prov or None,
+                    **{k: _as_path(v, horizon, k) for k, v in given.items()})
+
+
+def base_from_consensus(
+    consensus: Scenario | Mapping[str, Any],
+    gaps: Mapping[str, float | Sequence[float]],
+    horizon: int = 8,
+    name: str = "base",
+) -> Scenario:
+    """Base case = consensus drivers + the analyst's stated gap per driver (Section 5.4; F6 base row).
+
+    x^base_h = x^cons_h + gap_x. `gaps` is stored on the Scenario so the edge over the market
+    view is auditable and `gap_consensus` traces to a stated number, not to a hidden edit.
+    Intuition: the analyst states only where and by how much the view differs from the market.
+    """
+    cons = _to_scenario(consensus, "consensus", "consensus", horizon)
+    unknown = set(gaps) - {"g", "v", "a", "inventory_days", "receivable_days", "payable_days", "capex"}
+    if unknown:
+        raise KeyError(f"gaps name unknown drivers: {sorted(unknown)}")
+    shifted = {k: getattr(cons, k) + _as_path(v, cons.horizon, k) for k, v in gaps.items()}
+    prov = {**(cons.provenance or {}), "base": "consensus + analyst gap"}
+    return replace(cons, name=name, forecast_source="analyst", gaps=dict(gaps), provenance=prov, **shifted)
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (2) F6 case set
+# ---------------------------------------------------------------------------
+
+
+def coin_toss_test(analyst_record: Sequence[bool] | Sequence[tuple[float, float]], alpha: float = 0.05,
+                   min_n: int = 8) -> dict[str, Any]:
+    """F6 base row: actuals beat the analyst base about half the time.
+
+    `analyst_record` holds booleans (actual above base) or (actual, base) pairs. The test is a
+    two-sided binomial test of share = 0.5. Fewer than `min_n` records give "insufficient".
+    Intuition: a base case that actuals beat most of the time is conservative by habit.
+    """
+    rec = list(analyst_record)
+    above = [bool(r[0] > r[1]) if isinstance(r, (tuple, list)) else bool(r) for r in rec]
+    n, k = len(above), int(sum(above))
+    if n < min_n:
+        return {"n": n, "share_above": k / n if n else float("nan"), "p_value": float("nan"), "result": "insufficient"}
+    p = float(binomtest(k, n, 0.5).pvalue)
+    return {"n": n, "share_above": k / n, "p_value": p, "result": "pass" if p >= alpha else "fail"}
+
+
+def _severe_stretch(shape: str) -> float:
+    n = _recovery_quarters(shape)
+    return (n + SEVERE_EXTRA_RECOVERY_Q) / n if n > 0 else 1.0
+
+
+def f6_cases(
+    base: Scenario,
+    archetype: str,
+    modifiers: Sequence[str],
+    recession_template: Mapping[str, Any],
+    guidance: Scenario | Mapping[str, Any] | None = None,
+    consensus: Scenario | Mapping[str, Any] | None = None,
+    analyst_record: Sequence[Any] | None = None,
+    catalyst: Scenario | None = None,
+) -> dict[str, Scenario]:
+    """Build the F6 case set: management, consensus, base, down_moderate, down_severe, upside.
+
+    Management: guidance as given; absent when `guidance` is None (do not invent, p. 285).
+    Consensus: the sell-side median drivers. Base: `base` (see `base_from_consensus`); the
+    coin-toss test on `analyst_record` is stored in `base.provenance["coin_toss"]`.
+
+    Moderate downside: the archetype's main risk at the severity of the last cycle, from
+    `recession_template` keys: `annual` (annual revenue changes, for example the A4 peak-to-trough
+    path or the A3 10th-percentile deck), `shock` (one-step revenue loss share, A5 and A7),
+    `recovery_shape`, `main_risk` (overrides the archetype default), `margin_squeeze`,
+    `payable_days_cut`, `sga_fixed_share`, `replace_share`, `trough_margin` (historic trough
+    EBITDA margin), and `contract_share` (M3 only).
+
+    Severe downside: decline x 1.5, recovery one year longer (n_rec + 4 quarters), payable days
+    minus 10 more than the moderate, and the EBITDA margin min_h (1 - v_h - a_h) below the
+    historic trough by 1 point; with no trough given, v rises 2 points over the moderate.
+
+    Upside: the mirror of the moderate (`upside_scenario`) unless a `catalyst` case is passed.
+    M3 adds `down_moderate_loss_contract`: the moderate case with a further permanent loss of
+    `contract_share` of revenue in quarter 1; `f6_weights` splits the moderate weight over the two.
+    Intuition: each archetype fails in its own way; the template states how, with numbers.
+    """
+    _check_archetype(archetype, modifiers)
+    t = dict(recession_template)
+    risk = t.get("main_risk", ARCHETYPE_MAIN_RISK[archetype])
+    annual = tuple(t.get("annual", TM_CORP_RECESSION))
+    kw: dict[str, Any] = {k: t[k] for k in ("sga_fixed_share", "replace_share") if k in t}
+    if "shock" in t:
+        kw["customer_share"] = float(t["shock"])
+    squeeze = float(t.get("margin_squeeze", 0.0))
+    pay_cut = float(t.get("payable_days_cut", 0.0))
+
+    cases: dict[str, Scenario] = {}
+    if guidance is not None:
+        cases["management"] = _to_scenario(guidance, "management", "management", base.horizon, fill=base)
+    if consensus is not None:
+        cases["consensus"] = _to_scenario(consensus, "consensus", "consensus", base.horizon, fill=base)
+    if analyst_record is not None:
+        base = replace(base, provenance={**(base.provenance or {}), "coin_toss": coin_toss_test(analyst_record)})
+    cases["base"] = replace(base, name="base")
+
+    mod = downside_scenario(base, main_risk=risk, recession_annual=annual, recovery_shape=t.get("recovery_shape"),
+                            margin_squeeze=squeeze, payable_days_cut=pay_cut, name="down_moderate", **kw)
+    mod = replace(mod, provenance={**(base.provenance or {}), "rule": f"F6 moderate, {archetype}",
+                                   "template": dict(t)})
+    cases["down_moderate"] = mod
+    if "M3" in modifiers:
+        if "contract_share" not in t:
+            raise ValueError("M3 needs recession_template['contract_share']; do not invent the contract size")
+        loc = downside_scenario(mod, main_risk="customer_concentration", customer_share=float(t["contract_share"]),
+                                recovery_shape="structural", name=LOSS_OF_CONTRACT)
+        cases[LOSS_OF_CONTRACT] = replace(loc, provenance={**(mod.provenance or {}), "rule": "F6 M3 loss of contract"})
+
+    shape = mod.recovery_shape or "u"
+    sev = downside_scenario(base, main_risk=risk, recession_annual=annual, recovery_shape=shape,
+                            margin_squeeze=squeeze, payable_days_cut=pay_cut + SEVERE_PAYABLE_CUT,
+                            depth=SEVERE_DEPTH, recovery_stretch=_severe_stretch(shape), name="down_severe", **kw)
+    margin = 1.0 - sev.v - sev.a
+    if "trough_margin" in t:
+        target = float(t["trough_margin"]) - SEVERE_TROUGH_BUFFER
+        extra = max(0.0, float(margin.min()) - target)
+        rule = f"min margin {target:.4f} = trough - {SEVERE_TROUGH_BUFFER}"
+    else:
+        extra = SEVERE_EXTRA_SQUEEZE
+        rule = f"no trough margin given: v + {SEVERE_EXTRA_SQUEEZE}"
+    sev = replace(sev, v=sev.v + extra, provenance={**(base.provenance or {}), "rule": f"F6 severe, {archetype}",
+                                                     "margin_rule": rule})
+    cases["down_severe"] = sev
+
+    if catalyst is not None:
+        cases["upside"] = replace(catalyst, name="upside", provenance={**(catalyst.provenance or {}), "rule": "catalyst"})
+    else:
+        up = upside_scenario(base, mod)
+        cases["upside"] = replace(up, provenance={**(base.provenance or {}), "rule": "mirror of moderate"})
+    return cases
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (3) One case under one macro path
+# ---------------------------------------------------------------------------
+
+
+def run_case_under_path(
+    start: IssuerStart,
+    scenario: Scenario,
+    path: "MacroPath",
+    *,
+    s_fair_fn: Callable[[Any, int], float],
+    p_refi_access_fn: Callable[[Any, int], float],
+    forward_treasury_fn: Callable[[Any, int, float], float],
+    covenant_max_leverage: float = np.inf,
+    distressed_coupon_add: float = 0.05,
+    refi_tenor_years: float = REFI_TENOR_YEARS,
+) -> ScenarioPath:
+    """Run one case under macro path m (F6.3, F6.4; Section 9.2 rate channel).
+
+    Recursion (Section 5.1), per quarter h:
+      Rev_h = Rev_{h-1} (1 + g_h(m)); EBITDA_h = Rev_h (1 - v_h - a_h).
+      Intuition: revenue compounds; costs scale with it.
+      Interest_h = sum_k r_{k,h} D_{k,h-1} / 4 + r^rcf_h Drawn_{h-1} / 4 + fee Undrawn_{h-1} / 4,
+      with r_{k,h} = max(policy_h(m), floor_k) + spread_k for floating lines and c_k for fixed lines.
+      Intuition: floating debt reprices each quarter with the path; fixed debt waits for a refinance.
+      FCF_h = EBITDA_h - Capex_h - Interest_h - Tax_h - dWC_h.
+      Intuition: cash left after operations, investment, the lenders, and the state.
+      D_h = D_{h-1} - Amort_h + Draw_h - Prepay_h; Cash_h = Cash_{h-1} + FCF_h - Amort_h + Draw_h - Prepay_h.
+      Intuition: a shortfall is borrowed on the revolver; a surplus repays it first.
+      L_h = Cash_h + min(Commitment, BorrowingBase) - Drawn_h - LC; Headroom_h = 1 - Lev^cov_h / Lev^max.
+      Intuition: liquidity and headroom fall out of the same cash and debt.
+    Refinance at a maturity quarter tau <= H (F6.3):
+      if p_refi_access(m, tau) > 0.5: c_new = y_T(m, tau, tenor) + s_fair(m, tau), so from tau + 1
+      dCashInt = M_tau (y_T(m) + s_fair(m) - c_old) / 4 per quarter.
+      Intuition: the maturity rolls at the market price of the path, not at the old coupon.
+      else: `refi_fail_q` = tau, `claims_view` = True (F5 engaged), the amount stays outstanding at
+      c_old + `distressed_coupon_add`, and the case continues as a distressed exchange path.
+    A floating line that refinances keeps floating with margin s_fair(m, tau) (stated assumption).
+    `DebtLine.refi_coupon` is ignored here: the path sets the coupon.
+    """
+    H = scenario.horizon
+    policy = _path_array(path, "policy_rate", H)
+    refi: dict[str, dict[str, Any]] = {}
+    fail: list[int] = []
+
+    def on_maturity(h: int, k: int, d: DebtLine, coupon_k: float, spread_k: float) -> tuple[float, float]:
+        p = float(p_refi_access_fn(path, h))
+        old = spread_k if d.floating else coupon_k
+        if p > REFI_ACCESS_THRESHOLD:
+            s = float(s_fair_fn(path, h))
+            y = float(forward_treasury_fn(path, h, refi_tenor_years))
+            new = s if d.floating else y + s
+            rec = {"q": h, "status": "refinanced", "p_refi_access": p, "treasury": y, "s_fair": s}
+        else:
+            new = old + distressed_coupon_add
+            fail.append(h)
+            rec = {"q": h, "status": "failed", "p_refi_access": p, "treasury": np.nan, "s_fair": np.nan}
+        rec.update(old=old, new=new, floating=d.floating)
+        refi[d.name] = rec
+        return (coupon_k, new) if d.floating else (new, spread_k)
+
+    out = _roll_forward(start, scenario, policy, covenant_max_leverage, on_maturity)
+    return ScenarioPath(
+        name=scenario.name, recovery_shape=scenario.recovery_shape, forecast_source=scenario.forecast_source,
+        refi_fail_q=min(fail) if fail else None, claims_view=bool(fail), refi_coupons=refi or None,
+        macro_path=getattr(path, "name", None), **out,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (4) Grid: every case under every path
+# ---------------------------------------------------------------------------
+
+
+def run_grid(
+    start: IssuerStart,
+    cases: Mapping[str, Scenario],
+    paths: Sequence["MacroPath"],
+    *,
+    betas: Mapping[str, float] | None = None,
+    trend: float | Mapping[str, float] | None = None,
+    links: Mapping[str, str] | None = None,
+    forecast_rows: Mapping[str, Any] | None = None,
+    **fns: Any,
+) -> dict[tuple[str, str], ScenarioPath]:
+    """Run every case s under every path m: grid[(s, m)] = ScenarioPath (Section 5.4; F6 x Section 9.2).
+
+    With `betas`, each case's drivers shift by path first (`link_drivers`), so
+    g^s_h(m) = g^s_h + beta (G_h(m) - G_bar). `fns` pass to `run_case_under_path`.
+    Intuition: the grid holds the issuer's whole forward distribution before any weight is applied.
+    """
+    if betas and trend is None:
+        raise ValueError("betas need a trend G_bar")
+    grid: dict[tuple[str, str], ScenarioPath] = {}
+    for m in paths:
+        for name, sc in cases.items():
+            sc_m = link_drivers(sc, m, betas, trend, links, forecast_rows) if betas else sc  # type: ignore[arg-type]
+            grid[(name, m.name)] = run_case_under_path(start, sc_m, m, **fns)  # type: ignore[arg-type]
+    return grid
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (5) Case weights per path
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, eq=False)
+class CaseWeights(Mapping[str, float]):
+    """Case weights w_s(m) for one path, with their audit trail (F6 weight table, Section 5.2, F6.6).
+
+    Behaves as a read-only mapping case -> weight, so `forward_features` accepts it.
+    `source` is "f6_table" or "logistic_5_2". `relabel` maps an F6 role to the case that fills it
+    after an F6.6 promotion.
+    """
+
+    w: dict[str, float]
+    source: str
+    phase: str | None = None
+    archetype: str | None = None
+    down_multiplier: float = 1.0
+    m3_prob: float | None = None
+    promoted: bool = False
+    relabel: dict[str, str] | None = None
+
+    def __getitem__(self, k: str) -> float:
+        return self.w[k]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.w)
+
+    def __len__(self) -> int:
+        return len(self.w)
+
+    @property
+    def w_down(self) -> float:
+        """Combined downside weight: sum of the weights of every case named down*."""
+        return float(sum(v for k, v in self.w.items() if k.startswith("down")))
+
+
+def _m3_split(w: dict[str, float], m3_prob: float | None) -> dict[str, float]:
+    """M3: the moderate weight w_mod splits into w_mod (1 - q) and w_mod q for the loss-of-contract branch."""
+    if m3_prob is None:
+        return w
+    q = float(m3_prob)
+    if not 0.0 <= q <= 1.0:
+        raise ValueError("m3_prob must lie in [0, 1]")
+    out = dict(w)
+    out[LOSS_OF_CONTRACT] = w["down_moderate"] * q
+    out["down_moderate"] = w["down_moderate"] * (1.0 - q)
+    return out
+
+
+def f6_weights(
+    phase: str,
+    archetype: str,
+    modifiers: Sequence[str] = (),
+    m3_prob: float | None = None,
+    contracted_revenue: bool = True,
+) -> CaseWeights:
+    """F6 table weights with the archetype adjustment and the M3 branch.
+
+    w_s = table[phase][s]; for A3 and A4 both downside weights x 1.3; for A2 and A5 with
+    contracted revenue x 0.7; then w_s <- w_s / sum_s w_s. With M3, the moderate weight splits
+    by the analyst's stated probability q (`m3_prob`, required with M3).
+    Intuition: a commodity or cyclical issuer is more exposed to the same phase; a contracted one less.
+    """
+    _check_archetype(archetype, modifiers)
+    ph = _norm_phase(phase)
+    w = dict(F6_WEIGHT_TABLE[ph])
+    mult = 1.0
+    if archetype in ("A3", "A4"):
+        mult = CYCLICAL_DOWN_MULT
+    elif archetype in ("A2", "A5") and contracted_revenue:
+        mult = CONTRACTED_DOWN_MULT
+    w["down_moderate"] *= mult
+    w["down_severe"] *= mult
+    tot = sum(w.values())
+    w = {k: v / tot for k, v in w.items()}
+    if "M3" in modifiers and m3_prob is None:
+        raise ValueError("M3 needs m3_prob, the analyst's stated loss-of-contract probability")
+    w = _m3_split(w, m3_prob if "M3" in modifiers else None)
+    return CaseWeights(w=w, source="f6_table", phase=ph, archetype=archetype, down_multiplier=mult,
+                       m3_prob=m3_prob if "M3" in modifiers else None)
+
+
+def apply_f66(weights: Mapping[str, float], threshold: float = 0.5) -> tuple[CaseWeights, bool]:
+    """F6.6: if w_down > 0.5, the moderate downside becomes the base and the cases shift down one step.
+
+    Role shift: base <- down_moderate, down_moderate <- down_severe, down_severe <- down_severe
+    (no deeper case exists), upside <- base. As weights on the existing case paths:
+    w'(base case) = w_up, w'(moderate) = w_base, w'(severe) = w_mod + w_sev, w'(upside case) = 0.
+    The M3 branch keeps its share q of the moderate group. The sum stays 1. The rule fires once.
+    Intuition: when the downside is the likely outcome, it is the base case (p. 311).
+    """
+    cw = weights if isinstance(weights, CaseWeights) else CaseWeights(w=dict(weights), source="given")
+    w_down = cw.w_down
+    if cw.promoted or w_down <= threshold:
+        return cw, False
+    w = cw.w
+    w_mod_group = w.get("down_moderate", 0.0) + w.get(LOSS_OF_CONTRACT, 0.0)
+    q = w.get(LOSS_OF_CONTRACT, 0.0) / w_mod_group if w_mod_group > 0 else 0.0
+    new = {
+        "base": w.get("upside", 0.0),
+        "down_moderate": w.get("base", 0.0) * (1.0 - q),
+        "down_severe": w_mod_group + w.get("down_severe", 0.0),
+        "upside": 0.0,
+    }
+    if LOSS_OF_CONTRACT in w:
+        new[LOSS_OF_CONTRACT] = w.get("base", 0.0) * q
+    relabel = {"base": "down_moderate", "down_moderate": "down_severe", "down_severe": "down_severe", "upside": "base"}
+    return replace(cw, w=new, promoted=True, relabel=relabel), True
+
+
+def _macro_vector(path: "MacroPath", fields: Sequence[str], window: int) -> np.ndarray:
+    return np.array([float(np.mean(_path_array(path, f, window))) for f in fields])
+
+
+def case_weights_by_path(
+    paths: Sequence["MacroPath"],
+    phase: str,
+    archetype: str,
+    modifiers: Sequence[str] = (),
+    decline_model: DeclineModel | None = None,
+    *,
+    up_model: DeclineModel | None = None,
+    sector: str | None = None,
+    macro_fields: Sequence[str] = DEFAULT_MACRO_FIELDS,
+    window: int = 4,
+    severe_fraction: float = 0.25,
+    m3_prob: float | None = None,
+    contracted_revenue: bool = True,
+    promote: bool = True,
+) -> dict[str, CaseWeights]:
+    """Case weights w_s(m) for each macro path (Section 5.2; F6 weight table; F6.6).
+
+    With a calibrated `decline_model`: p_down(m) = sigma(theta_0 + theta' x(m) + theta_sector), where
+    x(m) is the mean of `macro_fields` over the first `window` quarters of path m (the window of
+    the four-quarter decline event); p_up(m) from `up_model`, else the F6 table upside weight.
+    The weights then follow `scenario_weights` (severe share f = 0.25). Without a model, every path
+    takes the F6 table with the archetype adjustment. M3 splits the moderate weight in both cases.
+    With `promote`, F6.6 applies per path. `CaseWeights.source` records which rule set the weights.
+    Intuition: the same issuer is more likely in its downside on a recession path than on a soft landing.
+    """
+    table = f6_weights(phase, archetype, modifiers, m3_prob, contracted_revenue)
+    out: dict[str, CaseWeights] = {}
+    for m in paths:
+        if decline_model is not None:
+            x = _macro_vector(m, macro_fields, window)
+            if x.size != np.asarray(decline_model.theta).size:
+                raise ValueError(f"decline_model expects {np.asarray(decline_model.theta).size} macro inputs, "
+                                 f"macro_fields gives {x.size}")
+            p_down = decline_model.predict(x, sector)
+            p_up = up_model.predict(x, sector) if up_model is not None else F6_WEIGHT_TABLE[table.phase]["upside"]  # type: ignore[index]
+            w = _m3_split(scenario_weights(p_down, p_up, severe_fraction), table.m3_prob)
+            cw = CaseWeights(w=w, source="logistic_5_2" if up_model is not None else "logistic_5_2+f6_upside",
+                             phase=table.phase, archetype=archetype, m3_prob=table.m3_prob)
+        else:
+            cw = table
+        if promote:
+            cw, _ = apply_f66(cw)
+        out[m.name] = cw
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (6) Outputs per path and across paths
+# ---------------------------------------------------------------------------
+
+
+def _p_path_dict(p_path: Mapping[str, float] | Sequence["MacroPath"]) -> dict[str, float]:
+    p = dict(p_path) if isinstance(p_path, Mapping) else {m.name: float(m.prob) for m in p_path}
+    if any(v < 0 for v in p.values()) or not np.isclose(sum(p.values()), 1.0):
+        raise ValueError("path probabilities must be nonnegative and sum to 1")
+    return p
+
+
+def lev_mixture(
+    grid: Mapping[tuple[str, str], ScenarioPath],
+    p_path: Mapping[str, float] | Sequence["MacroPath"],
+    w_by_path: Mapping[str, Mapping[str, float]],
+    h: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Atoms and masses of the forward leverage mixture: Lev^s_h(m) with mass p(m) w_s(m) (Section 5.4).
+
+    Intuition: the forecast distribution is a finite mixture over paths and cases.
+    """
+    p = _p_path_dict(p_path)
+    vals, mass = [], []
+    for m, pm in p.items():
+        for s, ws in w_by_path[m].items():
+            vals.append(float(grid[(s, m)].leverage[h - 1]))
+            mass.append(pm * ws)
+    return np.array(vals), np.array(mass)
+
+
+def mixture_pit(x: float, atoms: np.ndarray, masses: np.ndarray, noise_sd: float = 0.0) -> float:
+    """Probability integral transform of a realised value against the mixture: F(x) = sum_j q_j Phi((x - a_j) / sd).
+
+    With `noise_sd` = 0 the mixture is discrete and F is a step function.
+    Intuition: if the model is right, F(realised) is uniform on [0, 1] over many decisions.
+    """
+    if noise_sd <= 0:
+        return float(masses[atoms <= x].sum())
+    return float(masses @ norm.cdf((x - atoms) / noise_sd))
+
+
+def forward_features_by_path(
+    grid: Mapping[tuple[str, str], ScenarioPath],
+    p_path: Mapping[str, float] | Sequence["MacroPath"],
+    w_by_path: Mapping[str, Mapping[str, float]],
+    start: IssuerStart,
+    *,
+    pd_fn: Callable[[dict[str, Any]], float] | None = None,
+    s_fair_fn: Callable[[dict[str, Any]], float] | None = None,
+    oas: float | None = None,
+    bandwidth: float = 0.05,
+) -> pd.DataFrame:
+    """Forward features per macro path and the probability-weighted row (Sections 5.3, 5.4; F6.8).
+
+    Mixture over paths m and cases s:
+      E_t[Lev_{t+h}] = sum_m sum_s p(m) w_s(m) Lev^s_h(m).
+      Intuition: the expected leverage averages every case on every path by its probability.
+      Var_t[Lev_{t+h}] = sum_m sum_s p(m) w_s(m) (Lev^s_h(m) - E_t[Lev_{t+h}])^2
+                       = sum_m p(m) [Var_m + (E_m - E_t)^2]   (law of total variance).
+      Intuition: dispersion comes from the cases inside a path and from the paths themselves.
+    Per path m the columns follow `forward_features` with w_s(m). The "weighted" row takes
+    p(m)-weighted means of the per-path values (probabilities, coverage, lev_peak_down, liq_min_down,
+    refi_fail_share, base and reference case leverage), `lev_fwd_sd` from the total variance,
+    pd_12m = sum_m p(m) PD(m), and s_fair = sum_m p(m) s_fair(m).
+    refi_fail_share(m) = sum_s w_s(m) 1{refi_fail_q^s(m) is set}. resid_bp = (oas - s_fair) x 1e4.
+    `pd_fn` and `s_fair_fn` take the feature dict of one row. The recursion and the refinance
+    coupon are stated in `run_case_under_path`.
+    """
+    p = _p_path_dict(p_path)
+    rows = []
+    for m, pm in p.items():
+        w = w_by_path[m]
+        paths_m = {s: path for (s, mm), path in grid.items() if mm == m}
+        f = forward_features(paths_m, w, start.lev0, start.debt0, horizons=(4, 8), bandwidth=bandwidth)
+        row: dict[str, Any] = {
+            "macro_path": m, "p_path": pm,
+            "lev_fwd_4": f["lev_fwd_4"], "lev_fwd_8": f["lev_fwd_8"],
+            "lev_fwd_sd": f["lev_fwd_sd_4"], "lev_fwd_sd_8": f["lev_fwd_sd_8"],
+            "lev_peak_down": f.get("lev_peak_down", np.nan), "liq_min_down": f.get("liq_min_down", np.nan),
+            "p_breach_4": f["p_breach_4"], "p_liq_short_8": f["p_liq_short_8"], "p_refi_4": f["p_refi_4"],
+            "cov_fwd_4": f["cov_fwd_4"],
+            "refi_fail_share": float(sum(wt for s, wt in w.items() if paths_m[s].refi_fail_q is not None)),
+            "w_down": float(sum(wt for s, wt in w.items() if s.startswith("down"))),
+            "base_lev_4": float(paths_m["base"].leverage[3]) if "base" in paths_m else np.nan,
+            "consensus_lev_4": float(paths_m["consensus"].leverage[3]) if "consensus" in paths_m else np.nan,
+            "mgmt_lev_4": float(paths_m["management"].leverage[3]) if "management" in paths_m else np.nan,
+            "weight_source": getattr(w, "source", "given"), "promoted": bool(getattr(w, "promoted", False)),
+        }
+        row["pd_12m"] = float(pd_fn(row)) if pd_fn is not None else np.nan
+        row["s_fair"] = float(s_fair_fn(row)) if s_fair_fn is not None else np.nan
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    pv = df["p_path"].to_numpy()
+    wrow: dict[str, Any] = {"macro_path": "weighted", "p_path": float(pv.sum())}
+    mean_cols = ("lev_fwd_4", "lev_fwd_8", "lev_peak_down", "liq_min_down", "p_breach_4", "p_liq_short_8",
+                 "p_refi_4", "cov_fwd_4", "refi_fail_share", "w_down", "base_lev_4", "consensus_lev_4",
+                 "mgmt_lev_4", "pd_12m", "s_fair")
+    for c in mean_cols:
+        wrow[c] = float(pv @ df[c].to_numpy(dtype=float))
+    for sd_col, mu_col in (("lev_fwd_sd", "lev_fwd_4"), ("lev_fwd_sd_8", "lev_fwd_8")):
+        within = pv @ df[sd_col].to_numpy(dtype=float) ** 2
+        between = pv @ (df[mu_col].to_numpy(dtype=float) - wrow[mu_col]) ** 2
+        wrow[sd_col] = float(np.sqrt(within + between))
+    srcs = sorted(set(df["weight_source"]))
+    wrow["weight_source"] = srcs[0] if len(srcs) == 1 else "mixed:" + ",".join(srcs)
+    wrow["promoted"] = bool(df["promoted"].any())
+    df = pd.concat([df, pd.DataFrame([wrow])], ignore_index=True)
+    df["resid_bp"] = (oas - df["s_fair"]) * 1e4 if oas is not None else np.nan
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 5.4 (7) Revisions between vintages, forward part
+# ---------------------------------------------------------------------------
+
+
+def _weighted(features: Any) -> Mapping[str, Any]:
+    if isinstance(features, Mapping):
+        return features
+    hit = features[features["macro_path"] == "weighted"]
+    if hit.empty:
+        raise ValueError("features frame has no 'weighted' row")
+    return hit.iloc[0].to_dict()
+
+
+def forward_revisions(
+    new_features: Any,
+    old_features: Any,
+    consensus_lev_4: float | None = None,
+    mgmt_lev_4: float | None = None,
+) -> dict[str, Any]:
+    """Forward revisions between two vintages (Section 5.3 `rev_lev`, `gap_consensus`, `gap_mgmt`; signals S3, S7).
+
+    rev_lev = lev_fwd_4^weighted(v) - lev_fwd_4^weighted(v - 1).
+    Intuition: a revision is news; the signal trades the change, not the level.
+    gap_consensus = base Lev_4 - consensus Lev_4; gap_mgmt = base Lev_4 - management Lev_4, each the
+    p(m)-weighted base and reference case of the new vintage unless a scalar is passed.
+    Intuition: the gap is the analyst's edge over the market view and the optimism haircut on management.
+    dp_path[m] = p_new(m) - p_old(m) for the paths present in both vintages.
+    """
+    new_w, old_w = _weighted(new_features), _weighted(old_features)
+    base4 = float(new_w.get("base_lev_4", np.nan))
+    cons = consensus_lev_4 if consensus_lev_4 is not None else new_w.get("consensus_lev_4", np.nan)
+    mgmt = mgmt_lev_4 if mgmt_lev_4 is not None else new_w.get("mgmt_lev_4", np.nan)
+    dp: dict[str, float] = {}
+    if not isinstance(new_features, Mapping) and not isinstance(old_features, Mapping):
+        pn = new_features[new_features["macro_path"] != "weighted"].set_index("macro_path")["p_path"]
+        po = old_features[old_features["macro_path"] != "weighted"].set_index("macro_path")["p_path"]
+        dp = {k: float(pn[k] - po[k]) for k in pn.index if k in po.index}
+    return {
+        "rev_lev": float(new_w["lev_fwd_4"]) - float(old_w["lev_fwd_4"]),
+        "gap_consensus": base4 - float(cons) if cons is not None else np.nan,
+        "gap_mgmt": base4 - float(mgmt) if mgmt is not None else np.nan,
+        "dp_path": dp,
+    }
