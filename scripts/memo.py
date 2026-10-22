@@ -33,7 +33,8 @@ GROUPS = {
     "G2C": ("Two clocks", "the bills the company owes against the revenue customers have signed for"),
     "G2": ("Built methods (rest)", "the spread level, the fair line and the pair, the economic stories, the health panel"),
     "G3": ("Credit skills", "the lender's checklists: add-backs, covenants, watchlist, trend, memo structure"),
-    "G4": ("Books", "Kricheff's cash bridge and ratios; the S\\&P risk profiles and rating anchor"),
+    "G4": ("Books and peers", "Kricheff's cash bridge and ratios; the S\\&P risk profiles and rating anchor; "
+           "spread against peers (Dynkin et al.)"),
 }
 ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_framework_spec.md S14)
     "E0": ("Spread level: the extra pay over the market (carry)", "Spec S14 E0; K15"),
@@ -50,6 +51,8 @@ ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_f
     "E11": ("Watchlist tier (can only lower)", "borrower-monitoring; covenant-compliance"),
     "E12": ("Spread against the S\\&P risk score", "Ganguin and Bilardello ch. 10"),
     "E13": ("Spread per turn of leverage (with the trap guard)", "Kricheff ch. 21"),
+    "E14": ("Excess spread to sector and rating peers (ESP)", "Dynkin et al. ch. 13"),
+    "E15": ("SPiDER: spread per unit of debt to 10-year EBITDA", "Dynkin et al. ch. 14"),
 }
 GLOSSARY = [
     ("Spread", "The extra yield a bond pays over a US Treasury of the same maturity. More risk, more spread."),
@@ -175,7 +178,7 @@ def plain_call(g: dict) -> str:
 
 
 GROUP_OF = {"E0": "G2", "E1": "G2", "E2": "G2", "E3": "G2", "E4": "G1", "E5": "G2C", "E6": "G2", "E7": "G1",
-            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4"}  # hy.groups.ESTIMATES
+            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4", "E14": "G4", "E15": "G4"}  # hy.groups.ESTIMATES
 BUCKET_ORDER = ("G1", "G2C", "G2", "G3", "G4")  # hy.groups.BUCKETS
 BUCKET_LABEL = {"G1": "G1", "G2C": "G2 clocks", "G2": "G2 rest", "G3": "G3", "G4": "G4"}
 VERDICT_COL = {"supports owning": "good", "leans to owning": "amber", "against owning": "bad", "no view": "gray",
@@ -423,7 +426,7 @@ def memo(d: dict) -> str:
             L.append(f"\\textbf{{SPiDER}} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): "
                      f"cheaper than {pct(pe['spider_pct'], 0)} of the peer bonds across all sectors, and "
                      f"{rel(pe.get('spider_sr'))} against sector and rating peers. "
-                     "It has no weight in the score: its edge beyond spread level is small (t 1.3 at 12 months).")
+                     "It enters the score as E15 at 3\\%. Its edge beyond spread level is small (t 1.3 at 12 months).")
         elif pe.get("spider_note"):
             L.append(f"\\textbf{{SPiDER}}: {esc(pe['spider_note'])}")
     for p in pairs:

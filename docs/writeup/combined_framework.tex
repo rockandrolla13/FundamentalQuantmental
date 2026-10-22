@@ -62,7 +62,7 @@
 \item The four groups are: \GA{} the core process (Gatto's seven steps, the methodology, the framework rules, and the relative value PDF); \GB{} the methods the code already runs; \GC{} seven credit skills, written for private loans and adapted here to public bonds; and \GD{} two books, Kricheff and Ganguin and Bilardello (S\&P).
 \item The analyst loads data stamped with the date it became public, frames the business, cleans earnings, and measures liquidity, claims, covenants, and the gap between fixed charges and signed contracts (the two clocks).
 \item The analyst then projects the issuer under five macro stories, values the firm and each bond's recovery, and finds the spread each bond should pay.
-\item All of this becomes one number: expected alpha, the six-month return of a hedged long after default loss and cost. The weights are the user's: 45\% on the core process, 20\% on the two clocks, and 11.67\% each on the rest of the built methods, the skills (which can only lower the number), and the books.
+\item All of this becomes one number: expected alpha, the six-month return of a hedged long after default loss and cost. The weights are the user's: 40\% on the core process, 20\% on the two clocks, 18\% on the rest of the built methods, 17\% on the books and peers, and 5\% on the skills (which can only lower the number).
 \item The code now charges default loss on the price paid, not on face value. In the gate, the row that turned spread into a default probability no longer votes. A breakeven-default row votes instead: the default rate at which the spread only pays for its loss.
 \item The severe-case runway now funds committed capex, so it no longer hides the cash burn of growth commitments.
 \item The size calibration is built. The backtest slope is 0.079 (standard error 0.054). That is not reliably above zero, so the number ranks issuers but does not size positions.
@@ -125,7 +125,7 @@
 \draw[a] (s10) -- (s11);
 \draw[a] (s4) -- (s13.north east);
 % combine
-\node[p,text width=92mm] (s14) at (6.5,-11.4) {\textbf{S14 Combined view} $\rightarrow$ \textbf{S14b Size calibration}\\weights: G1 45\%; clocks 20\%; G2 rest, G3 (one-way), G4 11.67\% each};
+\node[p,text width=92mm] (s14) at (6.5,-11.4) {\textbf{S14 Combined view} $\rightarrow$ \textbf{S14b Size calibration}\\weights: G1 40\%; clocks 20\%; G2 rest 18\%; G4 17\%; G3 5\% (one-way)};
 \draw[a] (s10.south) |- (s14.west);
 \foreach \s in {s11,s12,s13} \draw[a] (\s.south) -- (s14.north -| \s.south);
 \draw[a] (s14.east) -| (s15.south);
@@ -153,10 +153,10 @@
 Group & Sources & What it brings to the one framework & Role in the score \\
 \midrule
 \endhead
-\GA{} Core process & Gatto, \emph{The Credit Investor's Handbook} (2023); \code{docs/methodology.md}; \code{docs/framework.md} F1--F13; relative value PDF via \code{research/hyrv_extract.md} and \code{research/hyrv_mapping.md} & The order of the steps; the rules (point in time, two views, claims sizing, the gate); the formulas; the PDF's decision against cash and its strict rules on PD, loss and averaging & 45\% of the score (E4, E7--E10); the loss on price; the gate; size calibration; the decision \\
-\GB{} Built methods & Two clocks (M4.7, Radhakrishnan card); fair line and pair (\code{scripts/rv_pair.py}); stories and forecast sources (\code{hy/macro.py}, \code{hy/forecasts.py}, eleven forecast cards); cases and alpha (\code{scripts/scenarios.py}, \code{hy/alpha.py}); F9 gate, F8 panel, combined view (\code{scripts/process.py}); the backtest (\code{hy/backtest.py}) & Working code on real data for eight issuers; the only measured evidence (the backtest) & Two clocks (E5): 20\%; the rest (E0--E3, E6): 11.67\% \\
-\GC{} Skills & \code{hy-model-standards}; \code{credit-model-standards}; \code{credit-memo-standards}; \code{ebitda-addback-treatment}; \code{covenant-compliance}; \code{borrower-monitoring}; \code{quarterly-package-extraction} & Practitioner rules: three EBITDAs, add-back push-back thresholds, FCF cross-check, covenant headroom and trajectory, watchlist tiers, debt bridges. Written for private loans; where a rule does not transfer to public bonds, the step says so & 11.67\%, one-way (E11); E7 is one-way but counted in G1 \\
-\GD{} Books & Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance}; Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005) & Kricheff: cash-flow underwriting, spread per turn and its trap, covenant capacity, event pro formas, recovery timing. S\&P: business risk grading, analytical adjustments (leases, pensions), ratio medians by rating, stress and default cases, recovery method & 11.67\%: cross-checks E12 (S\&P score gap), E13 (spread per turn) \\
+\GA{} Core process & Gatto, \emph{The Credit Investor's Handbook} (2023); \code{docs/methodology.md}; \code{docs/framework.md} F1--F13; relative value PDF via \code{research/hyrv_extract.md} and \code{research/hyrv_mapping.md} & The order of the steps; the rules (point in time, two views, claims sizing, the gate); the formulas; the PDF's decision against cash and its strict rules on PD, loss and averaging & 40\% of the score (E4, E7--E10); the loss on price; the gate; size calibration; the decision \\
+\GB{} Built methods & Two clocks (M4.7, Radhakrishnan card); fair line and pair (\code{scripts/rv_pair.py}); stories and forecast sources (\code{hy/macro.py}, \code{hy/forecasts.py}, eleven forecast cards); cases and alpha (\code{scripts/scenarios.py}, \code{hy/alpha.py}); F9 gate, F8 panel, combined view (\code{scripts/process.py}); the backtest (\code{hy/backtest.py}) & Working code on real data for eight issuers; the only measured evidence (the backtest) & Two clocks (E5): 20\%; the rest (E0--E3, E6): 18\% \\
+\GC{} Skills & \code{hy-model-standards}; \code{credit-model-standards}; \code{credit-memo-standards}; \code{ebitda-addback-treatment}; \code{covenant-compliance}; \code{borrower-monitoring}; \code{quarterly-package-extraction} & Practitioner rules: three EBITDAs, add-back push-back thresholds, FCF cross-check, covenant headroom and trajectory, watchlist tiers, debt bridges. Written for private loans; where a rule does not transfer to public bonds, the step says so & 5\%, one-way (E11); E7 is one-way but counted in G1 \\
+\GD{} Books and peers & Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance}; Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005); Dynkin et al., \emph{Systematic Investing in Credit} (2021), ch.~13--14 & Kricheff: cash-flow underwriting, spread per turn and its trap, covenant capacity, event pro formas, recovery timing. S\&P: business risk grading, analytical adjustments (leases, pensions), ratio medians by rating, stress and default cases, recovery method. Dynkin et al.: excess spread to peers (ESP) and SPiDER & 17\%: E12 (S\&P score gap), E13 (spread per turn), E14 (ESP), E15 (SPiDER) \\
 \bottomrule
 \end{xltabular}
 }
@@ -913,15 +913,15 @@ panel = \frac{n_{green} - n_{red}}{n_{banded}},\qquad rating^{SP} = \operatornam
 
 \textbf{Purpose.} Turn every group's evidence into one expected alpha per issuer and one rank. Section~\ref{sec:score} gives the full rule; this section gives the step.
 
-\fld{What each group contributes} By the user's bucket weights: G1 45\% (liquidity, value, earnings quality, excess over cash); the two clocks 20\%; the rest of G2 11.67\% (spread level, cases, fair line, pair, panel); G3 11.67\%, one-way; G4 11.67\% (the S\&P score gap and Kricheff's spread per turn).
+\fld{What each group contributes} By the user's bucket weights: G1 40\% (liquidity, value, earnings quality, excess over cash); the two clocks 20\%; the rest of G2 18\% (spread level, cases, fair line, pair, panel); G4 17\% (the S\&P score gap, Kricheff's spread per turn, ESP and SPiDER); G3 5\%, one-way.
 
 \fld{Algorithm}
 \begin{algobox}
 \begin{enumerate}
-\item Collect the estimates E0--E13 of Section~\ref{sec:score}. Drop any that is missing.
+\item Collect the estimates E0--E15 of Section~\ref{sec:score}. Drop any that is missing.
 \item Convert each score-type estimate to bp a year: standardise across the issuers in the run, times the cross-sectional standard deviation of E1.
 \item Clip the one-way estimates (E7, E11) at zero from above: soft risks can only lower alpha.
-\item Weighted sum by bucket: G1 0.45, clocks 0.20, G2 rest, G3 and G4 0.1167 each; inside a bucket, the estimates present share its weight in fixed proportions.
+\item Weighted sum by bucket: G1 0.40, clocks 0.20, G2 rest 0.18, G4 0.17, G3 0.05; inside a bucket, the estimates present share its weight in fixed proportions.
 \item Subtract the round-trip cost.
 \item Size it (S14b): $\alpha^{sized} = \hat a + \hat b\,\alpha^{net}$. The raw number sets the rank; the sized number enters S15 and position size.
 \item The call may be ``long candidate'' only if $\alpha^{sized}>0$ and the gate passes.
@@ -935,7 +935,7 @@ panel = \frac{n_{green} - n_{red}}{n_{banded}},\qquad rating^{SP} = \operatornam
 
 \fld{Settling test} The ensemble's rank IC after cost must beat E1 alone and the ``widest spread'' baseline in at least three of four cycles. Today only the fair line has a record, and it does not beat the baseline.
 
-\fld{Status} \stpartial. Built: E0--E13, one-way clipping, group shares (\code{hy/groups.py}). The user's bucket weights (Section~\ref{sec:score}) replace the backtest-led v0 weights in the next run. Missing: the baseline test against the widest rule.
+\fld{Status} \stpartial. Built: E0--E15, one-way clipping, group shares (\code{hy/groups.py}), the user's bucket weights (Section~\ref{sec:score}). Missing: the baseline test against the widest rule.
 
 \fld{CRWV} Under the earlier backtest-led weights: +145 bp a year raw after cost, +11 after calibration. The bucket weights shift weight to the G1 rules and the clocks, where CoreWeave scores poorly, so the figure is likely to fall. The rerun will set it.
 
@@ -1036,12 +1036,12 @@ The code also reports a hedged version beside it: rates held at today's curve, t
 \textbf{The idea.} Each estimate is one witness to the same quantity: the expected alpha of a hedged long over six months, in bp a year. The combination weighs the witnesses in five fixed buckets. A calibration step then resizes the result to the size that history supports. The bucket weights are a user choice (conflict W1); within each bucket, the estimates keep their earlier relative weights.
 
 \begin{notebox}
-\textbf{The five buckets and their weights (user choice, 22 October 2026).}
-\GA{} core process: \textbf{45\%}. The rules the number must obey (liquidity and refinancing, market value, earnings quality, the default the price assumes) and the excess over cash from S15.
+\textbf{The five buckets and their weights (user choice, 22 October 2026, second revision).}
+\GA{} core process: \textbf{40\%}. The rules the number must obey (liquidity and refinancing, market value, earnings quality, the default the price assumes) and the excess over cash from S15.
 \textbf{Two clocks (E5): 20\%}, as their own bucket.
-\GB{} rest of the built methods (E0, E1, E2, E3, E6): \textbf{11.67\%}.
-\GC{} skills: \textbf{11.67\%}, one-way: it can only lower the number.
-\GD{} books: \textbf{11.67\%}. Two cross-checks that use no repo model.
+\GB{} rest of the built methods (E0, E1, E2, E3, E6): \textbf{18\%}. It holds spread level, the best-tested estimate.
+\GD{} books and peers: \textbf{17\%}. Two textbook cross-checks and the two peer signals of Dynkin et al.
+\GC{} skills: \textbf{5\%}, one-way: it can only lower the number.
 \end{notebox}
 
 \subsection*{The estimates and their weights}
@@ -1053,30 +1053,32 @@ ID & Estimate & Bucket & Type & How it becomes bp a year & Weight & In code \\
 \midrule
 \endhead
 E4 & Default the price assumes & G1 & alpha & $(PD^{\kappa_t} - PD^{fund})\,L^{def}$; held at zero until $\kappa_t$ is fitted (C2) & 0.00\% & yes \\
-E7 & Earnings quality & G1 & one-way & $-$(F3 flags + G3 add-back flags + FCF check flag); counted in G1 as the code does & 11.25\% & yes \\
-E8 & Liquidity and refinancing & G1 & score & F4 score on the likely path + wall cover (cap 3) + 1\{funding gap $\ge0$\} & 11.25\% & yes \\
-E9 & Market value check & G1 & score & $-$debt/TEV & 11.25\% & yes \\
-E10 & Excess over cash & G1 & alpha & $\mu/H$ from S15 & 11.25\% & yes \\
+E7 & Earnings quality & G1 & one-way & $-$(F3 flags + G3 add-back flags + FCF check flag); counted in G1 as the code does & 10.00\% & yes \\
+E8 & Liquidity and refinancing & G1 & score & F4 score on the likely path + wall cover (cap 3) + 1\{funding gap $\ge0$\} & 10.00\% & yes \\
+E9 & Market value check & G1 & score & $-$debt/TEV & 10.00\% & yes \\
+E10 & Excess over cash & G1 & alpha & $\mu/H$ from S15 & 10.00\% & yes \\
 \midrule
 E5 & Two clocks & Clocks & score & $-$(fixed charges in years of EBITDAR), standardised & 20.00\% & yes \\
 \midrule
-E0 & Spread level (carry) & G2 rest & alpha & $(s - S_0)$, hedge $\beta = 1$ & 4.86\% & yes \\
-E1 & Weighted cases and stories & G2 rest & alpha & Scenario-weighted alpha before cost (S10) & 2.92\% & yes \\
-E2 & Fair-line convergence & G2 rest & alpha & $D(1-\rho^{4h})(s-s^{fair})/h$ & 1.94\% & yes \\
-E3 & Pair convergence & G2 rest & alpha & Pair gap closed at its measured half-life, $\pm$ by leg & 0.97\% & yes \\
-E6 & Health panel & G2 rest & score & $(n_{green}-n_{red})/n$ on the S13 panel & 0.97\% & yes \\
+E0 & Spread level (carry) & G2 rest & alpha & $(s - S_0)$, hedge $\beta = 1$ & 7.50\% & yes \\
+E1 & Weighted cases and stories & G2 rest & alpha & Scenario-weighted alpha before cost (S10) & 4.50\% & yes \\
+E2 & Fair-line convergence & G2 rest & alpha & $D(1-\rho^{4h})(s-s^{fair})/h$ & 3.00\% & yes \\
+E3 & Pair convergence & G2 rest & alpha & Pair gap closed at its measured half-life, $\pm$ by leg & 1.50\% & yes \\
+E6 & Health panel & G2 rest & score & $(n_{green}-n_{red})/n$ on the S13 panel & 1.50\% & yes \\
 \midrule
-E11 & Watchlist and covenant path & G3 & one-way & $-$(tier 0--3) $-$ 1\{headroom falling\} & 11.67\% & yes \\
+E11 & Watchlist and covenant path & G3 & one-way & $-$(tier 0--3) $-$ 1\{headroom falling\} & 5.00\% & yes \\
 \midrule
-E12 & Ratio-implied rating gap & G4 & score & $z(\log s) - z(\text{S\&P risk score})$: a wide spread for the score is cheap & 5.83\% & yes \\
-E13 & Spread per turn against peers & G4 & score & $\log SPT$ minus the peer median (same GICS sector, rating class and maturity bucket) if FCF/debt $>0$ and cushion $>1$, else 0 & 5.83\% & yes \\
+E12 & Ratio-implied rating gap & G4 & score & $z(\log s) - z(\text{S\&P risk score})$: a wide spread for the score is cheap & 2.50\% & yes \\
+E13 & Spread per turn against peers & G4 & score & $\log SPT$ minus the peer median (same GICS sector, rating class and maturity bucket) if FCF/debt $>0$ and cushion $>1$, else 0 & 2.50\% & yes \\
+E14 & Excess spread to peers (ESP) & G4 & score & $\log s$ minus the peer median (same GICS sector, rating class and maturity bucket); Dynkin et al.\ ch.~13 without the leverage control & 9.00\% & yes \\
+E15 & SPiDER & G4 & score & $\log\big(s \,/\, (D/\overline{EBITDA}_{10y})\big)$, absolute across sectors; none without 6 annual EBITDA figures; Dynkin et al.\ ch.~14 & 3.00\% & yes \\
 \midrule
- & \textbf{Total} & & & G1 45; clocks 20; G2 rest 11.67; G3 11.67; G4 11.67 & 100\% & \\
+ & \textbf{Total} & & & G1 40; clocks 20; G2 rest 18; G4 17; G3 5 & 100\% & \\
 \bottomrule
 \end{xltabular}
 }
 
-Two notes on the table. First, E4 keeps its zero weight inside G1, so G1's 45\% is shared by four estimates. Second, the skills bucket holds only E11, so the whole 11.67\% is one-way; E7 is one-way too, but the code counts it in G1.
+Two notes on the table. First, E4 keeps its zero weight inside G1, so G1's 40\% is shared by four estimates. Second, the skills bucket holds only E11, so the whole 5\% is one-way; E7 is one-way too, but the code counts it in G1.
 
 \subsection*{The rule, in four steps}
 
@@ -1092,7 +1094,7 @@ Two notes on the table. First, E4 keeps its zero weight inside G1, so G1's 45\% 
 \alpha^{comb} = \sum_{g} W_g\,\bar\alpha_g,\qquad \bar\alpha_g = \frac{\sum_{j\in g\cap P} w_j\,\alpha_j}{\sum_{j\in g\cap P} w_j},\qquad \alpha^{net} = \alpha^{comb} - c .
 \end{equation}
 \intu{each bucket speaks with its own weight; inside a bucket, the estimates present share it in their fixed proportions.}
-\sym{$g$ a bucket; $W_g$ its weight (0.45, 0.20, 0.1167, 0.1167, 0.1167), renormalised over buckets with at least one estimate present; $P$ estimates present; $w_j$ the in-bucket weight; $c$ the round-trip cost in bp a year.}
+\sym{$g$ a bucket; $W_g$ its weight (0.40, 0.20, 0.18, 0.05, 0.17), renormalised over buckets with at least one estimate present; $P$ estimates present; $w_j$ the in-bucket weight; $c$ the round-trip cost in bp a year.}
 
 \textbf{Step 3: size calibration (S14b).}
 \begin{equation}
@@ -1112,11 +1114,13 @@ The alpha backtest (2008--2026, 13,271 bonds) found:
 \item the size is far too large: calibration slope 0.07--0.08;
 \item the cycle windows all pass, but calendar 2008 and 2015 are negative for every rule.
 \end{enumerate}
-The earlier v0 weights followed that evidence (spread level 25\%, untested estimates capped at 5\%). The user replaced them with the bucket weights above. The new weights put 65\% on two blocks that no backtest has scored yet: the G1 rules (45\%) and the clocks (20\%). Spread level, the best-tested estimate, now carries under 5\%.
+The earlier v0 weights followed that evidence (spread level 25\%, untested estimates capped at 5\%). The user replaced them with bucket weights. The second revision moves 5\% from G1 and 6.67\% from G3 to the tested blocks: spread level now carries 7.5\%, and ESP, the best peer signal, carries 9\%. The weights still put 60\% on two blocks without backtest support: the G1 rules (40\%, no backtest yet) and the clocks (20\%; the clocks backtest finds a rank IC beyond spread of $-0.03$ at 6 months, $t$ $-1.2$). The user keeps the clocks at 20\% by choice.
+
+The peer backtest (2008--2026, decision page \code{2026-10-22-esp-peer-groups}) sets the G4 split. ESP adds to spread level: IC beyond spread $+0.096$ at 12 months ($t$ 2.6). SPiDER adds $+0.032$ ($t$ 1.3), and E13 adds $+0.026$ ($t$ 0.9). ESP fails the three-of-four-cycles bar beyond spread, so its 9\% is a user choice backed by the full-sample result only.
 
 \textbf{The tests that revisit the weights.}
 \begin{enumerate}
-\item The clocks backtest, now running: the rank IC of E5 after cost, on its own and beyond the spread rank, in each cycle window. If E5 does not beat zero beyond spread, its 20\% has no support.
+\item The clocks backtest ran: E5 does not beat zero beyond the spread rank ($-0.03$ at 6 months). Its 20\% is a user choice without backtest support. A refinance against recontract split did not change that.
 \item A backtest of each G1 estimate (E7, E8, E9, E10) on the same panel, once point-in-time inputs exist for them.
 \item Then the rank-IC rule: $w_{j,\phi} \propto \max(0, IC^{net}_{j,\phi})$, shrunk toward the bucket weights with $\lambda = N/(N+36)$ for $N$ months of history; ablation (drop an estimate whose removal does not lower net IC); and the ensemble must beat the ``widest'' rule after cost in at least three of four cycles.
 \end{enumerate}
@@ -1176,7 +1180,7 @@ K13 & Trend length & \code{borrower-monitoring}: a trend needs 3--4 quarters. F8
 K15 & Hedge ratio & \code{scripts/scenarios.py}: $\beta = s/S_0$, so carry is zero in E1. Backtest: $\beta=1$; carry (spread level) is the best ranker. M9.3: $\beta$ from the model's $\partial s/\partial S_{mkt}$. & One $\beta$ for prediction and test, estimated from history by bucket; 1 until then. Add carry as E0 (now in code; S15 hedges with $\beta=1$). & IC of E1 with and without carry; hedged P\&L variance under each $\beta$. \\
 K14 & Capex in the cases & F4.7: maintenance floor; growth capex cuttable in two quarters. Code: now runs maintenance-only and committed capex; quotes the shorter. \code{credit-model-standards}: all capex in FCF. & Run two cases: maintenance-only and committed capex. Quote the shorter runway. & For CRWV the static runway is 2 quarters; the case shows no shortfall in 8. \\
 \midrule
-W1 & Combination weights & Backtest-led v0: spread level 25\%, cases 15\%, fair line 10\%, untested estimates capped at 5\% (the backtest supported spread level best, IC after cost 0.22 and 0.29; the leverage residual added 0.036; the clocks and G1 estimates were untested). User choice (22 October 2026): G1 45\%, clocks 20\%, G2 rest, G3 and G4 11.67\% each, relative weights kept inside each bucket. & The user's weights, by user choice; they replace the backtest-led weights. & The clocks backtest now running (IC of E5 after cost, beyond the spread rank, per cycle); then a backtest of each G1 estimate (E7--E10); then the rank-IC rule with ablation. \\
+W1 & Combination weights & Backtest-led v0: spread level 25\%, cases 15\%, fair line 10\%, untested estimates capped at 5\% (the backtest supported spread level best, IC after cost 0.22 and 0.29; the leverage residual added 0.036; the clocks and G1 estimates were untested). User choice (22 October 2026, revised the same day): G1 40\%, clocks 20\%, G2 rest 18\%, G4 17\% (ESP 9, SPiDER 3, E12 and E13 2.5 each), G3 5\%, relative weights kept inside each bucket. & The user's weights, by user choice; they replace the backtest-led weights. & The clocks backtest ran (E5 below zero beyond spread); next a backtest of each G1 estimate (E7--E10); then the rank-IC rule with ablation. \\
 \midrule
 B1 & Leases & S\&P: present value of commitments at 10\% (App.~E), ``superior'' to a rent factor. Kricheff: capital leases only. M4.3: $8\times$ rent. F5, PDF: filed liability. Code: liability. & Filed liability (already a present value after ASC 842); S\&P 10\% PV when untagged; $8\times$ for old periods. & As C6. \\
 B2 & Pensions & S\&P: (PBO + OPEB $-$ assets)$\times(1-t)$ to debt; contributions a liquidity call. PDF E35: deficit to debt, expense less service cost to EBITDA. & PDF form plus OPEB; tax shield only for a cash tax payer. & As C7. \\

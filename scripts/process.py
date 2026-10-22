@@ -801,7 +801,7 @@ def _o(st: dict, k: str) -> dict:
 
 
 def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[dict, dict, float]:
-    """Estimates E0 to E13 per issuer in bp a year before cost (research/combined_framework_spec.md S14; hy.groups).
+    """Estimates E0 to E15 per issuer in bp a year before cost (research/combined_framework_spec.md S14; hy.groups).
 
     alpha type: E0 spread level (s5 - S_index) x 1e4 with beta = 1 (spec K15); E1 scenario-weighted alpha; E2 fair-line
     convergence D (1 - rho^(4h)) (s - s_fair) / h; E3 pair convergence signed by the leg; E4 the spread-implied PD
@@ -811,7 +811,9 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
     E12 z(log s5) - z(S&P default risk score), positive = the spread is wide for the score; E13 spread per turn against
     peers of the same GICS sector and rating class (hy.peers, ESP style; log SPT minus the peer median), falling back to
     the run-wide spread per turn when no peer value exists; 0 unless FCF / debt > 0 and TEV / debt > 1 (Kricheff's
-    trap guard).
+    trap guard); E14 ESP against sector and rating peers (log spread minus the peer median); E15 SPiDER, log spread /
+    (debt / 10-year mean EBITDA), absolute across sectors (Dynkin et al. 2021, ch. 13 and 14; NaN without 6 annual
+    EBITDA figures).
     one_way type (scaled, then min(0, x)): E7 -(earnings-quality flags + add-back flags + FCF check flag); E11
     -(watch tier) - 1{headroom falling} (headroom history not stored yet: the second term is 0).
     Intuition: each estimate is one witness; pricing witnesses speak in bp, score witnesses rank the issuers.
@@ -858,7 +860,10 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
         score[t]["E11"] = -float(tn) if tn is not None else np.nan
         score[t]["_drs"] = cs.get("sp", {}).get("sp_default_risk_score")
         score[t]["_spt"] = _o(st, "9").get("spt_total")
-        score[t]["_spt_peer"] = (_o(st, "9").get("peers") or {}).get("e13_sr")
+        pe9 = _o(st, "9").get("peers") or {}
+        score[t]["_spt_peer"] = pe9.get("e13_sr")
+        score[t]["E14"] = pe9["esp_sr"] if pe9.get("esp_sr") is not None else np.nan
+        score[t]["E15"] = pe9["spider"] if pe9.get("spider") is not None else np.nan
         k = cs.get("kricheff", {})
         tev_debt = (1.0 / ltv) if ltv else np.nan
         score[t]["_spt_ok"] = bool((k.get("fcf_to_debt") or -1) > 0 and tev_debt == tev_debt and tev_debt > 1)
@@ -873,7 +878,7 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
         # Guarded-out issuers stay out of the standardisation and get exactly 0 after it (below): a raw 0 would
         # standardise to a credit whenever the run's mean is negative.
         score[t]["E13"] = e13 if score[t]["_spt_ok"] else np.nan
-    for k in ("E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"):
+    for k in ("E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14", "E15"):
         sc_ = groups.scale_scores({t: score[t][k] for t in tick}, sd1)
         for t in tick:
             v = sc_[t]

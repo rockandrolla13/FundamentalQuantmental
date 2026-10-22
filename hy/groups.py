@@ -34,20 +34,25 @@ ESTIMATES = {
     "E11": ("G3", "Watchlist and covenant path", "one_way", 0.05),
     "E12": ("G4", "Ratio-implied rating gap", "score", 0.05),
     "E13": ("G4", "Spread per turn", "score", 0.05),
+    # Added 2026-10-22 (decision page 2026-10-22-weights-esp-spider): the peer signals of Dynkin et al. 2021.
+    "E14": ("G4", "Excess spread to peers (ESP)", "score", 0.18),
+    "E15": ("G4", "SPiDER", "score", 0.06),
 }
-# User decision 2026-10-22 (decision page 2026-10-22-four-group-combination): five buckets with fixed shares. The two
-# clocks leave G2 as their own bucket. Within a bucket the estimates keep their spec v0 weights relative to each other.
-# The spec's backtest-led shares were G2 0.65, G1 0.20, G4 0.10, G3 0.05 (SPEC_GROUP_WEIGHTS, kept for the record).
+# User decision 2026-10-22 (decision page 2026-10-22-weights-esp-spider): G1 40%, two clocks 20%, books 17%; the
+# rest split on the backtest: G2 18% (holds spread level, the strongest tested signal), G3 5% (one-way only).
+# Within a bucket the estimates keep their v0 weights relative to each other: in G4, ESP 9%, SPiDER 3%, E12 and
+# E13 2.5% each. The first five-bucket shares were G1 0.45, G2C 0.20, and 0.35 / 3 each for G2, G3 and G4.
 BUCKETS = {
-    "G1": ("Core process", 0.45, ("E4", "E7", "E8", "E9", "E10")),
+    "G1": ("Core process", 0.40, ("E4", "E7", "E8", "E9", "E10")),
     "G2C": ("Two clocks", 0.20, ("E5",)),
-    "G2": ("Built methods (rest)", 0.35 / 3, ("E0", "E1", "E2", "E3", "E6")),
-    "G3": ("Credit skills", 0.35 / 3, ("E11",)),
-    "G4": ("Books", 0.35 / 3, ("E12", "E13")),
+    "G2": ("Built methods (rest)", 0.18, ("E0", "E1", "E2", "E3", "E6")),
+    "G3": ("Credit skills", 0.05, ("E11",)),
+    "G4": ("Books and peers", 0.17, ("E12", "E13", "E14", "E15")),
 }
 GROUP_NAMES = {k: v[0] for k, v in BUCKETS.items()}
 GROUP_WEIGHTS = {k: v[1] for k, v in BUCKETS.items()}
-SPEC_GROUP_WEIGHTS = {g: sum(w for gg, _, _, w in ESTIMATES.values() if gg == g) for g in ("G1", "G2", "G3", "G4")}
+# The spec's backtest-led shares (E0 to E13 v0 weights by group), kept for the record.
+SPEC_GROUP_WEIGHTS = {"G1": 0.20, "G2": 0.65, "G3": 0.05, "G4": 0.10}
 
 
 def effective_weights() -> dict[str, float]:

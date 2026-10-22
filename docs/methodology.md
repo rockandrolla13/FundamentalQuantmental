@@ -602,7 +602,7 @@ Across issuers, the same idea needs peers. Two published versions exist (Dynkin 
 2. The book's leverage control halves that edge (+0.044, t 1.3).
 3. SPiDER adds +0.032 beyond spread at 12 months (t 1.3). E13 adds +0.026 (t 0.9).
 
-The memo reports all three in step 9. E13 keeps its weight, and ESP and SPiDER get none until they pass the cycle bar.
+The memo reports all three in step 9. The score uses them as E13 (2.5%), E14 ESP (9%) and E15 SPiDER (3%), inside the 17% books and peers bucket (decision page `2026-10-22-weights-esp-spider`).
 
 ### 7.5 Residual dynamics and expected convergence
 

@@ -204,8 +204,8 @@ def test_sp_default_risk_weights_follow_business_risk():
 
 
 def test_bucket_shares_are_the_users_choice():
-    # User decision 2026-10-22: G1 45%, two clocks 20%, rest of G2, G3, G4 35/3% each.
-    assert groups.GROUP_WEIGHTS == pytest.approx({"G1": 0.45, "G2C": 0.20, "G2": 0.35 / 3, "G3": 0.35 / 3, "G4": 0.35 / 3})
+    # User decision 2026-10-22 (weights-esp-spider): G1 40%, two clocks 20%, books 17%, G2 18%, G3 5%.
+    assert groups.GROUP_WEIGHTS == pytest.approx({"G1": 0.40, "G2C": 0.20, "G2": 0.18, "G3": 0.05, "G4": 0.17})
     assert sum(groups.GROUP_WEIGHTS.values()) == pytest.approx(1.0)
     assert groups.SPEC_GROUP_WEIGHTS == pytest.approx({"G1": 0.20, "G2": 0.65, "G3": 0.05, "G4": 0.10})
 
@@ -215,7 +215,9 @@ def test_effective_weights_keep_relative_weights_inside_a_bucket():
     assert sum(w.values()) == pytest.approx(1.0)
     assert w["E5"] == pytest.approx(0.20)
     assert w["E0"] / w["E1"] == pytest.approx(0.25 / 0.15)  # spec ratio kept inside the rest of G2
-    assert w["E7"] == pytest.approx(0.45 / 4) and w["E4"] == 0.0
+    assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0
+    assert w["E14"] == pytest.approx(0.09) and w["E15"] == pytest.approx(0.03)
+    assert w["E12"] == pytest.approx(0.025) and w["E13"] == pytest.approx(0.025)
 
 
 def test_combine_equals_effective_weighted_mean_and_subtracts_cost_once():
@@ -233,10 +235,10 @@ def test_combine_keeps_bucket_share_when_an_estimate_is_missing():
     full = {k: 0.0 for k in groups.ESTIMATES}
     full.update({"E7": 100.0})
     drop = dict(full)
-    del drop["E8"]  # G1 still counts 45%; its mean is now over E4 (weight 0), E7, E9, E10
+    del drop["E8"]  # G1 still counts 40%; its mean is now over E4 (weight 0), E7, E9, E10
     r = groups.combine(drop, 0, 0)
-    assert r["groups"]["G1"]["group_share"] == pytest.approx(0.45)
-    assert r["combined_before_cost"] == pytest.approx(0.45 * 100 / 3)
+    assert r["groups"]["G1"]["group_share"] == pytest.approx(0.40)
+    assert r["combined_before_cost"] == pytest.approx(0.40 * 100 / 3)
 
 
 def test_combine_renormalises_over_present_buckets():

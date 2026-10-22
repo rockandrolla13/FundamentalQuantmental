@@ -1,12 +1,12 @@
 % Two pages per group. Charts: scripts/group_pages.py writes fig_bucket_*.tex from data/raw/process/<T>.json.
-% Values are bucket alpha in bp a year before cost, from the run of 22 October 2026 (user bucket weights).
+% Values are bucket alpha in bp a year before cost, from the run of 22 October 2026 (user bucket weights, second revision).
 
 \newpage
 \section*{\textcolor{gA}{G1} Core process}
 \addcontentsline{toc}{section}{G1 Core process}
 
 \begin{notebox}
-\textbf{In one line.} G1 sets the order of the steps and the rules that every number must obey. It carries 45\% of the score, the largest share.
+\textbf{In one line.} G1 sets the order of the steps and the rules that every number must obey. It carries 40\% of the score, the largest share.
 \end{notebox}
 
 \fld{What it is}
@@ -48,7 +48,7 @@ S15 Decision & The PDF, Step 7: compare the bond with every other use of the mon
 
 \newpage
 \fld{Its estimates in the score}
-G1 holds five estimates. They share its 45\%.\par
+G1 holds five estimates. They share its 40\%.\par
 {\footnotesize
 \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{8mm}>{\raggedright\arraybackslash}p{34mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{12mm}@{}}
 \toprule
@@ -76,7 +76,7 @@ E10 & Excess over cash & $\mu/H$ from S15: the expected gain over cash, per year
 
 \fld{Evidence and limits}
 \begin{itemize}
-\item No G1 estimate has a backtest yet. The 45\% is a user choice (conflict W1), not a measured result.
+\item No G1 estimate has a backtest yet. The 40\% is a user choice (conflict W1), not a measured result.
 \item E10 is the bond's return over cash. It is not hedged, so it carries market risk that the hedged estimates remove.
 \item E4 stays at zero weight until the code fits the risk premium $\kappa$ by rating and cycle phase.
 \end{itemize}
@@ -90,7 +90,7 @@ Backtest E7, E8, E9 and E10 on the same panel as the alpha backtest. First build
 \addcontentsline{toc}{section}{G2 Built methods}
 
 \begin{notebox}
-\textbf{In one line.} G2 is the code that already runs on real data for eight issuers. It holds the only measured evidence. The two clocks carry 20\% as their own bucket. The other G2 estimates share 11.67\%.
+\textbf{In one line.} G2 is the code that already runs on real data for eight issuers. It holds the only measured evidence. The two clocks carry 20\% as their own bucket. The other G2 estimates share 18\%.
 \end{notebox}
 
 \fld{What it is}
@@ -151,7 +151,7 @@ E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13
 \begin{center}
 {\scriptsize\textbf{Two clocks (E5), 20\%}}\\[1pt]
 \scalebox{0.8}{\input{fig_bucket_G2C.tex}}\\[3pt]
-{\scriptsize\textbf{Rest of G2 (E0, E1, E2, E3, E6), 11.67\%}}\\[1pt]
+{\scriptsize\textbf{Rest of G2 (E0, E1, E2, E3, E6), 18\%}}\\[1pt]
 \scalebox{0.8}{\input{fig_bucket_G2.tex}}
 \end{center}
 \begin{itemize}
@@ -170,7 +170,7 @@ E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13
 \end{itemize}
 
 \fld{The test that settles its weight}
-The clocks test is done and does not support the 20\%. The user decides whether the weight stays. For the rest, set each weight in proportion to its rank IC after cost in each cycle phase. Keep the combination only if it beats ``buy the widest'' after cost in three of the four cycles.
+The clocks test is done and does not support the 20\%. The user keeps the 20\% by choice. For the rest, set each weight in proportion to its rank IC after cost in each cycle phase. Keep the combination only if it beats ``buy the widest'' after cost in three of the four cycles.
 
 % ---------------------------------------------------------------------------------------------------------------
 \newpage
@@ -178,7 +178,7 @@ The clocks test is done and does not support the 20\%. The user decides whether 
 \addcontentsline{toc}{section}{G3 Credit skills}
 
 \begin{notebox}
-\textbf{In one line.} G3 adds the checklists of seven credit skills. It can only lower the number. It carries 11.67\%.
+\textbf{In one line.} G3 adds the checklists of seven credit skills. It can only lower the number. It carries 5\%.
 \end{notebox}
 
 \fld{What it is}
@@ -233,7 +233,7 @@ No skill covers relative value (S9) or expected return (S10). The skills judge d
 \toprule
 ID & Estimate & How the code computes it & Weight \\
 \midrule
-E11 & Watchlist and covenant path & Minus the watchlist tier (0 none, 1 watch closely, 2 watchlist, 3 workout), minus one if headroom falls. Standardised, then capped at zero. & 11.67\% \\
+E11 & Watchlist and covenant path & Minus the watchlist tier (0 none, 1 watch closely, 2 watchlist, 3 workout), minus one if headroom falls. Standardised, then capped at zero. & 5\% \\
 \bottomrule
 \end{tabularx}
 }
@@ -246,7 +246,7 @@ E7 (earnings quality) also comes from the skills and is also one-way. The code c
 \begin{itemize}
 \item Three issuers are on the watchlist: CRWV, ORCL and NCLH. Each gets $-215$ bp a year.
 \item The other five have no tier. They get zero, not a credit.
-\item So G3 can only pull the combined number down. For CRWV it removes 25 bp a year after its 11.67\% weight.
+\item So G3 can only pull the combined number down. For CRWV it removes 11 bp a year after its 5\% weight.
 \item Covenant headroom is ``open'' for seven of the eight issuers. The code parsed no covenant level from their filings. So the headroom term rarely fires.
 \end{itemize}
 
@@ -263,20 +263,21 @@ Build the watchlist tier point in time for the backtest panel. Test whether a ti
 
 % ---------------------------------------------------------------------------------------------------------------
 \newpage
-\section*{\textcolor{gD}{G4} Books}
-\addcontentsline{toc}{section}{G4 Books}
+\section*{\textcolor{gD}{G4} Books and peers}
+\addcontentsline{toc}{section}{G4 Books and peers}
 
 \begin{notebox}
-\textbf{In one line.} G4 adds two textbook cross-checks that use no repository model. It carries 11.67\%.
+\textbf{In one line.} G4 adds two textbook cross-checks and two peer signals that use no repository model. It carries 17\%.
 \end{notebox}
 
 \fld{What it is}
-G4 is two books:
+G4 is three books:
 \begin{itemize}
 \item Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance} (2nd edition). It is a practitioner's view of high yield: cash flow, spread per turn of leverage, covenants, events.
 \item Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005). It is the S\&P rating method: business risk, adjusted ratios, medians by rating, recovery.
+\item Dynkin et al., \emph{Systematic Investing in Credit} (2021), ch.~13 and 14. It is the Barclays research on value in credit: excess spread to peers (ESP) and SPiDER.
 \end{itemize}
-Code: \code{hy/books.py}. The text comes from markdown conversions of the two books. No other book is in scope, and Fabozzi is excluded.
+Code: \code{hy/books.py} and \code{hy/peers.py}. The text comes from markdown conversions of the three books. No other book is in scope, and Fabozzi is excluded.
 
 \fld{Why it is in the framework}
 G4 checks the price with methods that do not depend on our models. If our model and a textbook method agree, the call is stronger. If they disagree, the memo must explain why.
@@ -312,35 +313,33 @@ S15 Decision & Kricheff: define the mandate first. Ask whether a better instrume
 \toprule
 ID & Estimate & How the code computes it & Weight \\
 \midrule
-E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P score})$. The S\&P score (1 best, 10 worst) blends a business score and a financial score from the 2002 medians. A wide spread for the score is cheap. & 5.83\% \\
-E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It counts only if FCF over debt is above zero and the value cover is above 1. Otherwise zero. & 5.83\% \\
+E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P score})$. The S\&P score (1 best, 10 worst) blends a business score and a financial score from the 2002 medians. A wide spread for the score is cheap. & 2.5\% \\
+E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It counts only if FCF over debt is above zero and the value cover is above 1. Otherwise zero. & 2.5\% \\
+E14 & Excess spread to peers (ESP) & $\log(\text{spread})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. Dynkin et al.\ ch.~13, without their leverage control: the control halved the edge in our backtest. & 9\% \\
+E15 & SPiDER & $\log\big(\text{spread} / (\text{debt} / \text{10-year mean EBITDA})\big)$, one rank across all sectors. None for a financial issuer or with fewer than 6 annual EBITDA figures. Dynkin et al.\ ch.~14. & 3\% \\
 \bottomrule
 \end{tabularx}
 }
-\intu{E13 holds Kricheff's trap. A high spread per turn looks cheap. If the issuer burns cash, the spread is high for a reason, so E13 gives no credit.}
 
 \fld{What it says about the eight issuers}
 \begin{center}
-\input{fig_bucket_G4.tex}
+\scalebox{0.72}{\input{fig_bucket_G4.tex}}
 \end{center}
 \begin{itemize}
-\item THC is highest ($+169$). Its spread is wide for its S\&P score (E12 $+133$) and for its peers' spread per turn (E13 $+205$).
-\item CRWV gets $+123$ from E12 alone. Its E13 is 0 because it burns cash. That is Kricheff's trap: a wide spread per turn is no credit when FCF is negative.
-\item WYNN is lowest ($-148$). Its spread is tight for its score (E12 $-190$) and tight per turn against its peers (E13 $-106$).
-\item For MGM the two checks disagree: E12 is $-308$ and E13 is $+56$. The memo must say which one to believe.
-\item ESP, reported without weight: CRWV pays 78\% more than its peers. HCA pays 52\% less.
+\item CRWV is highest ($+220$). It pays 78\% more than its peers (E14 $+273$), and its spread is wide for its S\&P score (E12 $+246$). Its E13 is 0 because it burns cash (Kricheff's trap). It has no SPiDER: only 3 annual EBITDA figures exist.
+\item HCA is lowest ($-210$): it pays 53\% less than its peers (E14 $-299$). Every G4 estimate calls WYNN tight ($-141$).
+\item MGM moves from the books' verdict to the peers' verdict. E12 says tight ($-308$), but ESP ($+116$) and SPiDER ($+363$, the highest) say cheap. The bucket reads $+88$. The memo must say which one to believe.
 \end{itemize}
 
 \fld{Evidence and limits}
 \begin{itemize}
 \item The peer backtest (2008 to 2026) finds that E13 adds nothing beyond spread level: IC beyond spread $+0.02$, $t$ 1.1. No backtest covers E12 yet.
-\item ESP (excess spread to peers) does add information beyond spread level ($+0.07$, $t$ 2.6). But the edge disappears in the 2008 and 2020 stress windows. The memo reports ESP without weight. Decision page: \code{2026-10-22-esp-peer-groups}.
+\item ESP adds information beyond spread level: $+0.07$ at 6 months and $+0.10$ at 12 months ($t$ 2.6). But the edge disappears in the 2008 and 2020 stress windows. Its 9\% is a user choice on the full-sample result. Decision pages: \code{2026-10-22-esp-peer-groups} and \code{2026-10-22-weights-esp-spider}.
+\item SPiDER adds $+0.03$ beyond spread at 12 months ($t$ 1.3), and $+0.06$ ($t$ 1.6) on the book's February schedule. Its 3\% reflects that weak support.
 \item No rating source covers 2017 onward. After 2017, the rating class comes from leverage. It matches the actual class on 36\% of issuer-months.
-\item The S\&P medians date from 2002, before the 2008 cycle. The book has no newer table.
-\item The industry risk map by archetype is a v0 choice. The book's own table did not survive the conversion.
-\item The Kricheff conversion lost every table. Only numbers quoted in the text survive.
-\item Both books contain a few arithmetic slips. This document does not copy them.
+\item The S\&P medians date from 2002. The Kricheff conversion lost every table, so only numbers quoted in the text survive.
+\item Our ESP and SPiDER use G-spread, not OAS, and weight an issuer's bonds equally.
 \end{itemize}
 
 \fld{The test that settles its weight}
-Compute the S\&P score and the spread per turn point in time on the backtest panel. Test each one's rank IC after cost beyond the spread rank. E12 is close to the fair line in idea. If it adds nothing beyond E2, drop it.
+Compute the S\&P score and the spread per turn point in time on the backtest panel. Test each one's rank IC after cost beyond the spread rank. E12 is close to the fair line in idea. If it adds nothing beyond E2, drop it. Rerun ESP and SPiDER with OAS and a rating feed after 2017. Keep ESP's 9\% if it passes the cycle bar. Move E13's weight to SPiDER if SPiDER passes $t$ 2.
