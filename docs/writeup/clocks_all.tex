@@ -1,0 +1,94 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.1cm]{geometry}
+\usepackage{booktabs,xcolor,hyperref,enumitem,graphicx,float}
+\setlist{itemsep=1pt,topsep=2pt}
+\title{The two clocks, eight issuers}
+\author{FundamentalQuantmental, HY Analyst, methodology Section 4.7}
+\date{Filings as known on 18 September 2026}
+\begin{document}
+\maketitle
+\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\sloppy%
+\textbf{How to read this.} Each page puts what the issuer owes each year (rent, debt, interest, purchase commitments) against what pays for it.
+Two issuers disclose a large signed contract book (CRWV, ORCL): their green line is contract cash. The others do not: their green line is today's EBITDAR held flat. That line is not a promise; it asks how much of today's earnings the fixed charges take.
+
+\smallskip
+\textbf{The one number to compare across all eight:} fixed charges in years of today's EBITDAR. HCA needs 3.8 years; CRWV needs 18.2.}}
+
+\begin{center}\small
+\begin{tabular}{@{}lrrrrr@{}}\toprule
+Issuer & Fixed charges & Centre (years) & Years of EBITDAR & Breakeven margin & Renewal-dependent \\\midrule
+CRWV & \$106bn & 5.5 & 18.2 & 1.03 & 31\% \\
+ORCL & \$549bn & 8.2 & 13.9 & 0.83 & 37\% \\
+HCA & \$59bn & 4.4 & 3.8 & -- & -- \\
+THC & \$18bn & 3.3 & 4.2 & -- & -- \\
+CCL & \$51bn & 4.7 & 6.9 & -- & -- \\
+NCLH & \$18bn & 5.6 & 6.5 & -- & -- \\
+MGM & \$59bn & 12.2 & 12.5 & -- & -- \\
+WYNN & \$17bn & 5.9 & 9.3 & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Changes against the first CoreWeave and Oracle note.} This run derives every input from the filings. CoreWeave's interest rate is the cash rate from the loader (4\%) instead of the hand-entered 9\%, and its contract timing comes from the 10-Q text (months 25 to 48, then 49 to 78). Its breakeven margin moves from 1.08 to 1.03 and its renewal-dependent share from 24\% to 31\%.
+
+\textbf{Fallbacks used.} HCA tags a debt schedule that is short of its balance-sheet debt; the missing amount is put in ``thereafter''. Tenet discloses signed revenue below one year of sales, so its contract clock is treated as immaterial. Leases that run past 25 years are summed into the last bar, which is hatched.
+\newpage
+\section{CoreWeave (CRWV), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_CRWV.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$106bn, centred on year 5.5. That is 18.2 years of today's EBITDAR.
+\item \textbf{Signed contracts:} \$104bn. Breakeven margin 1.03 (no margin is enough).
+\item \textbf{Renewal bet:} 31% of charges (\$33bn) fall due after the contracts end; 4.1 years of current revenue must be signed to pay them.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 35,551 (tag DebtInstrumentCarryingAmount).
+\end{itemize}\newpage
+\section{Oracle (ORCL), filing of 2026-08-31}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_ORCL.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$549bn, centred on year 8.2. That is 13.9 years of today's EBITDAR.
+\item \textbf{Signed contracts:} \$664bn. Breakeven margin 0.83 against a company margin of 55%.
+\item \textbf{Renewal bet:} 37% of charges (\$204bn) fall due after the contracts end; 4.8 years of current revenue must be signed to pay them.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 125,337 (tags NotesPayableCurrent + LongTermNotesAndLoans).
+\end{itemize}\newpage
+\section{HCA Healthcare (HCA), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_HCA.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$59bn, centred on year 4.4. That is 3.8 years of today's EBITDAR.
+\item \textbf{No contract clock} (no signed revenue disclosed). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder short of balance-sheet debt by 32,038; residual put in 'thereafter'; balance-sheet debt 45,828 (tag LongTermDebt).
+\end{itemize}\newpage
+\section{Tenet Healthcare (THC), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_THC.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$18bn, centred on year 3.3. That is 4.2 years of today's EBITDAR.
+\item \textbf{No contract clock} (signed revenue under one year of sales). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 13,248 (tag DebtAndCapitalLeaseObligations).
+\end{itemize}\newpage
+\section{Carnival Corp (CCL), filing of 2026-05-31}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_CCL.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$51bn, centred on year 4.7. That is 6.9 years of today's EBITDAR.
+\item \textbf{No contract clock} (no signed revenue disclosed). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 25,570 (tag LongTermDebt).
+\end{itemize}\newpage
+\section{Norwegian Cruise Line Holdings (NCLH), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_NCLH.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$18bn, centred on year 5.6. That is 6.5 years of today's EBITDAR.
+\item \textbf{No contract clock} (no signed revenue disclosed). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 15,468 (tag LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities).
+\end{itemize}\newpage
+\section{MGM Resorts International (MGM), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_MGM.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$59bn, centred on year 12.2. That is 12.5 years of today's EBITDAR.
+\item \textbf{No contract clock} (no signed revenue disclosed). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 6,068 (tag LongTermDebt).
+\end{itemize}\newpage
+\section{Wynn Resorts (WYNN), filing of 2026-06-30}
+\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/clocks_all_WYNN.png}\end{figure}
+\begin{itemize}
+\item \textbf{Fixed charges:} \$17bn, centred on year 5.9. That is 9.3 years of today's EBITDAR.
+\item \textbf{No contract clock} (no signed revenue disclosed). The green line is today's EBITDAR held flat, not a contract.
+\item \textbf{Debt schedule:} ladder as filed; balance-sheet debt 10,725 (tag LongTermDebt).
+\end{itemize}\newpage
+\end{document}

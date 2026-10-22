@@ -79,6 +79,9 @@ def build_case(inputs: dict) -> dict:
     if debt is None and k is not None:
         debt = sc.ladder(k, "debt")
         shift = (as_of - sc.as_of_date(k)).days / 365.25  # 10-K ladder, aged to the 10-Q date
+    bs_debt, bs_src = sc.balance_sheet_debt(q)
+    debt, notes["debt_ladder"] = sc.reconcile_debt(debt, bs_debt)
+    notes["balance_sheet_debt"] = f"{bs_debt:,.0f} ({bs_src})"
     if debt is not None:
         dbuckets = [clocks.Bucket(max(0.0, b.start - shift), b.length, b.amount)
                     for b in sc.to_buckets(debt, _v(inputs, "debt_tail_years"))]
@@ -223,6 +226,63 @@ def figure(case: dict, path: Path) -> None:
     plt.close(fig)
 
 
+def figure_obligations(case: dict, path: Path) -> None:
+    """Cost clock only, for a filer with no signed revenue (RPO): fixed charges against today's EBITDAR held flat.
+
+    The flat line is not contracted. It answers a narrower question: if earnings stay where they are, how much of
+    them do the fixed charges take each year? Intuition: without a contract book, today's earnings are the only clock.
+    """
+    res: clocks.ClockResult = case["_res"]
+    inp = case["inputs"]
+    ebitda = (inp.get("ltm_ebitda") or {}).get("value")
+    rent = (inp.get("annual_lease_cost") or {}).get("value") or 0.0
+    if not ebitda:
+        print(f"{case['ticker']}: no cost-clock figure; no LTM EBITDA")
+        return
+    ebitdar = ebitda + rent
+    y0 = pd.Timestamp(case["as_of"]).year + pd.Timestamp(case["as_of"]).month / 12
+    years = y0 + np.arange(HORIZON + 1)
+    tot = res.obligations_total
+    show = int(min(HORIZON, np.nonzero(tot > 0.005 * tot.max())[0].max() + 1))
+    fig, (a, b) = plt.subplots(2, 1, figsize=(12, 7.6), height_ratios=[3, 2], sharex=True)
+    bottom = np.zeros(HORIZON)
+    for name, grid in res.obligations.items():
+        a.bar(years[:show], grid[:show] / 1e3, bottom=bottom[:show] / 1e3, width=0.85, color=COLORS[name],
+              label=name, align="edge", zorder=2)
+        bottom += grid
+    a.axhline(ebitdar / 1e3, color="#2E7D4F", ls="--", lw=2, zorder=3,
+              label=f"Today's EBITDAR held flat (${ebitdar / 1e3:,.1f}bn): not contracted")
+    overflow = show == HORIZON  # the grid sums every year past the horizon into its last bucket
+    if overflow:
+        a.bar(years[show - 1], tot[show - 1] / 1e3, width=0.85, align="edge", fill=False, hatch="///",
+              edgecolor="#555", zorder=4, label=f"{years[show - 1]:.0f} and later, summed (not one year)")
+    peak = int(np.argmax(tot[:show - 1] if overflow else tot[:show]))
+    share1 = tot[0] / ebitdar
+    a.set_title(f"{case['name']}: fixed charges each year against today's earnings (no signed revenue disclosed)\n"
+                f"Year 1 takes {share1:.0%} of today's EBITDAR; the peak year ({years[peak]:.0f}) takes "
+                f"{tot[peak] / ebitdar:.0%}. All charges equal {tot.sum() / ebitdar:.1f} years of today's EBITDAR.",
+                fontsize=11, loc="left")
+    a.set_ylabel("USD bn per year")
+    a.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    gap = np.cumsum(np.full(HORIZON, ebitdar)) - np.cumsum(tot)
+    b.fill_between(years[:show] + 0.5, 0, gap[:show] / 1e3, where=gap[:show] < 0, color="#B5403A", alpha=0.35)
+    b.fill_between(years[:show] + 0.5, 0, gap[:show] / 1e3, where=gap[:show] >= 0, color="#2E7D4F", alpha=0.35)
+    b.plot(years[:show] + 0.5, gap[:show] / 1e3, color="black", lw=1.2)
+    b.axhline(0, color="black", lw=0.6)
+    b.set_ylabel("Cumulative EBITDAR (flat)\nminus fixed charges, USD bn", fontsize=9)
+    b.set_xlabel("Year")
+    b.text(0.01, 0.92, "Green: today's earnings, if they hold, pay the charges so far. Red: they do not.",
+           transform=b.transAxes, fontsize=9, va="top")
+    for ax in (a, b):
+        ax.spines[["top", "right"]].set_visible(False)
+    b.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    fig.text(0.01, 0.005, f"Source: {case['name']} SEC filings as of {case['as_of']} (XBRL); EBITDA from the "
+             "point-in-time loader; hy/clocks.py.", fontsize=7, color="#555")
+    fig.tight_layout(rect=(0, 0.02, 1, 1))
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
 def summary(case: dict) -> str:
     m, t = case["metrics"], case["ticker"]
     if case["revenue_clock"].startswith("skipped"):
@@ -253,10 +313,15 @@ def main() -> None:
         except LookupError as exc:  # no Compustat or SEC match, or no 10-Q or 10-K (a 20-F filer)
             print(f"{tic}: skipped: {exc}")
             continue
-        if case["revenue_clock"] == "built":
+        rpo, run = case["rpo_total"], _v(inputs, "run_rate_revenue")
+        material = case["revenue_clock"] == "built" and rpo and run and rpo >= run
+        if case["revenue_clock"] == "built" and not material:
+            # RPO below one year of revenue: the contract clock says little about this business (decision page 4.7).
+            case["revenue_clock"] = f"immaterial: RPO {rpo:,.0f} is below one year of run-rate revenue {run:,.0f}"
+        if material:
             figure(case, FIG / f"clocks_{tic}.png")
         else:
-            print(f"{tic}: no figure; revenue clock {case['revenue_clock']}")
+            figure_obligations(case, FIG / f"clocks_{tic}.png")
         dump = {k: v for k, v in case.items() if k != "_res"}
         (OUT / f"{tic}.json").write_text(json.dumps(dump, indent=2, default=lambda x: float(x) if isinstance(
             x, (np.floating, np.integer)) else str(x)))

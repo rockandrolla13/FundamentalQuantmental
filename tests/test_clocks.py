@@ -135,3 +135,13 @@ def test_rpo_windows_customers_and_uncommenced(inst):
     assert w[1][1] == pytest.approx(4.0) and w[1][2] == pytest.approx(0.39)
     assert sc.customer_shares(inst) == {"CustomerAMember": pytest.approx(0.36)}  # quarter, not year to date
     assert sc.lease_not_commenced(inst)[0] == pytest.approx(35_500.0)
+
+
+def test_debt_ladder_reconciles_to_balance_sheet():
+    short = sc.Ladder("debt", [100.0, 100.0, 0.0], 1.0, 200.0, True, [])
+    fixed, note = sc.reconcile_debt(short, 1000.0)
+    assert fixed.amounts == [100.0, 100.0, 800.0] and "residual" in note
+    none, note = sc.reconcile_debt(None, 1000.0, fallback_years=10)
+    assert sum(none.amounts) == pytest.approx(1000.0) and "assumption" in note
+    ok, note = sc.reconcile_debt(sc.Ladder("debt", [500.0, 500.0], 1.0, 1000.0, True, []), 1000.0)
+    assert note == "ladder as filed"

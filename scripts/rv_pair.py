@@ -34,6 +34,7 @@ from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
+from hy.sources import schedules as sc  # noqa: E402
 from hy.sources import xbrl_instance as xi  # noqa: E402
 
 RAW = ROOT / "data" / "raw"
@@ -54,31 +55,12 @@ def _tag(df: pd.DataFrame, local: str) -> float:
     return float(hit["value"].iloc[0]) / 1e6 if len(hit) else float("nan")
 
 
-DEBT_TOTAL_TAGS = ("LongTermDebt", "DebtInstrumentCarryingAmount", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
-                   "DebtAndCapitalLeaseObligations")
-DEBT_PART_TAGS = (("LongTermDebtCurrent", "LongTermDebtNoncurrent"), ("NotesPayableCurrent", "LongTermNotesAndLoans"),
-                  ("DebtCurrent", "LongTermDebtNoncurrent"))
-
-
-def balance_sheet_debt(q: pd.DataFrame) -> tuple[float, str]:
-    """Total financial debt at the balance-sheet date: a total tag, else current plus non-current (framework F5)."""
-    for t in DEBT_TOTAL_TAGS:
-        v = _tag(q, t)
-        if v == v:
-            return v, f"tag {t}"
-    for cur, non in DEBT_PART_TAGS:
-        a, b = _tag(q, cur), _tag(q, non)
-        if b == b:
-            return (0.0 if a != a else a) + b, f"tags {cur} + {non}"
-    return float("nan"), "no debt tag"
-
-
 def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str) -> dict:
     """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`."""
     inputs = ci.derive_inputs(ticker, RAW, as_of=decision)
     case = clock_case.build_case(inputs)
     q = xi.load_instance(ci.sources(inputs) and inputs["cik"][0], inputs["q"][0], cache_root=RAW)
-    debt, debt_src = balance_sheet_debt(q)
+    debt, debt_src = sc.balance_sheet_debt(q)
     lease = np.nansum([_tag(q, "OperatingLeaseLiability"), _tag(q, "FinanceLeaseLiability")])
     ebitda = inputs["ltm_ebitda"][0]
     rent = inputs["annual_lease_cost"][0] or 0.0

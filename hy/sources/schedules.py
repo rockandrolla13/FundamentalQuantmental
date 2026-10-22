@@ -72,9 +72,31 @@ class Ladder:
     concepts: list[str] = field(default_factory=list)
 
 
+# Filers tag the debt ladder under more than one family name; the first family that yields buckets wins.
+DEBT_STEMS = {  # stem -> key that the "after year N" tag contains (filers often use their own tag for that line)
+    "LongTermDebtMaturitiesRepaymentsOfPrincipal": "LongTermDebtMaturit",
+    "LongTermDebtAndCapitalLeaseObligationsRepaymentsOfPrincipal": "LongTermDebtAndCapitalLeaseObligations",
+    "LongTermDebtAndLeaseObligationsRepaymentsOfPrincipal": "LongTermDebtAndLeaseObligations",
+}
+
+
 def ladder(df: pd.DataFrame, family: str) -> Ladder | None:
-    """One maturity ladder: bucket amounts in USD millions, the first bucket's length in years, and a sum check."""
-    stem, total_concept, after_key = FAMILIES[family]
+    """One maturity ladder: bucket amounts in USD millions, the first bucket's length in years, and a sum check.
+
+    For debt, every family name in `DEBT_STEMS` is tried in order (prefix ignored, so a filer's own tag counts).
+    """
+    if family == "debt":
+        for stem, after_key in DEBT_STEMS.items():
+            got = _ladder(df, family, stem, after_key)
+            if got is not None:
+                return got
+        return None
+    stem, _, after_key = FAMILIES[family]
+    return _ladder(df, family, stem, after_key)
+
+
+def _ladder(df: pd.DataFrame, family: str, stem: str, after_key: str) -> Ladder | None:
+    _, total_concept, _ = FAMILIES[family]
     as_of = as_of_date(df)
     u = _undimensioned(df, as_of)
     loc = u.assign(local=u["concept"].map(_local))
@@ -104,6 +126,52 @@ def ladder(df: pd.DataFrame, family: str) -> Ladder | None:
         used.append("residual_to_tail")
         ok = True
     return Ladder(family, amounts, first_length, total, ok, used)
+
+
+DEBT_TOTAL_TAGS = ("LongTermDebt", "DebtInstrumentCarryingAmount", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+                   "DebtAndCapitalLeaseObligations")
+DEBT_PART_TAGS = (("LongTermDebtCurrent", "LongTermDebtNoncurrent"), ("NotesPayableCurrent", "LongTermNotesAndLoans"),
+                  ("DebtCurrent", "LongTermDebtNoncurrent"))
+
+
+def _instant(df: pd.DataFrame, local: str) -> float:
+    as_of = as_of_date(df)
+    hit = df[(df["concept"].map(_local) == local) & (df["n_dims"] == 0) & (df["end"] == as_of) & df["start"].isna()]
+    return float(hit["value"].iloc[0]) / 1e6 if len(hit) else float("nan")
+
+
+def balance_sheet_debt(df: pd.DataFrame) -> tuple[float, str]:
+    """Total financial debt at the balance-sheet date in USD m: a total tag, else current plus non-current (F5)."""
+    for t in DEBT_TOTAL_TAGS:
+        v = _instant(df, t)
+        if v == v:
+            return v, f"tag {t}"
+    for cur, non in DEBT_PART_TAGS:
+        a, b = _instant(df, cur), _instant(df, non)
+        if b == b:
+            return (0.0 if a != a else a) + b, f"tags {cur} + {non}"
+    return float("nan"), "no debt tag"
+
+
+def reconcile_debt(lad: Ladder | None, bs_debt: float, fallback_years: float = 10.0) -> tuple[Ladder | None, str]:
+    """Check a debt ladder against balance-sheet debt; fill a missing tail; build an even ladder when none exists.
+
+    - Ladder short of the balance sheet by more than 5% with an empty tail: the residual becomes the tail.
+    - No ladder but a balance-sheet total: spread the total evenly over `fallback_years` (logged assumption).
+    Intuition: principal that the filing does not schedule still falls due; leaving it out understates the clock.
+    """
+    if lad is None:
+        if bs_debt == bs_debt and bs_debt > 0:
+            n = int(fallback_years)
+            return (Ladder("debt", [bs_debt / n] * n + [0.0], 1.0, bs_debt, True, ["even_fallback"]),
+                    f"assumption: no debt ladder tagged; balance-sheet debt {bs_debt:,.0f} spread evenly over {n} years")
+        return None, "no debt ladder and no balance-sheet debt"
+    short = bs_debt - sum(lad.amounts)
+    if bs_debt == bs_debt and short > 0.05 * bs_debt and lad.amounts[-1] == 0.0:
+        amounts = list(lad.amounts[:-1]) + [short]
+        return (Ladder("debt", amounts, lad.first_length, bs_debt, True, lad.concepts + ["residual_to_tail_bs"]),
+                f"ladder short of balance-sheet debt by {short:,.0f}; residual put in 'thereafter'")
+    return lad, "ladder as filed"
 
 
 def rpo_windows(df: pd.DataFrame) -> tuple[float, list[tuple[float, float, float]]]:
