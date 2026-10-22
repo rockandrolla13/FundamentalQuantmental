@@ -1,0 +1,278 @@
+"""Relative value report for pairs of issuers (methodology Sections 4.3, 4.7, 7.2, 7.4, 7.5; framework F5, F9).
+
+For each issuer: lease-adjusted leverage from the filing (F5), the cost-clock metrics when RPO exists (4.7), and
+the bond curve from TRACE G-spreads. For each pair: spreads at common tenors, spread per unit of each risk, and a
+verdict that holds only where the risk metrics agree (7.4). Across all issuers: a fair-spread line of log 5-year
+spread on lease-adjusted leverage (a small 7.2 cross-section) gives each issuer's residual. The pair gap's
+persistence comes from TRACE history (7.5), so the convergence speed is measured, not assumed.
+
+Run from the repo root (WRDS and SEC access needed):
+    PYTHONPATH=. python3 scripts/rv_pair.py --pairs CRWV:ORCL HCA:THC CCL:NCLH MGM:WYNN
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import clock_case  # noqa: E402
+
+from hy import rv  # noqa: E402
+from hy.fairspread import fit_ar1, half_life  # noqa: E402
+from hy.sources import clock_inputs as ci  # noqa: E402
+from hy.sources import compustat_pit as cp  # noqa: E402
+from hy.sources import trace_bonds as tb  # noqa: E402
+from hy.sources import treasury as tr  # noqa: E402
+from hy.sources import xbrl_instance as xi  # noqa: E402
+
+RAW = ROOT / "data" / "raw"
+OUT = RAW / "rv"
+FIG = ROOT / "docs" / "writeup" / "figures"
+TENOR = 5.0          # reference tenor for the cross-section and the pair gap
+H_YEARS = 0.5        # alpha horizon
+HISTORY_DAYS = 180   # TRACE history for the pair-gap persistence
+
+
+def _tag(df: pd.DataFrame, local: str) -> float:
+    """Undimensioned instant value of a concept (local name, any prefix) at the balance-sheet date, in USD m."""
+    from hy.sources import schedules as sc
+
+    as_of = sc.as_of_date(df)
+    hit = df[(df["concept"].str.split(":").str[-1] == local) & (df["n_dims"] == 0) & (df["end"] == as_of)
+             & df["start"].isna()]
+    return float(hit["value"].iloc[0]) / 1e6 if len(hit) else float("nan")
+
+
+DEBT_TOTAL_TAGS = ("LongTermDebt", "DebtInstrumentCarryingAmount", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+                   "DebtAndCapitalLeaseObligations")
+DEBT_PART_TAGS = (("LongTermDebtCurrent", "LongTermDebtNoncurrent"), ("NotesPayableCurrent", "LongTermNotesAndLoans"),
+                  ("DebtCurrent", "LongTermDebtNoncurrent"))
+
+
+def balance_sheet_debt(q: pd.DataFrame) -> tuple[float, str]:
+    """Total financial debt at the balance-sheet date: a total tag, else current plus non-current (framework F5)."""
+    for t in DEBT_TOTAL_TAGS:
+        v = _tag(q, t)
+        if v == v:
+            return v, f"tag {t}"
+    for cur, non in DEBT_PART_TAGS:
+        a, b = _tag(q, cur), _tag(q, non)
+        if b == b:
+            return (0.0 if a != a else a) + b, f"tags {cur} + {non}"
+    return float("nan"), "no debt tag"
+
+
+def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str) -> dict:
+    """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`."""
+    inputs = ci.derive_inputs(ticker, RAW, as_of=decision)
+    case = clock_case.build_case(inputs)
+    q = xi.load_instance(ci.sources(inputs) and inputs["cik"][0], inputs["q"][0], cache_root=RAW)
+    debt, debt_src = balance_sheet_debt(q)
+    lease = np.nansum([_tag(q, "OperatingLeaseLiability"), _tag(q, "FinanceLeaseLiability")])
+    ebitda = inputs["ltm_ebitda"][0]
+    rent = inputs["annual_lease_cost"][0] or 0.0
+    cash = _tag(q, "CashAndCashEquivalentsAtCarryingValue")
+    m = case["metrics"]
+    risk = rv.IssuerRisk(
+        ticker, lev_lease_adj=(debt + lease) / (ebitda + rent) if ebitda else float("nan"),  # F5 going-concern view
+        breakeven_margin=m.get("breakeven_margin", float("nan")),
+        renewal_dependent_ebitda_years=m.get("renewal_dependent_years_of_ebitda", float("nan")),
+        duration_gap=m.get("duration_gap", float("nan")),
+        rating=(inputs.get("rating") or (None, ""))[0],
+        extra={"debt": debt, "debt_source": debt_src, "ebitda_source": inputs["ltm_ebitda"][1], "lease_debt": lease, "ebitda_ltm": ebitda, "rent": rent, "cash": cash,
+               "net_lev": (debt - cash) / ebitda if ebitda else float("nan")})
+
+    master = tb.bond_master(con, [ticker], cache_root=RAW)
+    m_ok = master[(~master["is_convertible"]) & master["fixed"] & master["seniority"].isin(["senior_unsecured", "secured"])]
+    quotes = tb.bond_quotes(con, m_ok["cusip"].tolist(), start, end, cache_root=RAW)
+    snap = tb.latest_snapshot(quotes) if len(quotes) else pd.DataFrame()
+    bonds = pd.DataFrame()
+    basis = "none"
+    if len(snap):
+        bonds = snap.merge(m_ok[["cusip", "coupon", "maturity", "seniority", "grade"]], on="cusip")
+        curve = tr.curve_on(pd.Timestamp(end), cache_root=RAW)
+        bonds["maturity_years"] = (pd.to_datetime(bonds["maturity"]) - pd.Timestamp(end)).dt.days / 365.25
+        bonds = bonds[bonds["maturity_years"].between(1.0, 15.0) & (bonds["price"] >= 80)].copy()
+        bonds["g_spread"] = tb.g_spread(bonds["yield"], bonds["maturity"], pd.Timestamp(end), curve)
+        bonds["ticker"] = ticker
+        # Compare like with like across issuers: senior unsecured when there are at least two, else every bond.
+        su = bonds[bonds["seniority"] == "senior_unsecured"]
+        bonds, basis = (su, "senior unsecured") if len(su) >= 2 else (bonds, "all seniorities")
+    return {"basis": basis, "ticker": ticker, "name": case["name"], "case": case, "risk": risk, "bonds": bonds, "quotes": quotes,
+            "filing": f"{inputs['q'][0]} ({case['as_of']})", "revenue_clock": case["revenue_clock"]}
+
+
+def daily_tenor_spread(block: dict, fit: tuple[float, float], year_curves: pd.DataFrame) -> pd.Series:
+    """Issuer spread at TENOR per day: each bond's G-spread moved to TENOR along today's fitted slope, averaged."""
+    q = block["quotes"]
+    if q.empty or block["bonds"].empty:
+        return pd.Series(dtype=float)
+    mats = block["bonds"].set_index("cusip")["maturity"]
+    q = q[q["cusip"].isin(mats.index)].copy()
+    out = {}
+    for d, g in q.groupby("trade_date"):
+        day = pd.Timestamp(d)
+        rows = year_curves.loc[:day]
+        if rows.empty:
+            continue
+        curve = rows.iloc[-1]
+        T = (pd.to_datetime(g["cusip"].map(mats)) - day).dt.days / 365.25
+        s = g["yield_vw"].to_numpy() - tr.interpolate(curve, T.to_numpy())
+        out[day] = float(np.mean(s - fit[1] * (T.to_numpy() - TENOR)))
+    return pd.Series(out).sort_index()
+
+
+def pair_block(a: dict, b: dict, fits: dict, resid: dict, curves: pd.DataFrame) -> dict:
+    sa, sb = rv.curve_at(fits[a["ticker"]], TENOR), rv.curve_at(fits[b["ticker"]], TENOR)
+    tenors = rv.common_tenors(a["bonds"]["maturity_years"], b["bonds"]["maturity_years"])
+    by_tenor = [{"tenor": t, f"s_{a['ticker']}_bp": rv.curve_at(fits[a["ticker"]], t) * 1e4,
+                 f"s_{b['ticker']}_bp": rv.curve_at(fits[b["ticker"]], t) * 1e4} for t in tenors]
+    por = rv.pair_price_of_risk(sa, sb, a["risk"], b["risk"])
+    votes = por["cheaper"].value_counts().to_dict() if len(por) else {}
+    # Pair gap history (Section 7.5): persistence of the TENOR spread gap on weekly means. Daily TRACE yields bounce
+    # between bid and ask; that noise biases a daily AR(1) toward zero persistence.
+    ga, gb = daily_tenor_spread(a, fits[a["ticker"]], curves), daily_tenor_spread(b, fits[b["ticker"]], curves)
+    gap = (ga - gb).dropna()
+    weekly = gap.resample("W").mean().dropna()
+    rho_w = fit_ar1((weekly - weekly.mean()).to_numpy()) if len(weekly) >= 12 else float("nan")
+    hl_weeks = half_life(rho_w) if rho_w == rho_w and 0 < rho_w < 1 else float("nan")
+    # Cross-section verdict: long the issuer with the larger residual (cheaper against the fair line).
+    long_, short_ = (a, b) if resid[a["ticker"]] > resid[b["ticker"]] else (b, a)
+    rgap = resid[long_["ticker"]] - resid[short_["ticker"]]  # log-spread residual gap
+    s_long = rv.curve_at(fits[long_["ticker"]], TENOR)
+    d5 = rv.modified_duration(0.045 + s_long, 0.045 + s_long, TENOR)  # spread duration at TENOR, near-par bond
+    weeks = 52 * H_YEARS
+    close = 1 - rho_w ** weeks if rho_w == rho_w and 0 < rho_w < 1 else float("nan")
+    gap_bp = s_long * (1 - np.exp(-rgap)) * 1e4  # bp by which the long is cheap against the fair line, net of the short
+    alpha = {"long": long_["ticker"], "short": short_["ticker"], "residual_gap_log": rgap, "gap_bp": gap_bp,
+             "rho_weekly": rho_w, "half_life_weeks": hl_weeks, "close_share_h": close,
+             "alpha_convergence_bp_price": d5 * close * gap_bp if close == close else float("nan"),
+             "note": ("DV01-neutral at 5y. Convergence only: the spread difference between the legs is not alpha, "
+                      "because it pays for the difference in default risk; default loss needs ratings, none on file. "
+                      "Before trading cost.")}
+    agree = len(votes) == 1
+    return {"a": a["ticker"], "b": b["ticker"], "s5_bp": {a["ticker"]: sa * 1e4, b["ticker"]: sb * 1e4},
+            "by_tenor": by_tenor, "price_of_risk": por.to_dict("records"), "votes": votes,
+            "metrics_agree": agree, "cross_section_long": long_["ticker"], "alpha": alpha,
+            "gap_history_n": int(len(gap))}
+
+
+def figure(a: dict, b: dict, fits: dict, buckets: pd.DataFrame, pair: dict, path: Path) -> None:
+    """Spread against maturity for both issuers, fitted curves, and the HY benchmark band (teaching figure)."""
+    fig, ax = plt.subplots(figsize=(10, 5.6))
+    for blk, col in ((a, "#4E79A7"), (b, "#E15759")):
+        bd = blk["bonds"]
+        if bd.empty:
+            continue
+        ax.scatter(bd["maturity_years"], bd["g_spread"] * 1e4, color=col, s=40, zorder=3,
+                   label=f"{blk['ticker']} bonds (lease-adj. leverage {blk['risk'].lev_lease_adj:.1f}x)")
+        x = np.linspace(bd["maturity_years"].min(), bd["maturity_years"].max(), 20)
+        ax.plot(x, [rv.curve_at(fits[blk["ticker"]], t) * 1e4 for t in x], color=col, lw=1.5)
+    mid = (buckets["lo"] + buckets["hi"]) / 2
+    ax.fill_between(mid, (buckets["median"] - buckets["iqr"] / 2) * 1e4, (buckets["median"] + buckets["iqr"] / 2) * 1e4,
+                    color="#999", alpha=0.18, label="TRACE high yield benchmark, middle half (crossover-heavy)")
+    ax.axvline(TENOR, color="#555", ls=":", lw=1)
+    al = pair["alpha"]
+    n = sum(pair["votes"].values())
+    per_risk = "; ".join(f"{t} on {k} of {n}" for t, k in pair["votes"].items())
+    verdict = (f"Fair-spread line: long {al['long']}, short {al['short']}. "
+               f"More spread per unit of risk: {per_risk} risk measures.")
+    ax.set_title(f"{a['ticker']} against {b['ticker']}: G-spread by maturity\n{verdict}", loc="left", fontsize=10)
+    ax.set_xlabel("Years to maturity")
+    ax.set_ylabel("G-spread, bp")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(fontsize=8, frameon=False, loc="upper left")
+    fig.text(0.01, 0.005, "Source: TRACE via WRDS, US Treasury par curve, SEC filings; hy/rv.py, scripts/rv_pair.py",
+             fontsize=7, color="#555")
+    fig.tight_layout(rect=(0, 0.02, 1, 1))
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--pairs", nargs="+", default=["CRWV:ORCL", "HCA:THC", "CCL:NCLH", "MGM:WYNN"])
+    ap.add_argument("--end", default="2026-09-17", help="last TRACE date; filings read as of the next day")
+    args = ap.parse_args()
+    end = pd.Timestamp(args.end)
+    decision = end + pd.Timedelta(days=1)
+    start = (end - pd.Timedelta(days=HISTORY_DAYS)).strftime("%Y-%m-%d")
+    pairs = [tuple(p.upper().split(":")) for p in args.pairs]
+    tickers = list(dict.fromkeys(t for p in pairs for t in p))
+
+    con = cp.connect()
+    curves = pd.concat([tr.par_curve(y, cache_root=RAW) for y in sorted({start[:4], str(end.year)})]).sort_index()
+    curves = curves[~curves.index.duplicated()]
+    bench = tb.hy_benchmark(con, args.end, cache_root=RAW)
+    buckets = tb.benchmark_by_bucket(bench, tr.curve_on(end, cache_root=RAW))
+
+    blocks, fits = {}, {}
+    for t in tickers:
+        try:
+            blocks[t] = issuer_block(con, t, decision, start, args.end)
+        except Exception as e:  # report the failure for this name and keep going
+            print(f"{t}: skipped ({type(e).__name__}: {e})")
+            continue
+        bd = blocks[t]["bonds"]
+        fits[t] = rv.curve_fit(bd["maturity_years"], bd["g_spread"]) if len(bd) else (float("nan"), 0.0)
+        r = blocks[t]["risk"]
+        print(f"{t}: {len(bd)} bonds ({blocks[t]['basis']}) | lev_lease_adj {r.lev_lease_adj:.2f}x | 5y spread "
+              f"{rv.curve_at(fits[t], TENOR) * 1e4:.0f} bp | clock: {blocks[t]['revenue_clock'][:40]}")
+
+    # Cross-section fair line (Section 7.2, small): log s5 = a + b * lev_lease_adj.
+    xs = pd.DataFrame({t: {"s5": rv.curve_at(fits[t], TENOR), "lev": blocks[t]["risk"].lev_lease_adj}
+                       for t in blocks}).T.astype(float).dropna()
+    xs = xs[xs["s5"] > 0]
+    b_, a_ = np.polyfit(xs["lev"], np.log(xs["s5"]), 1)
+    xs["fair_s5"] = np.exp(a_ + b_ * xs["lev"])
+    xs["resid_log"] = np.log(xs["s5"]) - np.log(xs["fair_s5"])
+    resid = xs["resid_log"].to_dict()
+    print(f"\nCross-section: log s5 = {a_:.3f} + {b_:.3f} x lev_lease_adj (n={len(xs)}; sign "
+          f"{'ok' if b_ > 0 else 'WRONG'})")
+    print((xs.assign(s5_bp=xs["s5"] * 1e4, fair_bp=xs["fair_s5"] * 1e4)[["lev", "s5_bp", "fair_bp", "resid_log"]])
+          .round(2).to_string())
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    FIG.mkdir(parents=True, exist_ok=True)
+    report = {"end": args.end, "decision": str(decision), "tenor": TENOR, "h_years": H_YEARS,
+              "cross_section": {"a": a_, "b": b_, "n": int(len(xs)), "table": xs.reset_index(names="ticker").to_dict("records")},
+              "benchmark": buckets.to_dict("records"), "issuers": {}, "pairs": []}
+    for t, blk in blocks.items():
+        r = blk["risk"]
+        report["issuers"][t] = {
+            "name": blk["name"], "filing": blk["filing"], "curve_basis": blk["basis"], "revenue_clock": blk["revenue_clock"],
+            "lev_lease_adj": r.lev_lease_adj, "net_lev": r.extra["net_lev"], "ebitda_ltm": r.extra["ebitda_ltm"],
+            "debt": r.extra["debt"], "debt_source": r.extra["debt_source"], "ebitda_source": r.extra["ebitda_source"],
+            "lease_debt": r.extra["lease_debt"], "breakeven_margin": r.breakeven_margin,
+            "renewal_dependent_ebitda_years": r.renewal_dependent_ebitda_years, "rating": r.rating,
+            "bonds": blk["bonds"][["cusip", "coupon", "maturity", "maturity_years", "yield", "g_spread", "price",
+                                   "as_of"]].assign(g_spread_bp=lambda d: d["g_spread"] * 1e4).to_dict("records")
+            if len(blk["bonds"]) else []}
+    for a, b in pairs:
+        if a not in blocks or b not in blocks or a not in resid or b not in resid:
+            print(f"pair {a}:{b} skipped: missing data")
+            continue
+        pr = pair_block(blocks[a], blocks[b], fits, resid, curves)
+        figure(blocks[a], blocks[b], fits, buckets, pr, FIG / f"rv_{a}_{b}.png")
+        report["pairs"].append(pr)
+        al = pr["alpha"]
+        print(f"\n{a} vs {b}: 5y {pr['s5_bp']} | votes {pr['votes']} | long {al['long']} short {al['short']} | "
+              f"gap {al['gap_bp']:.0f} bp | half-life {al['half_life_weeks']:.1f} wk | convergence alpha "
+              f"{al['alpha_convergence_bp_price']:.0f} bp of price over {H_YEARS}y")
+    (OUT / "rv_pairs.json").write_text(json.dumps(report, indent=2, default=str))
+    print(f"\nwrote {OUT / 'rv_pairs.json'}")
+
+
+if __name__ == "__main__":
+    main()

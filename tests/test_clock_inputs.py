@@ -198,7 +198,10 @@ def test_ltm_sums_and_flags_missing_quarter():
     out = ci.ltm(q)
     assert out["ltm_revenue"][0] == 400 and out["ltm_ebitda"][0] == 120 and out["run_rate_revenue"][0] == 400
     q[-1].ebitda_adj_company = float("nan")
-    assert ci.ltm(q)["ltm_ebitda"][0] is None
+    val, src = ci.ltm(q)["ltm_ebitda"]
+    assert val == pytest.approx(90 * 4 / 3) and "3 of 4 quarters" in src  # one gap: annualise, and say so
+    q[-2].ebitda_adj_company = float("nan")
+    assert ci.ltm(q)["ltm_ebitda"][0] is None  # two gaps: no LTM
 
 
 # --- filings and tags -----------------------------------------------------------------------------------------

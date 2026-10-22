@@ -460,6 +460,10 @@ def ltm(quarters: Sequence[Any]) -> dict[str, Pair]:
         vals = [getattr(r, field) for r in q]
         if not all(_finite(v) for v in vals):
             gaps = [f"{r.as_of:%b-%Y}" for r, v in zip(q, vals) if not _finite(v)]
+            ok = [v for v in vals if _finite(v)]
+            if len(ok) == 3:  # one quarter lost to the XBRL definition check: annualise the other three, and say so
+                return float(sum(ok) * 4 / 3), (f"loader LTM {span} {label}, {srcs}; fallback: 3 of 4 quarters x 4/3 "
+                                                f"({', '.join(gaps)} missing)")
             return None, f"loader LTM {span} {label} missing for {', '.join(gaps)}"
         return float(sum(vals)), f"loader LTM {span} {label}, {srcs}"
 
