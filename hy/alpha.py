@@ -9,7 +9,8 @@ index spread S, and loss given default LGD:
 
     carry(m)       = (s - b S) h                        spread earned less the hedge's spread
     converge(m)    = D (1 - rho^(4h)) (s - s_fair(m))   Section 7.5: part of the gap to fair that closes by h
-    loss(m)        = PD_h(m) LGD                        expected default loss over h
+    loss(m)        = PD_h(m) LGD - b EL_index(m) h      own expected default loss, less the hedge's (a short
+                                                        index position gains when index names default)
     alpha(m)       = carry(m) + converge(m) - loss(m)
     alpha          = sum_m p(m) alpha(m) + E[event P&L] - cost
 
@@ -22,7 +23,7 @@ defaults take their expected share. Alpha is what is left, averaged over the mac
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -48,12 +49,16 @@ def pd_over_horizon(pd_12m: float, h_years: float) -> float:
     return float(1.0 - (1.0 - pd_12m) ** h_years)
 
 
-def path_alpha(bond: BondInputs, s_fair: float, pd_12m: float, h_years: float) -> dict[str, float]:
-    """Alpha parts under one macro path (module formula). Returns decimals of price (per 1 of notional)."""
+def path_alpha(bond: BondInputs, s_fair: float, pd_12m: float, h_years: float,
+               index_el: float = 0.0) -> dict[str, float]:
+    """Alpha parts under one macro path (module formula). Returns decimals of price (per 1 of notional).
+
+    `index_el` is the hedge index's expected default loss per year under the path; the hedge earns beta x it.
+    """
     carry = (bond.oas - bond.beta_mkt * bond.index_spread) * h_years
     close = 1.0 - bond.rho_q ** (4 * h_years)
     converge = bond.spread_duration * close * (bond.oas - s_fair)
-    loss = pd_over_horizon(pd_12m, h_years) * bond.lgd
+    loss = pd_over_horizon(pd_12m, h_years) * bond.lgd - bond.beta_mkt * index_el * h_years
     return {"carry": carry, "converge": converge, "loss": loss, "alpha": carry + converge - loss}
 
 
@@ -65,8 +70,8 @@ def expected_alpha(
 ) -> dict:
     """Probability-weighted alpha over macro paths, net of cost, with its parts and dispersion.
 
-    `by_path` has one row per macro path with columns macro_path, p_path, s_fair, pd_12m (a "weighted" row, if
-    present, is ignored and recomputed). Returns a dict with per-path rows, the weighted parts, `alpha_net`,
+    `by_path` has one row per macro path with columns macro_path, p_path, s_fair, pd_12m, and optionally index_el
+    (a "weighted" row, if present, is ignored and recomputed). Returns a dict with per-path rows, the weighted parts, `alpha_net`,
     `alpha_sd` (dispersion across paths), `info_ratio` = alpha_net / alpha_sd, and `passes_g3` (framework F9 G3:
     alpha after cost above zero).
     """
@@ -74,7 +79,8 @@ def expected_alpha(
     p = rows["p_path"].to_numpy(dtype=float)
     if not np.isclose(p.sum(), 1.0, atol=1e-6):
         raise ValueError(f"p_path sums to {p.sum()}, not 1")
-    parts = pd.DataFrame([path_alpha(bond, s, d, h_years) for s, d in zip(rows["s_fair"], rows["pd_12m"])])
+    iel = rows["index_el"] if "index_el" in rows else pd.Series(0.0, index=rows.index)
+    parts = pd.DataFrame([path_alpha(bond, s, d, h_years, e) for s, d, e in zip(rows["s_fair"], rows["pd_12m"], iel)])
     parts.insert(0, "macro_path", rows["macro_path"].to_numpy())
     parts.insert(1, "p_path", p)
     w = {k: float((parts[k] * p).sum()) for k in ("carry", "converge", "loss", "alpha")}
@@ -98,3 +104,124 @@ def alpha_table(bonds: Mapping[str, BondInputs], by_path: Mapping[str, pd.DataFr
         r = expected_alpha(b, by_path[cusip], h_years, (event_pnl or {}).get(cusip, 0.0))
         out.append({k: v for k, v in r.items() if k != "by_path"})
     return pd.DataFrame(out).sort_values("alpha_net", ascending=False).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Full scenario repricing and the decision against cash (RV PDF Section 9, E50 to E60; mapping Top 10 item 1)
+# ---------------------------------------------------------------------------
+
+
+def accrued_interest(coupon: float, years_to_maturity: float, freq: int = 2) -> float:
+    """Accrued interest per 100 face on a 30/360 bullet (RV PDF U1, U2): coupon x 100 x fraction of the period run.
+
+    The coupon dates step back from maturity in 1/freq years, so the fraction run is the part of the current period
+    already elapsed. Intuition: the buyer pays the seller the coupon earned since the last payment date.
+    """
+    period = 1.0 / freq
+    left = years_to_maturity - np.floor(years_to_maturity / period) * period  # time to the next coupon
+    return float(coupon * 100.0 / freq * (1.0 - left / period)) if left > 1e-9 else 0.0
+
+
+def bond_price(coupon: float, years: float, ytm: float, freq: int = 2) -> float:
+    """Dirty price per 100 of a bullet with `years` left (RV PDF E1): sum of coupons and principal at the yield.
+
+    Each cash flow at time t (coupon dates step back from maturity) is discounted by (1 + y/f)^(f t). A bond with
+    no time left is worth its principal. Intuition: the price is the present value of what is still to be paid.
+    """
+    if years <= 1e-9:
+        return 100.0
+    period = 1.0 / freq
+    n = int(np.floor(years / period + 1e-9))
+    t = years - np.arange(0, n + 1) * period
+    t = t[t > 1e-9]
+    v = (1.0 + ytm / freq) ** (-freq * t)
+    return float((coupon * 100.0 / freq * v).sum() + 100.0 * v[0])
+
+
+def coupons_paid(coupon: float, years: float, h: float, freq: int = 2) -> float:
+    """Coupons per 100 paid in (0, h] on a bullet with `years` left. Intuition: carry received in cash before H."""
+    period = 1.0 / freq
+    t = years - np.arange(0, int(np.floor(years / period + 1e-9)) + 1) * period
+    return float(coupon * 100.0 / freq * ((t > 1e-9) & (t <= h + 1e-9)).sum())
+
+
+def expected_shortfall(returns: Sequence[float], probs: Sequence[float], level: float = 0.95) -> float:
+    """Discrete expected shortfall of the loss L = -return in the worst (1 - level) of probability (RV PDF E58).
+
+    Intuition: the average loss in the bad tail, with the last state counted only for the part inside the tail.
+    """
+    r = np.asarray(list(returns), dtype=float)
+    p = np.asarray(list(probs), dtype=float)
+    tail = 1.0 - level
+    order = np.argsort(r)
+    acc, s = 0.0, 0.0
+    for i in order:
+        take = min(p[i], tail - acc)
+        if take <= 0:
+            break
+        s += take * (-r[i])
+        acc += take
+    return float(s / tail)
+
+
+def decision_against_cash(dirty_price: float, coupon: float, years: float, h: float, states: pd.DataFrame,
+                          recovery_pv_per_1: float, r_cash: float, freq: int = 2, es_level: float = 0.95) -> dict:
+    """Common-capital horizon wealth of one bond against cash, by macro path and default state (RV PDF E50 to E58).
+
+    `states` has one row per macro path m: p_path, pd_h (default probability over h), y_tsy_H (Treasury par yield at
+    H for the remaining tenor), s_H (the bond's spread at H). Per path and state d in {survive, default}:
+        q_{m,d}  = p(m) (1 - PD_H(m)) or p(m) PD_H(m)
+        W_survive = price at H of what is left, at y_tsy_H + s_H, plus coupons paid in (0, H]
+        W_default = 100 R_PV  (recovery discounted for delay; no further coupons)
+        R_net = W / K - 1, K = the dirty price today; X = R_net - r_cash h
+    Returns the state table and mu = sum q X (excess over cash), pi_loss = P(R_net < 0), pi_cash = P(X < 0), and
+    es95 of L = -R_net. Default and recovery sit inside the cash flows, so expected loss is not subtracted again
+    (RV PDF R164; mapping C3).
+
+    Intuition: put the same money in the bond or in cash for H; compare what you hold at H across every story.
+    """
+    rows = []
+    for r in states.itertuples(index=False):
+        w_s = bond_price(coupon, years - h, r.y_tsy_H + r.s_H, freq) + coupons_paid(coupon, years, h, freq)
+        w_d = 100.0 * recovery_pv_per_1
+        for state, q, w in (("survive", r.p_path * (1 - r.pd_h), w_s), ("default", r.p_path * r.pd_h, w_d)):
+            rn = w / dirty_price - 1.0
+            rows.append({"macro_path": r.macro_path, "state": state, "q": q, "wealth": w, "r_net": rn,
+                         "x_cash": rn - r_cash * h})
+    tab = pd.DataFrame(rows)
+    q = tab["q"].to_numpy()
+    if not np.isclose(q.sum(), 1.0, atol=1e-6):
+        raise ValueError(f"state probabilities sum to {q.sum()}, not 1")
+    return {"states": tab, "mu_excess": float((q * tab["x_cash"]).sum()),
+            "pi_loss": float(q[tab["r_net"].to_numpy() < 0].sum()), "pi_cash": float(q[tab["x_cash"].to_numpy() < 0].sum()),
+            "es95": expected_shortfall(tab["r_net"], q, es_level), "expected_wealth": float((q * tab["wealth"]).sum())}
+
+
+def opportunity_cost(mu: Mapping[str, float], es: Mapping[str, float], es_budget: float) -> dict[str, dict]:
+    """Opportunity cost against the best admissible alternative, cash included (RV PDF E60, R87; framework F1 R8).
+
+    Admissible: ES95 <= budget. Cash is always admissible with mu = 0. For each bond a,
+    OC_a = max(0, max_{admissible j != a} mu_j) - mu_a, and `best_admissible` names that j (cash when no bond beats it).
+    Intuition: the position must beat the best thing the same money could do instead.
+    """
+    out = {}
+    for a in mu:
+        others = {j: mu[j] for j in mu if j != a and es.get(j, np.inf) <= es_budget}
+        best, best_mu = ("cash", 0.0)
+        if others:
+            j = max(others, key=others.get)
+            if others[j] > 0:
+                best, best_mu = j, others[j]
+        out[a] = {"best_admissible": best, "opportunity_cost": best_mu - mu[a], "admissible": es.get(a, np.inf) <= es_budget}
+    return out
+
+
+def treasury_return(y_T: float, y_left: float, years: float, h: float, freq: int = 2) -> float:
+    """Horizon return of a Treasury with coupon y_T and the bond's dates, priced at y_T today and y_left at H.
+
+    R = (price at H + coupons paid in (0, H]) / dirty price today - 1. The dirty price today includes accrued
+    interest, so the denominator is the bond price at its own yield, not 100. Intuition: the rate hedge's return when
+    the curve does not move is its yield plus roll-down over the horizon.
+    """
+    p0 = bond_price(y_T, years, y_T, freq)
+    return (bond_price(y_T, years - h, y_left, freq) + coupons_paid(y_T, years, h, freq)) / p0 - 1.0

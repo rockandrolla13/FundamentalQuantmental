@@ -25,3 +25,8 @@ rating:
 recourse:
   value: null
   source: "Oracle debt is senior unsecured at the parent; no ring-fenced vehicle disclosed"
+
+# Business frame (framework F2): one primary archetype.
+archetype:
+  value: A6
+  source: "framework F2 A6 software and recurring revenue; A5 data centres as second view (F2.1)"

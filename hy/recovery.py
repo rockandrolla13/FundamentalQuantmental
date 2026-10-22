@@ -243,6 +243,34 @@ def market_implied_recovery(prices: Sequence[float], maturities: Sequence[float]
     return float(prices[int(np.argmax(maturities))]) / 100.0
 
 
+def recovery_pv(recovery: float, k: float, tau: float) -> float:
+    """Recovery discounted for the delay to distribution (Section 6.4; RV PDF E109, U38; mapping C12).
+
+    recovery_pv = R / (1 + k)^tau, with R per 1 of face, k the required return on a defaulted claim, and tau the
+    years from default to distribution. Gatto's example: 50 at 20% over two years is worth 34.72.
+
+    Intuition: a creditor waits for the plan; money that arrives later is worth less at the default date.
+    """
+    if tau < 0 or k <= -1:
+        raise ValueError("need tau >= 0 and k > -1")
+    return float(recovery) / (1.0 + float(k)) ** float(tau)
+
+
+def price_based_loss(dirty_price: float, recovery: float, k: float, tau: float) -> float:
+    """Default loss on the purchase price (RV PDF E149, E109; mapping Top 10 item 2, conflict C3).
+
+    L_def = (P_d / 100 - R_PV) / (P_d / 100), with P_d the dirty price per 100 and R_PV = recovery_pv(R, k, tau).
+    It replaces LGD on face in PD_h x LGD (methodology 7.5). Floored at 0: a bond priced below the discounted
+    recovery loses nothing more in default.
+
+    Intuition: a bond bought at 70 and one bought at 100 lose different amounts in the same default.
+    """
+    p = float(dirty_price) / 100.0
+    if p <= 0:
+        raise ValueError("dirty price must be positive")
+    return max(0.0, (p - recovery_pv(recovery, k, tau)) / p)
+
+
 def ltv_scenarios(debt_through_k: float, v_low: float, v_mid: float, v_high: float) -> dict[str, float]:
     """Check 3 (Section 6.2; p. 332): ltv_k at V_low, V_mid, V_high.
 

@@ -279,3 +279,19 @@ def test_reference_point_comes_from_history_when_given():
     hist = pd.DataFrame({"gdp_growth": [0.03] * 6 + [0.01] * 6, "cpi": [0.02] * 12})
     ref = macro.reference_from_history(hist)
     assert ref["gdp_growth"][0] == pytest.approx(0.02) and ref["cpi"][0] == pytest.approx(0.02)
+
+
+def test_sigma_comes_from_probability_bins_when_medians_have_no_range():
+    from datetime import datetime
+
+    from hy import macro
+    from hy.forecasts import ForecastRegistry, ForecastRow
+
+    v, a = datetime(2026, 8, 11), datetime(2026, 8, 15)
+    rows = [ForecastRow("spf", var, h, v, a, mid, method="survey_median")
+            for var, mid in (("gdp_growth", 0.02), ("cpi", 0.025)) for h in range(5)]
+    rows += [ForecastRow("spf_prob", var, h, v, a, mid, mid - 0.0256, mid, mid + 0.0256, "survey_bins")
+             for var, mid in (("gdp_growth", 0.02), ("cpi", 0.025)) for h in (1, 5)]
+    ps = macro.build_paths(ForecastRegistry(rows), datetime(2026, 10, 21), phase_indicators={})
+    assert not any("no quantiles" in x for x in ps.assumptions)
+    assert any("sigma from spf_prob" in x for x in ps.assumptions)

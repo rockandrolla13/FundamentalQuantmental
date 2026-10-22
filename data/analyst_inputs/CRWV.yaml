@@ -32,3 +32,8 @@ purchase:
 rating:
   value: null
   source: "analyst must fill: no current rating on file"
+
+# Business frame (framework F2): one primary archetype.
+archetype:
+  value: A5
+  source: "framework F2 A5 asset-heavy contracted: data centres, capex above 15% of sales"

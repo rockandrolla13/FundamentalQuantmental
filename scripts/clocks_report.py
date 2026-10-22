@@ -13,6 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw" / "clocks"
+SCEN = ROOT / "data" / "raw" / "scenarios"
+RVJ = ROOT / "data" / "raw" / "rv" / "rv_pairs.json"
 OUT = ROOT / "docs" / "writeup" / "clocks_all.tex"
 
 
@@ -59,6 +61,77 @@ def page(d: dict) -> str:
     return "\n".join(lines)
 
 
+def scenario_page(t: str) -> str:
+    """Scenario page for one issuer from data/raw/scenarios/<t>.json (methodology Section 5.4, 7.5; F4, F6)."""
+    f = SCEN / f"{t}.json"
+    if not f.exists():
+        return ""
+    d = json.loads(f.read_text())
+    rows = []
+    for r in d["table"]:
+        rows.append(f"{r['macro_path'].replace('_', ' ')} & {r['p_path']:.0%} & {r['lev_fwd_4']:.1f}x & {r['lev_peak_down']:.1f}x & "
+                    f"{d['refi_score_by_path'][r['macro_path']]} & {r['p_refi_4']:.0%} & {r['refi_fail_share']:.0%} & "
+                    f"{r['pd_12m']:.1%} & {r['alpha'] / 0.5 * 1e4:+.0f} \\\\".replace("%", "\\%"))
+    a = d["alpha"]
+    pts = d["refi_points"]
+    have = [k.replace("_", " ") for k in ("rating_proxy", "recent_raise") if pts.get(k)]
+    return f"""\\section*{{{d['name']} ({t}): scenarios under each macro path}}
+\\begin{{figure}}[H]\\centering\\includegraphics[width=\\linewidth]{{figures/scenarios_{t}.png}}\\end{{figure}}
+\\begin{{center}}\\small
+\\begin{{tabular}}{{@{{}}lrrrrrrrr@{{}}}}\\toprule
+Path & Prob. & Lev. 4q & Peak lev. (down) & F4 score & Wall risk & Refi fails & PD 12m & Alpha (bp/yr) \\\\\\midrule
+{chr(10).join(rows)}
+\\bottomrule
+\\end{{tabular}}
+\\end{{center}}
+\\begin{{itemize}}
+\\item \\textbf{{Weighted expected alpha}}, hedged 5-year bond, 6-month horizon: {a['alpha_w'] / 0.5 * 1e4:+.0f} bp a year before cost,
+{a['alpha_net_bp_ann']:+.0f} bp after a {d['v0']['bid_ask_bp']:.0f} bp bid-ask round trip. Framework F9 G3 (alpha after cost above zero): {'passes' if a['passes_g3'] else 'fails'}.
+\\item \\textbf{{Inputs}}: archetype {d['archetype']}; 5-year spread {d['s5'] * 1e4:.0f} bp against a fair {d['fair_s5'] * 1e4:.0f} bp (pair report fair line);
+starting growth {d['info']['g_q']:.1%} a quarter; {d['info']['maturing_in_8q']:,.0f} of {d['info']['debt_total']:,.0f} debt due inside 8 quarters.
+F4 points held at every path: {', '.join(have) if have else 'none'}.
+\\item \\textbf{{Read with care}}: fair spread, default probability, and refinance access follow the v0 rules of
+\\texttt{{docs/decisions/2026-10-22-issuer-scenario-defaults.md}}. Under spread-proportional pricing a mispricing scales with the market,
+so the stress paths enlarge it; real stress often widens a gap before it closes.
+\\end{{itemize}}
+\\newpage""".replace("%", "\\%") if False else _scen_tex(d, t, rows, a, have)
+
+
+def _scen_tex(d, t, rows, a, have) -> str:
+    pct = lambda x: f"{x:.1%}".replace("%", "\\%")
+    return (f"\\section*{{{d['name']} ({t}): scenarios under each macro path}}\n"
+            f"\\begin{{figure}}[H]\\centering\\includegraphics[width=\\linewidth]{{figures/scenarios_{t}.png}}\\end{{figure}}\n"
+            "\\begin{center}\\footnotesize\\setlength{\\tabcolsep}{4pt}\n\\begin{tabular}{@{}lrrrrrrrr@{}}\\toprule\n"
+            "Path & Prob. & Lev. 4q & Peak lev. (down) & F4 score & Wall risk & Refi fails & PD 12m & Alpha (bp/yr) \\\\\\midrule\n"
+            + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}\n\\end{center}\n\\begin{itemize}\n"
+            f"\\item \\textbf{{Weighted expected alpha}}, hedged 5-year bond, 6-month horizon: {a['alpha_w'] / 0.5 * 1e4:+.0f} bp a year before cost, "
+            f"{a['alpha_net_bp_ann']:+.0f} bp after a {d['v0']['bid_ask_bp']:.0f} bp bid-ask round trip. Framework F9 G3 (alpha after cost above zero): "
+            f"{'passes' if a['passes_g3'] else 'fails'}.\n"
+            f"\\item \\textbf{{Inputs}}: archetype {d['archetype']}; 5-year spread {d['s5'] * 1e4:.0f} bp against a fair {d['fair_s5'] * 1e4:.0f} bp "
+            f"(pair report fair line); starting growth {pct(d['info']['g_q'])} a quarter; {d['info']['maturing_in_8q']:,.0f} of "
+            f"{d['info']['debt_total']:,.0f} (USD m) of debt due inside 8 quarters. F4 points held on every path: {', '.join(have) if have else 'none'}.\n"
+            "\\item \\textbf{Read with care}: fair spread, default probability, and refinance access follow the v0 rules of "
+            "\\texttt{docs/decisions/2026-10-22-issuer-scenario-defaults.md}. Under spread-proportional pricing a mispricing scales "
+            "with the market, so the stress paths enlarge it; real stress often widens a gap before it closes.\n"
+            "\\end{itemize}\n\\newpage")
+
+
+def macro_box() -> str:
+    if not RVJ.exists():
+        return ""
+    m = json.loads(RVJ.read_text()).get("macro")
+    if not m:
+        return ""
+    rows = "\n".join(f"{p['name'].replace('_', ' ')} & {p['prob']:.0%} & {p['gdp']:.1%} & {p['policy_q8']:.1%} & {p['y10_q8']:.1%} & "
+                      f"{p['hy_spread'] * 1e4:.0f} \\\\".replace("%", "\\%") for p in m["paths"])
+    return ("\\section*{The macro paths behind every scenario page}\n"
+            f"Phase {m['phase'].replace('_', ' ')} (from the F6 indicators with data). Sources: SPF, FOMC SEP, Treasury forwards, TRACE high yield level "
+            f"({m['s_index_now'] * 1e4:.0f} bp).\n"
+            "\\begin{center}\\small\n\\begin{tabular}{@{}lrrrrr@{}}\\toprule\n"
+            "Path & Probability & GDP (avg) & Policy rate, 2 years & 10y yield, 2 years & HY spread (bp) \\\\\\midrule\n"
+            + rows + "\n\\bottomrule\n\\end{tabular}\n\\end{center}\n\\newpage\n")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", nargs="+", default=["CRWV", "ORCL", "HCA", "THC", "CCL", "NCLH", "MGM", "WYNN"])
@@ -101,7 +174,8 @@ Issuer & Fixed charges & Centre (years) & Years of EBITDAR & Breakeven margin & 
 
 \textbf{{Fallbacks used.}} HCA tags a debt schedule that is short of its balance-sheet debt; the missing amount is put in ``thereafter''. Tenet discloses signed revenue below one year of sales, so its contract clock is treated as immaterial. Leases that run past 25 years are summed into the last bar, which is hatched.
 \newpage
-{chr(10).join(page(d) for d in ds)}
+{macro_box()}
+{chr(10).join(page(d) + chr(10) + scenario_page(d["ticker"]) for d in ds)}
 \end{{document}}
 """
     OUT.write_text(tex)

@@ -77,6 +77,9 @@ DEFAULT_SOURCES: dict[str, tuple[str, ...]] = {
     "pmi": (),
 }
 MARKET_SOURCES: dict[str, tuple[str, ...]] = {"policy_rate": ("ust_forward",)}
+# Where the spread of a variable comes from when its point source has no quantiles. The SPF publishes medians
+# quarterly ("spf") and probability bins by year ("spf_prob"); the bins give the uncertainty, the medians the path.
+SPREAD_SOURCES: dict[str, tuple[str, ...]] = {"gdp_growth": ("spf_prob",), "cpi": ("spf_prob",)}
 
 
 # ---------------------------------------------------------------------------
@@ -415,9 +418,20 @@ def _normal_curve(reader: _Reader, variable: str, widen: Mapping[tuple[str, str]
         sig = np.maximum(w * (hi - lo) / (2 * Z80), 1e-6)
         reader.record(variable, rows, f"normal from q10 q50 q90, widen {w:.3f}")
     else:
-        sig = np.full(reader.horizon, w * scale)
-        reader.record(variable, rows, f"point only, widen {w:.3f}")
-        reader.log.append(f"{variable}: logged_assumption: no quantiles; sigma = reference scale {scale:.4f}")
+        spread_rows = reader.pick(variable, SPREAD_SOURCES[variable]) if variable in SPREAD_SOURCES else rows.iloc[0:0]
+        spread_rows = spread_rows[spread_rows["q10"].notna() & spread_rows["q90"].notna()] if len(spread_rows) else spread_rows
+        if len(spread_rows):
+            width = spread_rows.assign(q50=spread_rows["q90"] - spread_rows["q10"])
+            w2 = float(widen.get((str(spread_rows["source"].iloc[-1]), variable), w))
+            sig = np.maximum(w2 * reader.curve(width, "q50") / (2 * Z80), 1e-6)
+            reader.record(variable, rows, f"median from {rows['source'].iloc[-1]}; sigma from "
+                                          f"{spread_rows['source'].iloc[-1]} q10-q90 by target year, interpolated")
+            reader.log.append(f"{variable}: sigma from {spread_rows['source'].iloc[-1]} bins (annual targets, "
+                              "interpolated to quarters; stated approximation)")
+        else:
+            sig = np.full(reader.horizon, w * scale)
+            reader.record(variable, rows, f"point only, widen {w:.3f}")
+            reader.log.append(f"{variable}: logged_assumption: no quantiles; sigma = reference scale {scale:.4f}")
     return mu, sig, True
 
 

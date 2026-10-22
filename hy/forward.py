@@ -1573,3 +1573,58 @@ def forward_revisions(
         "gap_mgmt": base4 - float(mgmt) if mgmt is not None else np.nan,
         "dp_path": dp,
     }
+
+
+# ---------------------------------------------------------------------------
+# Funding gap and refinancing shock (RV PDF E75 to E77; mapping Top 10 items 3 and 4)
+# ---------------------------------------------------------------------------
+
+
+def funding_gap(cash0: float, drawable: float, min_cash: float, fcf_q: Sequence[float],
+                maturities_q: Sequence[float], other_uses_q: Sequence[float] | None = None,
+                debt0: float | None = None) -> dict[str, Any]:
+    """Funding gap by quarter with no new financing (methodology 4.2, 5.3; framework F4; RV PDF E75, E76).
+
+    G_h = C_0 + A_drawable - C_min + sum_{u<=h} FCF_u - M_h - U_h, with M_h the debt due through quarter h and
+    U_h other committed uses. FundingNeed_h = max(0, -G_h); MaturityShare_h = M_h / D_0.
+    Returns the path G, its minimum, the first quarter with G_h < 0 (None when the gap never opens), the largest
+    need, and the maturity share at the horizon.
+
+    Intuition: if the market shuts, this is how long cash, the revolver and the business carry the debt that falls due.
+    """
+    fcf = np.asarray(list(fcf_q), dtype=float)
+    mat = np.asarray(list(maturities_q), dtype=float)
+    if fcf.shape != mat.shape:
+        raise ValueError("fcf_q and maturities_q need the same length")
+    uses = np.zeros_like(fcf) if other_uses_q is None else np.asarray(list(other_uses_q), dtype=float)
+    g = cash0 + drawable - min_cash + np.cumsum(fcf) - np.cumsum(mat) - np.cumsum(uses)
+    neg = np.nonzero(g < 0)[0]
+    m_h = float(mat.sum())
+    return {"G": g, "funding_gap_min": float(g.min()) if g.size else float("nan"),
+            "first_gap_q": int(neg[0] + 1) if neg.size else None,
+            "funding_need_max": float(max(0.0, -g.min())) if g.size else 0.0,
+            "maturity_share": m_h / debt0 if debt0 else float("nan")}
+
+
+def refinancing_shock(refi_amounts: Sequence[float], c_old: Sequence[float] | float, c_new: Sequence[float],
+                      ebitda: float, cash_interest: float, capex: float, fcf: float, debt: float) -> dict[str, float]:
+    """Refinancing interest shock and its effect (methodology 5.4 `dCashInt_h(m)`; RV PDF E77; Cases A and E).
+
+    dI = sum_k D_refi,k (c_new,k - c_old,k). Reports dI / E, cash coverage after refinancing E / (I_c + dI),
+    after-capex coverage (E - K) / (I_c + dI), FCF - dI, and (FCF - dI) / D.
+
+    Intuition: leverage can stay flat while the new coupon eats the free cash flow; the signal is that effect.
+    """
+    d = np.asarray(list(refi_amounts), dtype=float)
+    new = np.asarray(list(c_new), dtype=float)
+    old = np.full_like(d, float(c_old)) if np.ndim(c_old) == 0 else np.asarray(list(c_old), dtype=float)
+    if not d.shape == new.shape == old.shape:
+        raise ValueError("refi_amounts, c_old and c_new need the same length")
+    di = float((d * (new - old)).sum())
+    ic = cash_interest + di
+
+    def div(a, b):
+        return a / b if b and b == b and b > 0 else float("nan")
+    return {"delta_I": di, "delta_I_to_E": div(di, ebitda), "cash_cov_after": div(ebitda, ic),
+            "after_capex_cov_after": div(ebitda - capex, ic), "fcf_after": fcf - di,
+            "fcf_after_to_debt": div(fcf - di, debt), "refi_amount": float(d.sum())}

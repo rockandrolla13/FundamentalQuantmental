@@ -56,3 +56,13 @@ def test_table_ranks_cheap_bond_first():
     t = alpha_table({"CHEAP": cheap, "RICH": rich},
                     {"CHEAP": _paths([0.05] * 3, [0.02] * 3), "RICH": _paths([0.05] * 3, [0.02] * 3)})
     assert t["cusip"].tolist() == ["CHEAP", "RICH"]
+
+
+def test_spread_hedged_fair_bond_has_zero_alpha_when_loss_is_spread_over_kappa():
+    # DTS hedge (beta = s / S) and PD x LGD = s / kappa for bond and index: a fairly priced bond earns nothing.
+    s, S, kappa, lgd, h = 0.07, 0.035, 2.0, 0.6, 0.5
+    b = BondInputs("X", oas=s, spread_duration=4.0, beta_mkt=s / S, index_spread=S, lgd=lgd)
+    pd12 = 1 - np.exp(-s / kappa / lgd)  # hazard so that PD over h compounds to (s / kappa / lgd) per year
+    r = path_alpha(b, s_fair=s, pd_12m=pd12, h_years=h, index_el=S / kappa)
+    assert r["carry"] == pytest.approx(0.0) and r["converge"] == pytest.approx(0.0)
+    assert r["alpha"] == pytest.approx(0.0, abs=5e-4)  # residual: own PD compounds over h, index EL is linear

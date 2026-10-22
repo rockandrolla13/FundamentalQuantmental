@@ -1,0 +1,6 @@
+# Analyst inputs for THC. Each key holds a value and a source.
+
+# Business frame (framework F2): one primary archetype.
+archetype:
+  value: A2
+  source: "framework F2 A2 health care services: hospitals"

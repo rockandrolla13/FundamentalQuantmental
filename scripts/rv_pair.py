@@ -27,6 +27,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import clock_case  # noqa: E402
+import scenarios  # noqa: E402
 
 from hy import rv  # noqa: E402
 from hy.fairspread import fit_ar1, half_life  # noqa: E402
@@ -91,7 +92,13 @@ def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str)
         # Compare like with like across issuers: senior unsecured when there are at least two, else every bond.
         su = bonds[bonds["seniority"] == "senior_unsecured"]
         bonds, basis = (su, "senior unsecured") if len(su) >= 2 else (bonds, "all seniorities")
-    return {"basis": basis, "ticker": ticker, "name": case["name"], "case": case, "risk": risk, "bonds": bonds, "quotes": quotes,
+    recent = False
+    if len(quotes) and len(bonds):
+        first = quotes[quotes["cusip"].isin(bonds["cusip"])].groupby("cusip")["trade_date"].min()
+        recent = bool((pd.to_datetime(first) > pd.Timestamp(start) + pd.Timedelta(days=14)).any())
+    longest = bonds.sort_values("maturity_years").iloc[-1][["g_spread", "price"]].to_dict() if len(bonds) else None
+    return {"inputs": inputs, "recent_raise": recent, "longest": longest,
+            "basis": basis, "ticker": ticker, "name": case["name"], "case": case, "risk": risk, "bonds": bonds, "quotes": quotes,
             "filing": f"{inputs['q'][0]} ({case['as_of']})", "revenue_clock": case["revenue_clock"]}
 
 
@@ -182,6 +189,50 @@ def figure(a: dict, b: dict, fits: dict, buckets: pd.DataFrame, pair: dict, path
     plt.close(fig)
 
 
+def write_macro_section(report: dict, scen: dict, path: Path) -> None:
+    """Generated LaTeX section: the live macro paths, then each pair's alpha under each path (Sections 5.4, 9.2)."""
+    m = report["macro"]
+    names = [p["name"] for p in m["paths"]]
+    rows = "\n".join(f"{p['name'].replace('_', ' ')} & {p['prob']:.0%} & {p['gdp']:.1%} & {p['policy_q8']:.1%} & "
+                      f"{p['y10_q8']:.1%} & {p['hy_spread'] * 1e4:.0f} \\\\".replace("%", "\\%") for p in m["paths"])
+    votes = ", ".join(f"{k.replace('_', ' ')} {'late' if v else 'not late'}" for k, v in m["votes"].items() if v is not None)
+    pair_rows = []
+    for pr in report["pairs"]:
+        if "pair_alpha_by_path_bp" not in pr:
+            continue
+        vals = " & ".join(f"{pr['pair_alpha_by_path_bp'][n]:+.0f}" for n in names)
+        pair_rows.append(f"Long {pr['alpha']['long']}, short {pr['alpha']['short']} & {vals} & {pr['pair_alpha_weighted_bp']:+.0f} \\\\")
+    head = " & ".join(n.replace("_", " ") for n in names)
+    tex = f"""\\section{{Macro paths and the pairs under each path}}
+\\textbf{{The paths.}} Live forecasts as known on {report['decision'][:10]}: SPF (GDP and CPI, with ranges from its probability bins),
+FOMC SEP (policy rate), Treasury forwards (yields), and the TRACE high yield level ({m['s_index_now'] * 1e4:.0f} bp). Phase: {m['phase'].replace('_', ' ')},
+from the indicators that have data ({votes}). Probabilities combine the forecast mass with the phase prior (methodology Section 5.4).
+
+\\begin{{center}}\\footnotesize\\setlength{{\\tabcolsep}}{{4pt}}
+\\begin{{tabular}}{{@{{}}lrrrrr@{{}}}}\\toprule
+Path & Probability & GDP (avg) & Policy rate, 2 years & 10y yield, 2 years & HY spread (bp) \\\\\\midrule
+{rows}
+\\bottomrule
+\\end{{tabular}}
+\\end{{center}}
+
+\\textbf{{Each pair under each path}} (bp a year, 6-month horizon, before cost; long minus short, DV01-neutral at 5 years).
+Each leg's alpha comes from its own scenario page in the clock write-up: convergence to fair, the loss gap to a spread-sized hedge,
+and the default risk that the issuer's own cases add when a refinancing fails (framework F4, F6.3).
+
+\\begin{{center}}\\footnotesize\\setlength{{\\tabcolsep}}{{4pt}}
+\\begin{{tabular}}{{@{{}}l{'r' * len(names)}r@{{}}}}\\toprule
+Trade & {head} & Weighted \\\\\\midrule
+{chr(10).join(pair_rows)}
+\\bottomrule
+\\end{{tabular}}
+\\end{{center}}
+\\textbf{{How to read it.}} A pair that wins in the likely path but loses heavily in a tail path is a bet on that tail not coming.
+The weighted column already prices the tails at their probability.
+"""
+    path.write_text(tex)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pairs", nargs="+", default=["CRWV:ORCL", "HCA:THC", "CCL:NCLH", "MGM:WYNN"])
@@ -252,6 +303,51 @@ def main() -> None:
         print(f"\n{a} vs {b}: 5y {pr['s5_bp']} | votes {pr['votes']} | long {al['long']} short {al['short']} | "
               f"gap {al['gap_bp']:.0f} bp | half-life {al['half_life_weeks']:.1f} wk | convergence alpha "
               f"{al['alpha_convergence_bp_price']:.0f} bp of price over {H_YEARS}y")
+    # Macro paths and issuer scenarios (Section 5.4): one run feeds this report and the clock write-up.
+    mac = scenarios.live_paths(con, decision, end)
+    scen_dir = RAW / "scenarios"
+    scen_dir.mkdir(parents=True, exist_ok=True)
+    report["macro"] = {"phase": mac.paths.phase, "votes": mac.paths.votes, "prior": mac.paths.prior,
+                       "mass": mac.paths.mass, "posterior": mac.paths.posterior, "s_index_now": mac.s_index_now,
+                       "snapshots": mac.snapshots.to_dict("records"), "assumptions": mac.paths.assumptions,
+                       "sources": {k: [str(x) for x in v] for k, v in mac.paths.sources.items()},
+                       "paths": [{"name": p.name, "prob": p.prob, "gdp": float(p.gdp_growth.mean()),
+                                  "policy_q8": float(p.policy_rate[-1]), "y10_q8": float(p.y10[-1]),
+                                  "hy_spread": float(p.index_spread[:4].mean())} for p in mac.paths.paths]}
+    scen = {}
+    for t, blk in blocks.items():
+        if t not in xs.index:
+            continue
+        try:
+            inputs = blk["inputs"]
+            arch = (inputs.get("archetype") or ("A4", ""))[0]
+            start_, drv, info = scenarios.issuer_start(inputs, blk["case"], decision)
+            s5, sf5 = float(xs.loc[t, "s5"]), float(xs.loc[t, "fair_s5"])
+            d5 = rv.modified_duration(0.04 + s5, 0.04 + s5, TENOR)
+            pts = scenarios.refi_points(s5, blk["longest"], blk["recent_raise"])
+            out = scenarios.issuer_scenarios(start_, drv, arch, mac, s_now=s5, s_fair_now=sf5, spread_duration=d5, points=pts)
+        except Exception as e:
+            print(f"{t}: scenarios skipped ({type(e).__name__}: {e})")
+            continue
+        scen[t] = out
+        scenarios.scenario_figure(blk["name"], t, out, FIG / f"scenarios_{t}.png")
+        dump = {"ticker": t, "name": blk["name"], "archetype": arch, "info": info, "s5": s5, "fair_s5": sf5,
+                "table": out["table"].to_dict("records"), "alpha": out["alpha"], "phase": out["phase"],
+                "refi_points": out["refi_points"], "refi_score_by_path": out["refi_score_by_path"],
+                "promoted": out["promoted"], "case_weights": out["case_weights"], "v0": scenarios.V0}
+        (scen_dir / f"{t}.json").write_text(json.dumps(dump, indent=2, default=str))
+        print(f"{t}: scenarios done | weighted alpha after cost {out['alpha']['alpha_net_bp_ann']:.0f} bp/yr")
+    # Pair alpha by path: long minus short, DV01-neutral at 5 years (both legs priced at TENOR).
+    for pr in report["pairs"]:
+        lo, sh = pr["alpha"]["long"], pr["alpha"]["short"]
+        if lo in scen and sh in scen:
+            a_l = scen[lo]["table"].set_index("macro_path")["alpha"]
+            a_s = scen[sh]["table"].set_index("macro_path")["alpha"]
+            p_ = scen[lo]["table"].set_index("macro_path")["p_path"]
+            by = ((a_l - a_s) / scenarios.V0["h_years"] * 1e4)
+            pr["pair_alpha_by_path_bp"] = by.round(1).to_dict()
+            pr["pair_alpha_weighted_bp"] = float((by * p_).sum())
+    write_macro_section(report, scen, ROOT / "docs" / "writeup" / "rv_macro_section.tex")
     (OUT / "rv_pairs.json").write_text(json.dumps(report, indent=2, default=str))
     print(f"\nwrote {OUT / 'rv_pairs.json'}")
 

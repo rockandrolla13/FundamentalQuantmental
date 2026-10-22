@@ -1,0 +1,6 @@
+# Analyst inputs for CLF. Each key holds a value and a source.
+
+# Business frame (framework F2): one primary archetype.
+archetype:
+  value: A3
+  source: "framework F2 A3 commodity producer: steel and iron ore, revenue set by traded steel prices"

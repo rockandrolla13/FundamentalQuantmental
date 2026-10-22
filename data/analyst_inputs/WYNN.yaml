@@ -1,0 +1,6 @@
+# Analyst inputs for WYNN. Each key holds a value and a source.
+
+# Business frame (framework F2): one primary archetype.
+archetype:
+  value: A7
+  source: "framework F2 A7 project-like: casinos"

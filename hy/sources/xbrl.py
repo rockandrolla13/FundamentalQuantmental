@@ -163,6 +163,11 @@ def quarter_from_filing(
     return v
 
 
+def _num(x) -> float:
+    """float(x), with pandas NA and None as NaN (Compustat rows carry pandas NA for missing values)."""
+    return float(x) if x is not None and pd.notna(x) else float("nan")
+
+
 def _bridge_debt(vals: dict[str, float], anchor_compustat: pd.Series, anchor_xbrl: dict[str, float]) -> list[str]:
     """Scale total debt by the anchor's Compustat / XBRL total-debt ratio, then split it (in place).
 
@@ -171,7 +176,8 @@ def _bridge_debt(vals: dict[str, float], anchor_compustat: pd.Series, anchor_xbr
     the whole total goes to `debt_long_term`, `debt_current` is 0, and the label `debt_split_unknown` is returned.
     """
     cur_c = float(anchor_compustat["debt_current"]) if pd.notna(anchor_compustat["debt_current"]) else 0.0
-    r = bridge_ratio(cur_c + float(anchor_compustat["debt_long_term"]), anchor_xbrl["debt_total"])
+    lt_c = _num(anchor_compustat["debt_long_term"])  # pandas NA: the anchor has no long-term debt figure
+    r = bridge_ratio(cur_c + lt_c, anchor_xbrl["debt_total"])
     total = vals["debt_total"] * r
     if np.isnan(total):
         vals["debt_current"] = vals["debt_long_term"] = float("nan")
@@ -251,12 +257,12 @@ def fill_quarters(
             for f in ("cash", "debt_current", "debt_long_term", *CHECKED):
                 vals[f] = float("nan")
         else:
-            vals["cash"] = vals["cash"] * bridge_ratio(float(prior_row["cash"]), prior_vals["cash"])
+            vals["cash"] = vals["cash"] * bridge_ratio(_num(prior_row["cash"]), prior_vals["cash"])
             if not np.isnan(vals["cash"]):
                 bridged.append("cash")
             bridged += _bridge_debt(vals, prior_row, prior_vals)
             for f in CHECKED:
-                if np.isnan(bridge_ratio(float(prior_row[f]), prior_vals[f], CHECK_RANGE)):
+                if np.isnan(bridge_ratio(_num(prior_row[f]), prior_vals[f], CHECK_RANGE)):
                     vals[f] = float("nan")
         if np.isnan(vals["revenue"]) and np.isnan(vals["oibdp"]):
             continue  # nothing usable was filed under known tags; keep the flagged Compustat row
@@ -269,4 +275,26 @@ def fill_quarters(
     out["snapshot_available_at"] = pd.NaT
     out["pit_exact"] = True
     out["value_source"] = "edgar_xbrl"
+    return out
+
+
+CASH_FLOW_FIELDS = ("operating_cash_flow", "capex", "interest_paid", "taxes_paid")
+
+
+def cash_flow_from_filing(facts: pd.DataFrame, filings: pd.DataFrame, cik: int | str, qend: pd.Timestamp,
+                          decision: pd.Timestamp) -> dict:
+    """Quarter cash flows (USD millions) from the first 10-Q or 10-K that reported quarter `qend` (methodology 3.2).
+
+    For a quarter whose Compustat year-to-date figures could not be de-cumulated (the predecessor quarter was missing
+    from the same snapshot). Point in time: the filing must be accepted on or before `decision`, else {} (no
+    look-ahead). Each flow is the 3-month value of that filing, else its YTD value less the shorter YTD (`_flow`).
+    Intuition: the filing itself states the quarter; read it when the vendor's subtraction fails.
+    """
+    first = _first_filing(filings, _cik10(cik), pd.Timestamp(qend))
+    if first is None or pd.Timestamp(first["acceptance"]) > pd.Timestamp(decision):
+        return {}
+    out = {f: _flow(facts, FLOW_TAGS[f], pd.Timestamp(qend), first["accession"], first["filing_date"]) / 1e6
+           for f in CASH_FLOW_FIELDS}
+    out["accession"] = first["accession"]
+    out["available_at"] = pd.Timestamp(first["acceptance"])
     return out
