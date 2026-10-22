@@ -814,8 +814,8 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
     bands; E8 refinance score (likely story) + min(wall cover, 3) + 1{funding_gap_min >= 0}; E9 -debt / market TEV;
     E12 z(log s5) - z(S&P default risk score), positive = the spread is wide for the score; E13 spread per turn against
     peers of the same GICS sector and rating class (hy.peers, ESP style; log SPT minus the peer median), falling back to
-    the run-wide spread per turn when no peer value exists; 0 unless FCF / debt > 0 and TEV / debt > 1 (Kricheff's
-    trap guard); E14 ESP against sector and rating peers (log spread minus the peer median); E15 SPiDER, log spread /
+    the run-wide spread per turn when no peer value exists; 0 when books.spt_trap_guard calls a trap (Kricheff
+    p. 124: FCF / debt <= 0 or TEV / debt <= 1, or two of high leverage, low FCF / debt and a thin cushion); E14 ESP against sector and rating peers (log spread minus the peer median); E15 SPiDER, log spread /
     (debt / 10-year mean EBITDA), absolute across sectors (Dynkin et al. 2021, ch. 13 and 14; NaN without 6 annual
     EBITDA figures); E16 OneScore, the mean of the within-sector ranks of ESP and the 3-month stock return
     (Dynkin et al. ch. 19; NaN for an unlisted issuer).
@@ -871,8 +871,12 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
         score[t]["E15"] = pe9["spider"] if pe9.get("spider") is not None else np.nan
         score[t]["E16"] = pe9["onescore"] if pe9.get("onescore") is not None else np.nan
         k = cs.get("kricheff", {})
-        tev_debt = (1.0 / ltv) if ltv else np.nan
-        score[t]["_spt_ok"] = bool((k.get("fcf_to_debt") or -1) > 0 and tev_debt == tev_debt and tev_debt > 1)
+        score[t]["_trap_in"] = (k.get("lev_gross"), k.get("fcf_to_debt"), (1.0 / ltv) if ltv else None)
+    lev_run = [score[t]["_trap_in"][0] for t in tick]
+    fcf_run = [score[t]["_trap_in"][1] for t in tick]
+    for t in tick:  # Kricheff's trap guard (p. 124) needs the run's leverage and FCF / debt as peers
+        score[t]["_trap"] = books.spt_trap_guard(*score[t]["_trap_in"], lev_run, fcf_run)
+        score[t]["_spt_ok"] = not score[t]["_trap"]["trap"]
     sd1 = float(np.nanstd([raw[t]["E1"] for t in tick], ddof=1)) if len(tick) > 2 else 1.0
     zs = groups.zscore({t: float(np.log(xs.loc[t, "s5"])) for t in tick})
     zd = groups.zscore({t: score[t]["_drs"] if score[t]["_drs"] is not None else np.nan for t in tick})

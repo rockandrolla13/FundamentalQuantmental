@@ -98,6 +98,40 @@ def spread_per_turn_bp(spread_bp: float, leverage: float) -> float:
     return _div(spread_bp, leverage) if leverage and leverage > 0 else float("nan")
 
 
+# Cut-offs for the E13 trap guard. The book gives the three signs but no numbers (p. 124), so these are our choice
+# (decision page 2026-10-22-e13-trap-guard). Peer cut-offs join the fixed ones when the run has min_peers values.
+SPT_TRAP = {"lev_q": 0.8, "fcf_q": 0.2, "tev_debt_thin": 1.25, "min_peers": 5, "lev_abs": 6.0, "fcf_abs": 0.02,
+            "signs_for_trap": 2}
+
+
+def spt_trap_guard(lev: float | None, fcf_to_debt: float | None, tev_to_debt: float | None,
+                   lev_peers, fcf_peers) -> dict[str, Any]:
+    """Trap guard for spread per turn (Kricheff ch. 21, p. 124; methodology 7.4, E13).
+
+    The book's widest spread per turn bond (DataFone) is a trap on three signs: the highest total leverage (7x), FCF to
+    debt "meaningfully lower" than peers (0.1%), and a "minimal" equity cushion. Hard floor: FCF / debt <= 0 or
+    TEV / debt <= 1, or either unknown, is a trap. Signs: leverage >= the run's lev_q quantile; FCF / debt <= the
+    run's fcf_q quantile; TEV / debt <= tev_debt_thin. Two or more signs is a trap. The fixed cut-offs lev_abs and
+    fcf_abs always apply too, so a run full of cash burners cannot drag the FCF cut below fcf_abs. A run with fewer
+    than min_peers values uses only the fixed cut-offs.
+    Intuition: one sign is the risk the spread pays for; the signs together are the book's trap.
+    """
+    c = SPT_TRAP
+    fin = lambda x: x is not None and x == x  # noqa: E731
+    hard = not (fin(fcf_to_debt) and fcf_to_debt > 0 and fin(tev_to_debt) and tev_to_debt > 1)
+    lp = np.array([x for x in lev_peers if fin(x)], dtype=float)
+    fp = np.array([x for x in fcf_peers if fin(x)], dtype=float)
+    peer = len(lp) >= c["min_peers"] and len(fp) >= c["min_peers"]
+    lev_cut = min(float(np.quantile(lp, c["lev_q"])), c["lev_abs"]) if peer else c["lev_abs"]
+    fcf_cut = max(float(np.quantile(fp, c["fcf_q"])), c["fcf_abs"]) if peer else c["fcf_abs"]
+    signs = {"high_leverage": bool(fin(lev) and lev >= lev_cut),
+             "low_fcf": bool(fin(fcf_to_debt) and fcf_to_debt <= fcf_cut),
+             "thin_cushion": bool(fin(tev_to_debt) and tev_to_debt <= c["tev_debt_thin"])}
+    return {"hard_fail": bool(hard), "signs": signs, "basis": "peer" if peer else "absolute",
+            "lev_cut": lev_cut, "fcf_cut": fcf_cut,
+            "trap": bool(hard or sum(signs.values()) >= c["signs_for_trap"])}
+
+
 # --------------------------------------------------------------------------- S&P
 
 
