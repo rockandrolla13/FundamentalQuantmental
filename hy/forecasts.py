@@ -100,7 +100,11 @@ class ForecastRegistry:
             return df.assign(decision_time=decision_time)
         df = df[df["available_at"] <= decision_time]
         if latest_only and len(df):
-            df = df.sort_values(["vintage", "available_at"]).groupby(["source", "variable", "horizon_q"]).tail(1)
+            # Keep each source's newest vintage of each variable, whole. A newer survey that drops a horizon must not
+            # let an older survey fill it: that horizon would point at a past target date.
+            newest = df.groupby(["source", "variable"])["vintage"].transform("max")
+            df = df[df["vintage"] == newest]
+            df = df.sort_values("available_at").groupby(["source", "variable", "horizon_q"]).tail(1)
         out = df.reset_index(drop=True)
         assert_no_lookahead(out, decision_time)
         return out.assign(decision_time=decision_time)

@@ -56,3 +56,13 @@ def test_revisions_between_vintages():
     ])
     r = revisions(reg, datetime(2026, 9, 1), datetime(2026, 6, 1))
     assert r["revision"].iloc[0] == pytest.approx(-0.008)
+
+
+def test_old_vintage_never_fills_a_horizon_the_new_one_drops():
+    reg = ForecastRegistry([
+        _row(datetime(2026, 5, 1), datetime(2026, 5, 15), 0.018, h=0),
+        _row(datetime(2026, 5, 1), datetime(2026, 5, 15), 0.019, h=1),
+        _row(datetime(2026, 8, 1), datetime(2026, 8, 14), 0.010, h=1),  # new vintage has no horizon 0
+    ])
+    got = reg.as_of(datetime(2026, 9, 1))
+    assert got["horizon_q"].tolist() == [1] and got["point"].tolist() == [0.010]
