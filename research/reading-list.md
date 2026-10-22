@@ -34,3 +34,12 @@ Add the current Moody's and S&P corporate rating and recovery methodologies as s
 | 9 Rates and spreads | Longstaff and Schwartz (1995), risky debt and interest rates; Duffee (1998), Treasury yields and corporate yield spreads |
 
 Rule for the list: a paper enters when its card is written. A paper leaves when a later card supersedes it and the decision page says so.
+
+## Cards written (22 October 2026)
+
+| Source | Card | Status |
+| --- | --- | --- |
+| Israel, Palhares, Richardson (2018), common factors in corporate bond returns | `cards/israel-palhares-richardson-2018-common-factors.md` | Seed paper, section 8. In. |
+| Bharath and Shumway (2008), Merton distance to default | `cards/bharath-shumway-2008-merton-dd.md` | Seed paper, section 7.1. In. |
+| Deutsche Bank (2018), factor investing in corporate credit | `cards/deutsche-bank-factor-investing-corporate-credit.md` | Sell-side, not on the list. Added as a practitioner source. |
+| Altman Z-score, Wikipedia compilation (2016) | `cards/altman-z-score-wikipedia-2016.md` | Not Altman (1968). The seed paper stays open until its PDF is on disk. |
