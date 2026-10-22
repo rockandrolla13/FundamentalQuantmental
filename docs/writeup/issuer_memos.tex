@@ -15,14 +15,14 @@
 The combined column is after trading costs; the five bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{Alpha sizes are uncalibrated}: in the backtest, realised alpha was about 0.08 times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
 \begin{center}\scriptsize\setlength{\tabcolsep}{2pt}\begin{tabular}{@{}rlrrrrrrrrll@{}}\toprule
 Rank & Issuer & Combined & Calibrated & G1 (40\%) & G2 clocks (20\%) & G2 rest (18\%) & G3 (5\%) & G4 (17\%) & Cases & Best alt. & Gate \\\midrule
-1 & CRWV & \textbf{-14} & -1 & +246 & -309 & +426 & -215 & +190 & +213 & NCLH & Watch \\
-2 & THC & \textbf{-96} & -8 & +22 & +183 & +60 & +0 & +126 & -103 & NCLH & Pass \\
-3 & CCL & \textbf{-129} & -10 & +72 & +88 & +16 & +0 & -28 & -116 & NCLH & Pass \\
-4 & HCA & \textbf{-165} & -13 & +47 & +197 & -82 & +0 & -186 & -231 & NCLH & Pass \\
-5 & NCLH & \textbf{-166} & -13 & -58 & +102 & +62 & -215 & +24 & -100 & CCL & Pass \\
-6 & MGM & \textbf{-196} & -16 & -4 & -108 & -86 & +0 & +84 & -395 & NCLH & Pass \\
-7 & ORCL & \textbf{-198} & -16 & +92 & -158 & -88 & -215 & -22 & -173 & NCLH & Pass \\
-8 & WYNN & \textbf{-217} & -17 & -22 & +4 & -58 & +0 & -154 & -336 & NCLH & Pass \\
+1 & CRWV & \textbf{+17} & +1 & +281 & -523 & +648 & -365 & +353 & +571 & NCLH & Watch \\
+2 & THC & \textbf{-57} & -5 & -10 & +310 & +29 & +0 & +313 & -234 & CRWV & Pass \\
+3 & CCL & \textbf{-126} & -10 & +73 & +150 & -75 & +0 & +16 & -217 & CRWV & Pass \\
+4 & HCA & \textbf{-155} & -12 & +54 & +334 & -124 & +0 & -262 & -376 & CRWV & Pass \\
+5 & NCLH & \textbf{-186} & -15 & -172 & +173 & +108 & -365 & +92 & -86 & CRWV & Pass \\
+6 & MGM & \textbf{-225} & -18 & +25 & -184 & +27 & +0 & -184 & -267 & CRWV & Pass \\
+7 & WYNN & \textbf{-248} & -20 & -49 & +7 & -110 & +0 & -219 & -400 & CRWV & Pass \\
+8 & ORCL & \textbf{-254} & -20 & +111 & -267 & -251 & -365 & -46 & -257 & CRWV & Pass \\
 \bottomrule\end{tabular}\end{center}
 
 \section*{What each part of a memo answers}
@@ -93,32 +93,32 @@ stagflation & 0\% & -0.1\% & 4.4\% & 376 \\
 Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 1 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +246 & 40\% & +99 & \textcolor{good}{supports owning} \\
-G2 clocks. Two clocks & -309 & 20\% & -62 & \textcolor{bad}{against owning} \\
-G2 rest. Built methods (rest) & +426 & 18\% & +77 & \textcolor{good}{supports owning} \\
-G3. Credit skills & -215 & 5\% & -11 & \textcolor{bad}{against owning} \\
-G4. Books and peers & +190 & 17\% & +32 & \textcolor{good}{supports owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+135} &  \\
+G1. Core process & +281 & 40\% & +112 & \textcolor{good}{supports owning} \\
+G2 clocks. Two clocks & -523 & 20\% & -105 & \textcolor{bad}{against owning} \\
+G2 rest. Built methods (rest) & +648 & 18\% & +117 & \textcolor{good}{supports owning} \\
+G3. Credit skills & -365 & 5\% & -18 & \textcolor{bad}{against owning} \\
+G4. Books and peers & +353 & 17\% & +60 & \textcolor{good}{supports owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+166} &  \\
 Trading costs &  &  & -149 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-14} &  \\
-Weighted cases and stories alone, after costs &  &  & +213 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -1 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{+17} &  \\
+Weighted cases and stories alone, after costs &  &  & +571 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & +1 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 228 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -1 bp a year after costs (-4 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 555 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: +1 bp a year after costs (+4 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +246 bp a year before trading costs (costs are 149 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 1 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +281 bp a year before trading costs (costs are 149 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 1 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & +120 & 0\% & +0 & F9; mapping C2 \\
+Default chance the price assumes (shown, weight 0) & +189 & 0\% & +0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & -326 & 25\% & -82 & F4; RV PDF E75-E76 \\
-Debt against market value & +23 & 25\% & +6 & F7.7 \\
-Return above cash, repriced in every story & +1,289 & 25\% & +322 & RV PDF E50-E60; C1, C3 \\
+Access to new money and the funding gap & -553 & 25\% & -138 & F4; RV PDF E75-E76 \\
+Debt against market value & +40 & 25\% & +10 & F7.7 \\
+Return above cash, repriced in every story & +1,638 & 25\% & +410 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 739 bp over Treasuries at 5 years. A company with its leverage (8.9x with leases) pays 574 bp on the fair line, so the bond is cheap by 165 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
+The bond pays 739 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 416 bp, so the bond is cheap by 323 bp. The high yield index pays 168 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} CoreWeave is The Essential Cloud for AITM, purpose-built to accelerate breakthroughs by AI pioneers, from leading research labs to enterprises fueling business growth. Our CoreWeave Cloud platform enables the full lifecycle of AI, including large-scale model training, inference, data movement, continuous iteration, and agentic workflows.
@@ -148,11 +148,11 @@ Refinancing access score, likely story (0 to 6) & 3 \\
 \textbf{Funding gap if no lender refinances.} We add cash, the unused lines and the free cash flow of the cases, then take off the debt as it falls due, quarter by quarter. The minimum cash kept back is one month of cash operating costs (\$0.4bn).
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Lowest point, likely story (maintenance spending only) & \$-5.4bn \\
+Lowest point, likely story (maintenance spending only) & \$-5.3bn \\
 First quarter below zero, likely story & quarter 6 \\
-Lowest point with all capital spending & \$-45.4bn \\
+Lowest point with all capital spending & \$-45.2bn \\
 First quarter below zero with all capital spending & quarter 2 \\
-Lowest point, severe case & \$-9.0bn \\
+Lowest point, severe case & \$-8.9bn \\
 Severe case with all capital spending: first quarter below zero & quarter 2 \\
 Lowest point, weighted over the stories & \$-5.4bn \\
 Debt due inside 8 quarters, share of all debt & 30\% \\
@@ -184,29 +184,31 @@ Market value of the whole company \$85bn (shares \$55bn plus net debt): 22.6x EB
 We put the same money in the bond nearest five years (21873SAG3, 9.75\% due 2031-10-01, price 89.79 plus 4.51 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 63\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +1,289 \\
-Chance of a loss over six months & 4.0\% \\
-Chance of doing worse than cash & 4.0\% \\
-Average loss in the worst 5\% of outcomes & 30.6\% \\
-Same, with rates and the market hedged out, bp a year & +613 \\
+Expected return above cash, bp a year & +1,638 \\
+Chance of a loss over six months & 3.5\% \\
+Chance of doing worse than cash & 3.5\% \\
+Average loss in the worst 5\% of outcomes & 21.7\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & +614 \\
+Hedge ratio on the HY index (DTS beta) & 4.62 \\
 Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & -842 \\
+Return given up against that alternative, bp a year & -1,178 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-11-11); Debt due by 0.5 years out
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +426 bp a year before trading costs (costs are 149 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 1 of the issuers on this group alone. Gate: watch.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +648 bp a year before trading costs (costs are 149 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 1 of the issuers on this group alone. Gate: watch.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & +571 & 42\% & +238 & Spec S14 E0; K15 \\
-Weighted cases and stories & +363 & 25\% & +91 & M5.4, M7.5 \\
-Spread against the fair line & +342 & 17\% & +57 & M7.4, M7.5 \\
-The pair & +776 & 8\% & +65 & M7.4; F10 S4 \\
-Health panel & -295 & 8\% & -25 & F8 \\
+Spread level: the extra pay over the market (carry) & +571 & 48\% & +275 & Spec S14 E0; K15 \\
+Weighted cases and stories & +721 & 29\% & +208 & M5.4, M7.5 \\
+Spread against the fair line & +669 & 4\% & +26 & M7.4, M7.5 \\
+The pair & +1,950 & 10\% & +188 & M7.4; F10 S4 \\
+Health panel & -499 & 10\% & -48 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -309 bp a year before trading costs (costs are 149 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 8 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -523 bp a year before trading costs (costs are 149 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 8 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & -309 & 100\% & -309 & M4.7 \\
+The two clocks & -523 & 100\% & -523 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$106.4bn, centred 5.5 years out: leases in force \$29.4bn, signed leases not yet started \$35.5bn, debt principal \$35.6bn, interest \$4.7bn, purchase commitments \$1.2bn. That is 18.2 years of today's EBITDAR; next year's bills take 206\% of it.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -235,26 +237,26 @@ Cases on the most likely story (soft landing), stage of the cycle: expansion.
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrrr@{}}\toprule
 Case & Weight & Growth / qtr & Leverage in 1 yr & Peak leverage & Lowest liquidity & Cash runs out & Refi fails \\\midrule
 base & 64\% & 8.0\% & 5.6x & 8.0x & \$5.6bn & no & no \\
-down moderate & 11\% & 8.4\% & 6.6x & 8.6x & \$4.7bn & no & no \\
-down severe & 4\% & 8.3\% & 9.3x & 9.3x & \$2.0bn & no & no \\
+down moderate & 11\% & 8.4\% & 6.6x & 8.6x & \$4.8bn & no & no \\
+down severe & 4\% & 8.3\% & 9.3x & 9.3x & \$2.1bn & no & no \\
 upside & 21\% & 8.3\% & 4.9x & 7.4x & \$6.5bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 5.7x & 9.3x & 0\% & 4.0\% & 348 \\
-recession & 2\% & 6.0x & 9.9x & 100\% & 10.0\% & 919 \\
-higher for longer & 8\% & 5.8x & 9.3x & 0\% & 4.7\% & 414 \\
-disinflation rally & 4\% & 5.7x & 9.3x & 0\% & 3.1\% & 270 \\
-stagflation & 0\% & 6.1x & 9.9x & 100\% & 10.2\% & 935 \\
+soft landing & 86\% & 5.7x & 9.3x & 0\% & 2.9\% & 693 \\
+recession & 2\% & 6.0x & 9.9x & 100\% & 7.5\% & 1,806 \\
+higher for longer & 8\% & 5.8x & 9.3x & 0\% & 3.4\% & 822 \\
+disinflation rally & 4\% & 5.7x & 9.3x & 0\% & 2.2\% & 538 \\
+stagflation & 0\% & 6.1x & 9.9x & 100\% & 7.5\% & 1,844 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 739 bp against a fair 574 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 739 bp against a fair 416 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Information Technology. Rating class: CCC (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & +78\% & +276\% \\
-Sector only & +447\% & +103\% \\
-Rating only & +169\% & +227\% \\
+Sector and rating & +78\% & +190\% \\
+Sector only & +447\% & +57\% \\
+Rating only & +176\% & +153\% \\
 \bottomrule\end{tabular}\end{center}
 \textbf{SPiDER}: No SPiDER: fewer than 6 annual EBITDA figures, a financial issuer, or non-positive sustainable EBITDA.
 \textbf{OneScore} (Dynkin et al. 2021, ch. 19): 64\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 92\%) and the stock's 3-month return (-22.5\%, rank 35\%). It enters the score as E16 at 4.5\%.
@@ -266,15 +268,14 @@ year of EBITDA that depends on renewal & 85 & 23 & CRWV \\
 unit of breakeven margin & 721 & 165 & CRWV \\
 year of clock gap & 257 & 28 & CRWV \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long CRWV, short ORCL: a gap of 159 bp, which halves in about 17 weeks on six months of trades. Under the stories the pair earns soft landing +348, recession +918, higher for longer +414, disinflation rally +270, stagflation +935 bp a year; weighted +363 bp before costs.
+The fair line favours long CRWV, short ORCL: a gap of 400 bp, which halves in about 17 weeks on six months of trades. Under the stories the pair earns soft landing +773, recession +2016, higher for longer +918, disinflation rally +601, stagflation +2058 bp a year; weighted +805 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: 363 bp a year before trading costs, 213 bp after. It beats costs. The expected default loss is charged on the price paid: 63\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: 721 bp a year before trading costs, 571 bp after. It beats costs. The expected default loss is charged on the price paid: 63\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 6.0\% & 4.1\% & -1.9\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 11.7\% & 4.1\% & -7.6\% & 5.9\% & yes \\
-Leverage the spread is pricing & 9.75 & 8.94 & -0.81 & 0.90 & no \\
-Spread against fair (bp) & 739 & 574 & -165 & 160 & yes \\
+Default chance at the v0 price of risk (shown, not tested) & 6.0\% & 3.0\% & -3.0\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 11.7\% & 3.0\% & -8.7\% & 5.9\% & yes \\
+Spread against fair, sector peers (bp) & 739 & 416 & -323 & 576 & no \\
 Rating class & open & BB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -296,10 +297,10 @@ Chance debt due in 1 year is not covered & 0.04 & \textcolor{good}{green} \\
 Chance cash runs out within 2 years & 0.00 & \textcolor{good}{green} \\
 \bottomrule\end{tabular}\end{center}
 \section*{G3. Credit skills: the lender's checklists applied to a public bond}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -215 bp a year before trading costs (costs are 149 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -365 bp a year before trading costs (costs are 149 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Watchlist tier (can only lower) & -215 & 100\% & -215 & borrower-monitoring; covenant-compliance \\
+Watchlist tier (can only lower) & -365 & 100\% & -365 & borrower-monitoring; covenant-compliance \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G3.1 Add-backs and their cash effect}
 Reported EBITDA over the last 12 months is \$3.7bn. The company's own measure adds back \$0.0bn of one-off items to reach \$3.8bn: 0.5\% of reported EBITDA (a negative figure is a one-off gain taken out). This is under the 5\% line for one item. They do not recur in three quarters running. If every add-back were paid in cash, free cash flow would be \$-13.7bn. The two roads to free cash flow (the EBITDA bridge, \$-16.3bn; operating cash flow less capital spending, \$-13.7bn) differ by 71\% of EBITDA: above the 10\% tolerance, so an earnings-quality flag is raised. The add-back table by category is an open question: the data has one total line.
@@ -329,13 +330,13 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +190 bp a year before trading costs (costs are 149 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 1 of the issuers on this group alone. S\&P anchor class: BB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +353 bp a year before trading costs (costs are 149 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 1 of the issuers on this group alone. S\&P anchor class: BB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & +246 & 18\% & +44 & Ganguin and Bilardello ch. 10 \\
+Spread against the S\&P risk score & +417 & 18\% & +74 & Ganguin and Bilardello ch. 10 \\
 Spread per turn of leverage (with the trap guard) & +0 & 18\% & +0 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & +273 & 32\% & +88 & Dynkin et al. ch. 13 \\
-OneScore: sector ranks of ESP and 3-month stock return & +181 & 32\% & +58 & Dynkin et al. ch. 19 \\
+Excess spread to sector and rating peers (ESP) & +527 & 32\% & +169 & Dynkin et al. ch. 13 \\
+OneScore: sector ranks of ESP and 3-month stock return & +341 & 32\% & +110 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 No estimate (data missing): spider: spread per unit of debt to 10-year ebitda.
 
@@ -381,38 +382,38 @@ Financial risk score 8.1. Business risk score 5.8: industry 5, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_CRWV_ORCL.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{Oracle (ORCL)}\pdfbookmark[1]{ORCL}{bm-ORCL}\label{memo-start-ORCL}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 7 of the issuers in this run. 4 of 5 groups point the same way as the combination.
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 8 of the issuers in this run. 4 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +92 & 40\% & +37 & \textcolor{amber}{leans to owning} \\
-G2 clocks. Two clocks & -158 & 20\% & -32 & \textcolor{bad}{against owning} \\
-G2 rest. Built methods (rest) & -88 & 18\% & -16 & \textcolor{bad}{against owning} \\
-G3. Credit skills & -215 & 5\% & -11 & \textcolor{bad}{against owning} \\
-G4. Books and peers & -22 & 17\% & -4 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{-25} &  \\
+G1. Core process & +111 & 40\% & +44 & \textcolor{amber}{leans to owning} \\
+G2 clocks. Two clocks & -267 & 20\% & -53 & \textcolor{bad}{against owning} \\
+G2 rest. Built methods (rest) & -251 & 18\% & -45 & \textcolor{bad}{against owning} \\
+G3. Credit skills & -365 & 5\% & -18 & \textcolor{bad}{against owning} \\
+G4. Books and peers & -46 & 17\% & -8 & \textcolor{bad}{against owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-80} &  \\
 Trading costs &  &  & -173 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-198} &  \\
-Weighted cases and stories alone, after costs &  &  & -173 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -16 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-254} &  \\
+Weighted cases and stories alone, after costs &  &  & -257 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -20 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 25 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -16 bp a year after costs (-50 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 4 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -20 bp a year after costs (-64 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +92 bp a year before trading costs (costs are 173 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 2 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +111 bp a year before trading costs (costs are 173 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 2 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & +6 & 0\% & +0 & F9; mapping C2 \\
-Earnings quality, add-backs, FCF check (can only lower) & -167 & 25\% & -42 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & +297 & 25\% & +74 & F7.7 \\
-Return above cash, repriced in every story & +143 & 25\% & +36 & RV PDF E50-E60; C1, C3 \\
+Default chance the price assumes (shown, weight 0) & -6 & 0\% & -0 & F9; mapping C2 \\
+Earnings quality, add-backs, FCF check (can only lower) & -283 & 25\% & -71 & F3; ebitda-addback-treatment; hy-model-standards \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & +503 & 25\% & +126 & F7.7 \\
+Return above cash, repriced in every story & +61 & 25\% & +15 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 136 bp over Treasuries at 5 years. A company with its leverage (4.3x with leases) pays 135 bp on the fair line, so the bond is cheap by 1 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
+The bond pays 136 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 168 bp, so the bond is expensive by 31 bp. The high yield index pays 168 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} Oracle provides products and services that build, run and support enterprise information technology (IT) frameworks. Our products and services include enterprise applications and infrastructure offerings that incorporate and are enhanced by artificial intelligence (AI) technologies, including embedded AI-driven automation and analytics and generative AI capabilities.
@@ -444,7 +445,7 @@ Refinancing access score, likely story (0 to 6) & 3 \\
 Measure & Value \\\midrule
 Lowest point, likely story (maintenance spending only) & \$37.2bn \\
 First quarter below zero, likely story & none in 8 quarters \\
-Lowest point with all capital spending & \$-148.7bn \\
+Lowest point with all capital spending & \$-148.8bn \\
 First quarter below zero with all capital spending & quarter 2 \\
 Lowest point, severe case & \$35.1bn \\
 Severe case with all capital spending: first quarter below zero & quarter 2 \\
@@ -480,29 +481,31 @@ Market value of the whole company \$540bn (shares \$451bn plus net debt): 15.9x 
 We put the same money in the bond nearest five years (68389XCZ6, 5.25\% due 2032-02-03, price 95.37 plus 0.63 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 64\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +143 \\
-Chance of a loss over six months & 9.2\% \\
-Chance of doing worse than cash & 9.2\% \\
-Average loss in the worst 5\% of outcomes & 7.7\% \\
-Same, with rates and the market hedged out, bp a year & -10 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +304 \\
+Expected return above cash, bp a year & +61 \\
+Chance of a loss over six months & 9.3\% \\
+Chance of doing worse than cash & 9.3\% \\
+Average loss in the worst 5\% of outcomes & 9.5\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -81 \\
+Hedge ratio on the HY index (DTS beta) & 0.88 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,578 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-12-12)
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -88 bp a year before trading costs (costs are 173 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 8 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -251 bp a year before trading costs (costs are 173 bp a year); 5 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 8 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & -31 & 42\% & -13 & Spec S14 E0; K15 \\
-Weighted cases and stories & -0 & 25\% & -0 & M5.4, M7.5 \\
-Spread against the fair line & +3 & 17\% & +1 & M7.4, M7.5 \\
-The pair & -776 & 8\% & -65 & M7.4; F10 S4 \\
-Health panel & -130 & 8\% & -11 & F8 \\
+Spread level: the extra pay over the market (carry) & -31 & 48\% & -15 & Spec S14 E0; K15 \\
+Weighted cases and stories & -84 & 29\% & -24 & M5.4, M7.5 \\
+Spread against the fair line & -75 & 4\% & -3 & M7.4, M7.5 \\
+The pair & -1,950 & 10\% & -188 & M7.4; F10 S4 \\
+Health panel & -220 & 10\% & -21 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -158 bp a year before trading costs (costs are 173 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 7 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -267 bp a year before trading costs (costs are 173 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 7 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & -158 & 100\% & -158 & M4.7 \\
+The two clocks & -267 & 100\% & -267 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$549.0bn, centred 8.2 years out: leases in force \$63.2bn, signed leases not yet started \$288.0bn, debt principal \$130.1bn, interest \$33.5bn, purchase commitments \$34.1bn. That is 13.9 years of today's EBITDAR; next year's bills take 75\% of it.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -535,24 +538,24 @@ upside & 20\% & 6.6\% & 2.8x & 3.4x & \$40.3bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 3.1x & 4.3x & 0\% & 0.9\% & -0 \\
-recession & 2\% & 3.2x & 4.4x & 0\% & 2.4\% & 0 \\
-higher for longer & 8\% & 3.1x & 4.3x & 0\% & 1.1\% & -0 \\
-disinflation rally & 4\% & 3.1x & 4.2x & 0\% & 0.7\% & -0 \\
-stagflation & 0\% & 3.2x & 4.4x & 0\% & 2.5\% & 0 \\
+soft landing & 86\% & 3.1x & 4.3x & 0\% & 1.2\% & -81 \\
+recession & 2\% & 3.2x & 4.4x & 0\% & 3.0\% & -210 \\
+higher for longer & 8\% & 3.1x & 4.3x & 0\% & 1.4\% & -96 \\
+disinflation rally & 4\% & 3.1x & 4.2x & 0\% & 0.9\% & -63 \\
+stagflation & 0\% & 3.2x & 4.4x & 0\% & 3.1\% & -213 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 136 bp against a fair 135 bp.
-\textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Information Technology. Rating class: BB (implied by leverage). A positive value means the issuer pays more than the median peer.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 136 bp against a fair 168 bp.
+\textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Information Technology. Rating class: B (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & -5\% & -12\% \\
-Sector only & -3\% & -5\% \\
-Rating only & -5\% & -12\% \\
+Sector and rating & -19\% & -27\% \\
+Sector only & -3\% & -40\% \\
+Rating only & -19\% & -27\% \\
 \bottomrule\end{tabular}\end{center}
 The sector and rating cell has fewer than five other issuers, so that row uses the rating cell.
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 32\% of the peer bonds across all sectors, and -40\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
-\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 42\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 69\%) and the stock's 3-month return (-33.7\%, rank 15\%). It enters the score as E16 at 4.5\%.
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 22\% of the peer bonds across all sectors, and -32\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 40\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 65\%) and the stock's 3-month return (-33.7\%, rank 15\%). It enters the score as E16 at 4.5\%.
 \textbf{Against CRWV.} Spreads at 5 years: CRWV 739 bp, ORCL 136 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & CRWV & ORCL & Cheaper \\\midrule
@@ -561,15 +564,14 @@ year of EBITDA that depends on renewal & 85 & 23 & CRWV \\
 unit of breakeven margin & 721 & 165 & CRWV \\
 year of clock gap & 257 & 28 & CRWV \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long CRWV, short ORCL: a gap of 159 bp, which halves in about 17 weeks on six months of trades. Under the stories the pair earns soft landing +348, recession +918, higher for longer +414, disinflation rally +270, stagflation +935 bp a year; weighted +363 bp before costs.
+The fair line favours long CRWV, short ORCL: a gap of 400 bp, which halves in about 17 weeks on six months of trades. Under the stories the pair earns soft landing +773, recession +2016, higher for longer +918, disinflation rally +601, stagflation +2058 bp a year; weighted +805 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: -0 bp a year before trading costs, -173 bp after. It does not beat costs. The expected default loss is charged on the price paid: 64\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -84 bp a year before trading costs, -257 bp after. It does not beat costs. The expected default loss is charged on the price paid: 64\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 1.1\% & 1.0\% & -0.1\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 2.1\% & 1.0\% & -1.2\% & 1.1\% & yes \\
-Leverage the spread is pricing & 4.33 & 4.30 & -0.03 & 0.90 & no \\
-Spread against fair (bp) & 136 & 135 & -1 & 38 & no \\
+Default chance at the v0 price of risk (shown, not tested) & 1.1\% & 1.2\% & 0.1\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 2.1\% & 1.2\% & -0.9\% & 1.1\% & no \\
+Spread against fair, sector peers (bp) & 136 & 168 & 31 & 86 & no \\
 Rating class & open & BBB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -591,10 +593,10 @@ Chance debt due in 1 year is not covered & 0.00 & \textcolor{good}{green} \\
 Chance cash runs out within 2 years & 0.00 & \textcolor{good}{green} \\
 \bottomrule\end{tabular}\end{center}
 \section*{G3. Credit skills: the lender's checklists applied to a public bond}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -215 bp a year before trading costs (costs are 173 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -365 bp a year before trading costs (costs are 173 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Watchlist tier (can only lower) & -215 & 100\% & -215 & borrower-monitoring; covenant-compliance \\
+Watchlist tier (can only lower) & -365 & 100\% & -365 & borrower-monitoring; covenant-compliance \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G3.1 Add-backs and their cash effect}
 Reported EBITDA over the last 12 months is \$33.3bn. The company's own measure adds back \$0.6bn of one-off items to reach \$33.9bn: 1.7\% of reported EBITDA (a negative figure is a one-off gain taken out). This is under the 5\% line for one item. They do not recur in three quarters running. If every add-back were paid in cash, free cash flow would be \$-29.3bn. The two roads to free cash flow (the EBITDA bridge, \$-49.4bn; operating cash flow less capital spending, \$-28.7bn) differ by 61\% of EBITDA: above the 10\% tolerance, so an earnings-quality flag is raised. The add-back table by category is an open question: the data has one total line.
@@ -624,14 +626,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -22 bp a year before trading costs (costs are 173 bp a year); 2 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 5 of the issuers on this group alone. S\&P anchor class: BBB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -46 bp a year before trading costs (costs are 173 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 5 of the issuers on this group alone. S\&P anchor class: BBB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & -31 & 15\% & -5 & Ganguin and Bilardello ch. 10 \\
+Spread against the S\&P risk score & -53 & 15\% & -8 & Ganguin and Bilardello ch. 10 \\
 Spread per turn of leverage (with the trap guard) & +0 & 15\% & +0 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & +1 & 26\% & +0 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & +3 & 18\% & +1 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & -68 & 26\% & -18 & Dynkin et al. ch. 19 \\
+Excess spread to sector and rating peers (ESP) & -67 & 26\% & -18 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & +79 & 18\% & +14 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & -130 & 26\% & -34 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -675,38 +677,38 @@ Financial risk score 5.9. Business risk score 5.0: industry 5, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_CRWV_ORCL.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{HCA Healthcare (HCA)}\pdfbookmark[1]{HCA}{bm-HCA}\label{memo-start-HCA}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
 Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 4 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +47 & 40\% & +19 & \textcolor{amber}{leans to owning} \\
-G2 clocks. Two clocks & +197 & 20\% & +39 & \textcolor{good}{supports owning} \\
-G2 rest. Built methods (rest) & -82 & 18\% & -15 & \textcolor{bad}{against owning} \\
+G1. Core process & +54 & 40\% & +22 & \textcolor{amber}{leans to owning} \\
+G2 clocks. Two clocks & +334 & 20\% & +67 & \textcolor{good}{supports owning} \\
+G2 rest. Built methods (rest) & -124 & 18\% & -22 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
-G4. Books and peers & -186 & 17\% & -32 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+12} &  \\
+G4. Books and peers & -262 & 17\% & -45 & \textcolor{bad}{against owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+21} &  \\
 Trading costs &  &  & -176 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-165} &  \\
-Weighted cases and stories alone, after costs &  &  & -231 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -13 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-155} &  \\
+Weighted cases and stories alone, after costs &  &  & -376 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -12 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 66 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -13 bp a year after costs (-42 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 221 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -12 bp a year after costs (-39 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +47 bp a year before trading costs (costs are 176 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 4 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +54 bp a year before trading costs (costs are 176 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 4 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & -6 & 0\% & -0 & F9; mapping C2 \\
+Default chance the price assumes (shown, weight 0) & -32 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & +124 & 25\% & +31 & F7.7 \\
-Return above cash, repriced in every story & -32 & 25\% & -8 & RV PDF E50-E60; C1, C3 \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & +210 & 25\% & +53 & F7.7 \\
+Return above cash, repriced in every story & -157 & 25\% & -39 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 68 bp over Treasuries at 5 years. A company with its leverage (2.9x with leases) pays 88 bp on the fair line, so the bond is expensive by 20 bp. What would reveal it, and when: open question.
+The bond pays 68 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 75 bp. The high yield index pays 168 bp. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} HCA Healthcare, Inc. is one of the leading health care services companies in the United States. At December 31, 2025, we operated 190 hospitals, comprised of 179 general acute care hospitals, seven behavioral hospitals, and four rehabilitation hospitals.
@@ -774,29 +776,31 @@ Market value of the whole company \$130bn (shares \$85bn plus net debt): 8.3x EB
 We put the same money in the bond nearest five years (404119DJ5, 4.70\% due 2031-05-15, price 96.93 plus 1.61 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 65\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & -32 \\
-Chance of a loss over six months & 8.7\% \\
-Chance of doing worse than cash & 9.0\% \\
-Average loss in the worst 5\% of outcomes & 5.8\% \\
-Same, with rates and the market hedged out, bp a year & -105 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +478 \\
+Expected return above cash, bp a year & -157 \\
+Chance of a loss over six months & 8.8\% \\
+Chance of doing worse than cash & 94.6\% \\
+Average loss in the worst 5\% of outcomes & 8.9\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -174 \\
+Hedge ratio on the HY index (DTS beta) & 0.40 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,796 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-10-27)
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -82 bp a year before trading costs (costs are 176 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 6 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -124 bp a year before trading costs (costs are 176 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 7 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & -99 & 42\% & -41 & Spec S14 E0; K15 \\
-Weighted cases and stories & -55 & 25\% & -14 & M5.4, M7.5 \\
-Spread against the fair line & -49 & 17\% & -8 & M7.4, M7.5 \\
-The pair & -428 & 8\% & -36 & M7.4; F10 S4 \\
-Health panel & +200 & 8\% & +17 & F8 \\
+Spread level: the extra pay over the market (carry) & -99 & 48\% & -48 & Spec S14 E0; K15 \\
+Weighted cases and stories & -200 & 29\% & -58 & M5.4, M7.5 \\
+Spread against the fair line & -185 & 4\% & -7 & M7.4, M7.5 \\
+The pair & -461 & 10\% & -44 & M7.4; F10 S4 \\
+Health panel & +338 & 10\% & +33 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +197 bp a year before trading costs (costs are 176 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 1 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +334 bp a year before trading costs (costs are 176 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 1 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & +197 & 100\% & +197 & M4.7 \\
+The two clocks & +334 & 100\% & +334 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$59.2bn, centred 4.4 years out: leases in force \$3.2bn, debt principal \$45.8bn, interest \$10.2bn. That is 3.8 years of today's EBITDAR; next year's bills take 44\% of it.
 The company discloses no material signed revenue, so the second clock is today's earnings held flat (chart at the end).
@@ -811,38 +815,37 @@ upside & 21\% & 2.5\% & 2.7x & 2.9x & \$2.7bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 2.8x & 3.9x & 0\% & 0.6\% & -53 \\
-recession & 2\% & 2.9x & 4.0x & 0\% & 1.6\% & -137 \\
-higher for longer & 8\% & 2.8x & 3.9x & 0\% & 0.7\% & -62 \\
-disinflation rally & 4\% & 2.8x & 3.9x & 0\% & 0.5\% & -41 \\
-stagflation & 0\% & 2.9x & 4.0x & 0\% & 1.6\% & -139 \\
+soft landing & 86\% & 2.8x & 3.9x & 0\% & 1.0\% & -192 \\
+recession & 2\% & 2.9x & 4.0x & 0\% & 2.6\% & -501 \\
+higher for longer & 8\% & 2.8x & 3.9x & 0\% & 1.2\% & -228 \\
+disinflation rally & 4\% & 2.8x & 3.9x & 0\% & 0.8\% & -149 \\
+stagflation & 0\% & 2.9x & 4.0x & 0\% & 2.6\% & -509 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 68 bp against a fair 88 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 68 bp against a fair 144 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Health Care. Rating class: BB (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & -52\% & -45\% \\
-Sector only & -86\% & -71\% \\
-Rating only & -52\% & -45\% \\
+Sector and rating & -52\% & -52\% \\
+Sector only & -86\% & -74\% \\
+Rating only & -52\% & -52\% \\
 \bottomrule\end{tabular}\end{center}
 The sector and rating cell has fewer than five other issuers, so that row uses the rating cell.
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 22\% of the peer bonds across all sectors, and -54\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 18\% of the peer bonds across all sectors, and -58\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
 \textbf{OneScore} (Dynkin et al. 2021, ch. 19): 30\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 7\%) and the stock's 3-month return (9.7\%, rank 53\%). It enters the score as E16 at 4.5\%.
 \textbf{Against THC.} Spreads at 5 years: HCA 68 bp, THC 123 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & HCA & THC & Cheaper \\\midrule
 turn of leverage & 23 & 40 & THC \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long THC, short HCA: a gap of 51 bp, which halves in about 5 weeks on six months of trades. Under the stories the pair earns soft landing +120, recession +314, higher for longer +143, disinflation rally +93, stagflation +320 bp a year; weighted +125 bp before costs.
+The fair line favours long THC, short HCA: a gap of 55 bp, which halves in about 5 weeks on six months of trades. Under the stories the pair earns soft landing +134, recession +350, higher for longer +159, disinflation rally +104, stagflation +356 bp a year; weighted +139 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: -55 bp a year before trading costs, -231 bp after. It does not beat costs. The expected default loss is charged on the price paid: 65\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -200 bp a year before trading costs, -376 bp after. It does not beat costs. The expected default loss is charged on the price paid: 65\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 0.6\% & 0.6\% & 0.1\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 1.1\% & 0.6\% & -0.4\% & 0.5\% & no \\
-Leverage the spread is pricing & 2.11 & 2.93 & 0.82 & 0.90 & no \\
-Spread against fair (bp) & 68 & 88 & 20 & 25 & no \\
+Default chance at the v0 price of risk (shown, not tested) & 0.6\% & 1.0\% & 0.5\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 1.1\% & 1.0\% & -0.0\% & 0.5\% & no \\
+Spread against fair, sector peers (bp) & 68 & 144 & 75 & 77 & no \\
 Rating class & open & BBB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -896,14 +899,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -186 bp a year before trading costs (costs are 176 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 8 of the issuers on this group alone. S\&P anchor class: BBB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -262 bp a year before trading costs (costs are 176 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 8 of the issuers on this group alone. S\&P anchor class: BBB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & +22 & 15\% & +3 & Ganguin and Bilardello ch. 10 \\
-Spread per turn of leverage (with the trap guard) & -249 & 15\% & -37 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & -299 & 26\% & -79 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & -103 & 18\% & -18 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & -210 & 26\% & -56 & Dynkin et al. ch. 19 \\
+Spread against the S\&P risk score & +38 & 15\% & +6 & Ganguin and Bilardello ch. 10 \\
+Spread per turn of leverage (with the trap guard) & -316 & 15\% & -46 & Kricheff ch. 21 \\
+Excess spread to sector and rating peers (ESP) & -476 & 26\% & -126 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & -33 & 18\% & -6 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & -338 & 26\% & -90 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -947,38 +950,38 @@ Financial risk score 4.4. Business risk score 4.0: industry 4, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_HCA_THC.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{Tenet Healthcare (THC)}\pdfbookmark[1]{THC}{bm-THC}\label{memo-start-THC}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 2 of the issuers in this run. 4 of 5 groups point the same way as the combination.
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 2 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +22 & 40\% & +9 & \textcolor{amber}{leans to owning} \\
-G2 clocks. Two clocks & +183 & 20\% & +37 & \textcolor{good}{supports owning} \\
-G2 rest. Built methods (rest) & +60 & 18\% & +11 & \textcolor{amber}{leans to owning} \\
+G1. Core process & -10 & 40\% & -4 & \textcolor{bad}{against owning} \\
+G2 clocks. Two clocks & +310 & 20\% & +62 & \textcolor{good}{supports owning} \\
+G2 rest. Built methods (rest) & +29 & 18\% & +5 & \textcolor{amber}{leans to owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
-G4. Books and peers & +126 & 17\% & +21 & \textcolor{amber}{leans to owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+78} &  \\
+G4. Books and peers & +313 & 17\% & +53 & \textcolor{good}{supports owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+117} &  \\
 Trading costs &  &  & -174 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-96} &  \\
-Weighted cases and stories alone, after costs &  &  & -103 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -8 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-57} &  \\
+Weighted cases and stories alone, after costs &  &  & -234 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -5 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 7 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -8 bp a year after costs (-24 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 177 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -5 bp a year after costs (-14 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +22 bp a year before trading costs (costs are 174 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 5 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -10 bp a year before trading costs (costs are 174 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 6 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & +20 & 0\% & +0 & F9; mapping C2 \\
+Default chance the price assumes (shown, weight 0) & -0 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & -106 & 25\% & -27 & F7.7 \\
-Return above cash, repriced in every story & +99 & 25\% & +25 & RV PDF E50-E60; C1, C3 \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & -180 & 25\% & -45 & F7.7 \\
+Return above cash, repriced in every story & -21 & 25\% & -5 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 123 bp over Treasuries at 5 years. A company with its leverage (3.1x with leases) pays 93 bp on the fair line, so the bond is cheap by 30 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
+The bond pays 123 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 21 bp. The high yield index pays 168 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} Tenet Healthcare Corporation (“Tenet”) is a diversified healthcare services company with its headquarters in Dallas, Texas, and a Global Business Center (“GBC”) in the Philippines that supports various enterprise-wide administrative functions. We operate our expansive, nationwide care delivery network through direct and indirect subsidiaries, as well as downstream partnerships and joint ventures; the terms “we,” “our” and “us,” as used in this report and unless otherwise stated or indicated by t
@@ -1043,29 +1046,31 @@ Market value of the whole company \$26bn (shares \$15bn plus net debt): 6.1x EBI
 We put the same money in the bond nearest five years (88033GAV2, 6.88\% due 2031-11-15, price 104.98 plus 2.33 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 68\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +99 \\
-Chance of a loss over six months & 8.7\% \\
-Chance of doing worse than cash & 9.0\% \\
-Average loss in the worst 5\% of outcomes & 5.8\% \\
-Same, with rates and the market hedged out, bp a year & +2 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +348 \\
+Expected return above cash, bp a year & -21 \\
+Chance of a loss over six months & 8.8\% \\
+Chance of doing worse than cash & 9.2\% \\
+Average loss in the worst 5\% of outcomes & 8.7\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -77 \\
+Hedge ratio on the HY index (DTS beta) & 0.57 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,658 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-10-28)
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +60 bp a year before trading costs (costs are 174 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 3 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +29 bp a year before trading costs (costs are 174 bp a year); 2 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 3 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & -45 & 42\% & -19 & Spec S14 E0; K15 \\
-Weighted cases and stories & +71 & 25\% & +18 & M5.4, M7.5 \\
-Spread against the fair line & +72 & 17\% & +12 & M7.4, M7.5 \\
-The pair & +428 & 8\% & +36 & M7.4; F10 S4 \\
-Health panel & +158 & 8\% & +13 & F8 \\
+Spread level: the extra pay over the market (carry) & -45 & 48\% & -21 & Spec S14 E0; K15 \\
+Weighted cases and stories & -60 & 29\% & -17 & M5.4, M7.5 \\
+Spread against the fair line & -50 & 4\% & -2 & M7.4, M7.5 \\
+The pair & +461 & 10\% & +44 & M7.4; F10 S4 \\
+Health panel & +269 & 10\% & +26 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +183 bp a year before trading costs (costs are 174 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 2 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +310 bp a year before trading costs (costs are 174 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 2 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & +183 & 100\% & +183 & M4.7 \\
+The two clocks & +310 & 100\% & +310 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$17.7bn, centred 3.3 years out: leases in force \$1.5bn, debt principal \$13.3bn, interest \$2.9bn. That is 4.2 years of today's EBITDAR; next year's bills take 46\% of it.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -1097,20 +1102,20 @@ upside & 21\% & 2.1\% & 2.7x & 3.0x & \$2.7bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 2.9x & 4.0x & 0\% & 0.7\% & 68 \\
-recession & 2\% & 3.0x & 4.2x & 0\% & 1.7\% & 178 \\
-higher for longer & 8\% & 2.9x & 4.0x & 0\% & 0.8\% & 81 \\
-disinflation rally & 4\% & 2.9x & 4.0x & 0\% & 0.5\% & 52 \\
-stagflation & 0\% & 3.0x & 4.2x & 0\% & 1.7\% & 181 \\
+soft landing & 86\% & 2.9x & 4.0x & 0\% & 1.0\% & -58 \\
+recession & 2\% & 3.0x & 4.2x & 0\% & 2.6\% & -151 \\
+higher for longer & 8\% & 2.9x & 4.0x & 0\% & 1.2\% & -69 \\
+disinflation rally & 4\% & 2.9x & 4.0x & 0\% & 0.8\% & -45 \\
+stagflation & 0\% & 3.0x & 4.2x & 0\% & 2.6\% & -153 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 123 bp against a fair 93 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 123 bp against a fair 144 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Health Care. Rating class: BB (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & -14\% & -6\% \\
-Sector only & -74\% & -51\% \\
-Rating only & -14\% & -6\% \\
+Sector and rating & -14\% & -8\% \\
+Sector only & -74\% & -50\% \\
+Rating only & -14\% & -8\% \\
 \bottomrule\end{tabular}\end{center}
 The sector and rating cell has fewer than five other issuers, so that row uses the rating cell.
 \textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 41\% of the peer bonds across all sectors, and -26\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
@@ -1120,15 +1125,14 @@ The sector and rating cell has fewer than five other issuers, so that row uses t
 Spread per & HCA & THC & Cheaper \\\midrule
 turn of leverage & 23 & 40 & THC \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long THC, short HCA: a gap of 51 bp, which halves in about 5 weeks on six months of trades. Under the stories the pair earns soft landing +120, recession +314, higher for longer +143, disinflation rally +93, stagflation +320 bp a year; weighted +125 bp before costs.
+The fair line favours long THC, short HCA: a gap of 55 bp, which halves in about 5 weeks on six months of trades. Under the stories the pair earns soft landing +134, recession +350, higher for longer +159, disinflation rally +104, stagflation +356 bp a year; weighted +139 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: 71 bp a year before trading costs, -103 bp after. It does not beat costs. The expected default loss is charged on the price paid: 68\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -60 bp a year before trading costs, -234 bp after. It does not beat costs. The expected default loss is charged on the price paid: 68\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 1.0\% & 0.7\% & -0.3\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 1.8\% & 0.7\% & -1.1\% & 0.9\% & yes \\
-Leverage the spread is pricing & 4.00 & 3.11 & -0.88 & 0.90 & no \\
-Spread against fair (bp) & 123 & 93 & -30 & 26 & yes \\
+Default chance at the v0 price of risk (shown, not tested) & 1.0\% & 1.0\% & 0.0\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 1.8\% & 1.0\% & -0.8\% & 0.9\% & no \\
+Spread against fair, sector peers (bp) & 123 & 144 & 21 & 78 & no \\
 Rating class & open & BBB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -1182,14 +1186,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +126 bp a year before trading costs (costs are 174 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 2 of the issuers on this group alone. S\&P anchor class: BBB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +313 bp a year before trading costs (costs are 174 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 2 of the issuers on this group alone. S\&P anchor class: BBB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & +133 & 15\% & +19 & Ganguin and Bilardello ch. 10 \\
-Spread per turn of leverage (with the trap guard) & +205 & 15\% & +30 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & -43 & 26\% & -11 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & +82 & 18\% & +14 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & +278 & 26\% & +73 & Dynkin et al. ch. 19 \\
+Spread against the S\&P risk score & +225 & 15\% & +33 & Ganguin and Bilardello ch. 10 \\
+Spread per turn of leverage (with the trap guard) & +337 & 15\% & +50 & Kricheff ch. 21 \\
+Excess spread to sector and rating peers (ESP) & -28 & 26\% & -7 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & +585 & 18\% & +103 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & +508 & 26\% & +134 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -1233,38 +1237,38 @@ Financial risk score 5.5. Business risk score 4.0: industry 4, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_HCA_THC.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{Carnival Corp (CCL)}\pdfbookmark[1]{CCL}{bm-CCL}\label{memo-start-CCL}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
 Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 3 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +72 & 40\% & +29 & \textcolor{amber}{leans to owning} \\
-G2 clocks. Two clocks & +88 & 20\% & +18 & \textcolor{amber}{leans to owning} \\
-G2 rest. Built methods (rest) & +16 & 18\% & +3 & \textcolor{amber}{leans to owning} \\
+G1. Core process & +73 & 40\% & +29 & \textcolor{amber}{leans to owning} \\
+G2 clocks. Two clocks & +150 & 20\% & +30 & \textcolor{amber}{leans to owning} \\
+G2 rest. Built methods (rest) & -75 & 18\% & -14 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
-G4. Books and peers & -28 & 17\% & -5 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+44} &  \\
+G4. Books and peers & +16 & 17\% & +3 & \textcolor{amber}{leans to owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+48} &  \\
 Trading costs &  &  & -174 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-129} &  \\
-Weighted cases and stories alone, after costs &  &  & -116 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-126} &  \\
+Weighted cases and stories alone, after costs &  &  & -217 &  \\
 Calibrated: after-cost number x measured slope 0.079 &  &  & -10 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 13 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -10 bp a year after costs (-33 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 91 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -10 bp a year after costs (-32 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +72 bp a year before trading costs (costs are 174 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 3 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +73 bp a year before trading costs (costs are 174 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 3 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & +20 & 0\% & +0 & F9; mapping C2 \\
+Default chance the price assumes (shown, weight 0) & +0 & 0\% & +0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & +38 & 25\% & +9 & F7.7 \\
-Return above cash, repriced in every story & +154 & 25\% & +38 & RV PDF E50-E60; C1, C3 \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & +64 & 25\% & +16 & F7.7 \\
+Return above cash, repriced in every story & +66 & 25\% & +16 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 129 bp over Treasuries at 5 years. A company with its leverage (3.5x with leases) pays 105 bp on the fair line, so the bond is cheap by 24 bp. What would reveal it, and when: open question.
+The bond pays 129 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 15 bp. The high yield index pays 168 bp. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} A. Overview I.Summary Carnival Corporation was incorporated in Panama in 1974 and Carnival plc was incorporated in England and Wales in 2000.
@@ -1332,29 +1336,31 @@ Market value of the whole company \$62bn (shares \$38bn plus net debt): 8.4x EBI
 We put the same money in the bond nearest five years (143658BZ4, 5.88\% due 2031-06-15, price 99.11 plus 1.52 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 65\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +154 \\
-Chance of a loss over six months & 8.7\% \\
-Chance of doing worse than cash & 9.1\% \\
-Average loss in the worst 5\% of outcomes & 5.9\% \\
-Same, with rates and the market hedged out, bp a year & +24 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +292 \\
+Expected return above cash, bp a year & +66 \\
+Chance of a loss over six months & 9.2\% \\
+Chance of doing worse than cash & 9.2\% \\
+Average loss in the worst 5\% of outcomes & 8.1\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -44 \\
+Hedge ratio on the HY index (DTS beta) & 0.78 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,572 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-09-25); Debt due by 0.5 years out
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +16 bp a year before trading costs (costs are 174 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 4 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -75 bp a year before trading costs (costs are 174 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 5 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & -39 & 42\% & -16 & Spec S14 E0; K15 \\
-Weighted cases and stories & +57 & 25\% & +14 & M5.4, M7.5 \\
-Spread against the fair line & +58 & 17\% & +10 & M7.4, M7.5 \\
-The pair & -22 & 8\% & -2 & M7.4; F10 S4 \\
-Health panel & +117 & 8\% & +10 & F8 \\
+Spread level: the extra pay over the market (carry) & -39 & 48\% & -19 & Spec S14 E0; K15 \\
+Weighted cases and stories & -43 & 29\% & -12 & M5.4, M7.5 \\
+Spread against the fair line & -35 & 4\% & -1 & M7.4, M7.5 \\
+The pair & -643 & 10\% & -62 & M7.4; F10 S4 \\
+Health panel & +199 & 10\% & +19 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +88 bp a year before trading costs (costs are 174 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 4 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +150 bp a year before trading costs (costs are 174 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 4 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & +88 & 100\% & +88 & M4.7 \\
+The two clocks & +150 & 100\% & +150 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$50.7bn, centred 4.7 years out: leases in force \$1.8bn, debt principal \$25.6bn, interest \$4.8bn, purchase commitments \$18.5bn. That is 6.9 years of today's EBITDAR; next year's bills take 63\% of it.
 The company discloses no material signed revenue, so the second clock is today's earnings held flat (chart at the end).
@@ -1369,37 +1375,36 @@ upside & 21\% & 1.5\% & 2.9x & 3.8x & \$3.3bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 3.5x & 5.6x & 0\% & 0.7\% & 55 \\
-recession & 2\% & 3.7x & 5.9x & 0\% & 1.9\% & 144 \\
-higher for longer & 8\% & 3.5x & 5.6x & 0\% & 0.9\% & 65 \\
-disinflation rally & 4\% & 3.4x & 5.5x & 0\% & 0.6\% & 43 \\
-stagflation & 0\% & 3.7x & 5.9x & 0\% & 1.9\% & 146 \\
+soft landing & 86\% & 3.5x & 5.6x & 0\% & 1.0\% & -41 \\
+recession & 2\% & 3.7x & 5.9x & 0\% & 2.6\% & -107 \\
+higher for longer & 8\% & 3.5x & 5.6x & 0\% & 1.2\% & -49 \\
+disinflation rally & 4\% & 3.4x & 5.5x & 0\% & 0.8\% & -32 \\
+stagflation & 0\% & 3.7x & 5.9x & 0\% & 2.6\% & -109 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 129 bp against a fair 105 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 129 bp against a fair 144 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Consumer Discretionary. Rating class: BB (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & -10\% & -17\% \\
-Sector only & -22\% & +27\% \\
-Rating only & -10\% & -12\% \\
+Sector and rating & -10\% & -11\% \\
+Sector only & -22\% & +40\% \\
+Rating only & -10\% & -7\% \\
 \bottomrule\end{tabular}\end{center}
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 18\% of the peer bonds across all sectors, and -64\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
-\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 40\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 50\%) and the stock's 3-month return (-14.3\%, rank 29\%). It enters the score as E16 at 4.5\%.
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 11\% of the peer bonds across all sectors, and -67\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 41\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 52\%) and the stock's 3-month return (-14.3\%, rank 29\%). It enters the score as E16 at 4.5\%.
 \textbf{Against NCLH.} Spreads at 5 years: CCL 129 bp, NCLH 258 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & CCL & NCLH & Cheaper \\\midrule
 turn of leverage & 37 & 45 & NCLH \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long NCLH, short CCL: a gap of 3 bp, which halves in about 3 weeks on six months of trades. Under the stories the pair earns soft landing +6, recession +156, higher for longer +35, disinflation rally -28, stagflation +118 bp a year; weighted +11 bp before costs.
+The fair line favours long NCLH, short CCL: a gap of 78 bp, which halves in about 3 weeks on six months of trades. Under the stories the pair earns soft landing +117, recession +451, higher for longer +166, disinflation rally +58, stagflation +411 bp a year; weighted +125 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: 57 bp a year before trading costs, -116 bp after. It does not beat costs. The expected default loss is charged on the price paid: 65\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -43 bp a year before trading costs, -217 bp after. It does not beat costs. The expected default loss is charged on the price paid: 65\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 1.1\% & 0.8\% & -0.3\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 2.0\% & 0.8\% & -1.2\% & 1.0\% & yes \\
-Leverage the spread is pricing & 4.15 & 3.49 & -0.66 & 0.90 & no \\
-Spread against fair (bp) & 129 & 105 & -24 & 29 & no \\
+Default chance at the v0 price of risk (shown, not tested) & 1.1\% & 1.0\% & -0.0\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 2.0\% & 1.0\% & -0.9\% & 1.0\% & no \\
+Spread against fair, sector peers (bp) & 129 & 144 & 15 & 43 & no \\
 Rating class & open & BBB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -1459,14 +1464,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -28 bp a year before trading costs (costs are 174 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 6 of the issuers on this group alone. S\&P anchor class: BBB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +16 bp a year before trading costs (costs are 174 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 4 of the issuers on this group alone. S\&P anchor class: BBB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & +106 & 15\% & +16 & Ganguin and Bilardello ch. 10 \\
-Spread per turn of leverage (with the trap guard) & +94 & 15\% & +14 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & -23 & 26\% & -6 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & -142 & 18\% & -25 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & -99 & 26\% & -26 & Dynkin et al. ch. 19 \\
+Spread against the S\&P risk score & +180 & 15\% & +26 & Ganguin and Bilardello ch. 10 \\
+Spread per turn of leverage (with the trap guard) & +307 & 15\% & +45 & Kricheff ch. 21 \\
+Excess spread to sector and rating peers (ESP) & +8 & 26\% & +2 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & -147 & 18\% & -26 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & -122 & 26\% & -32 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -1510,38 +1515,38 @@ Financial risk score 5.1. Business risk score 4.5: industry 5, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_CCL_NCLH.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{Norwegian Cruise Line Holdings (NCLH)}\pdfbookmark[1]{NCLH}{bm-NCLH}\label{memo-start-NCLH}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is CCL. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 5 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 5 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -58 & 40\% & -23 & \textcolor{bad}{against owning} \\
-G2 clocks. Two clocks & +102 & 20\% & +20 & \textcolor{amber}{leans to owning} \\
-G2 rest. Built methods (rest) & +62 & 18\% & +11 & \textcolor{amber}{leans to owning} \\
-G3. Credit skills & -215 & 5\% & -11 & \textcolor{bad}{against owning} \\
-G4. Books and peers & +24 & 17\% & +4 & \textcolor{amber}{leans to owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+2} &  \\
+G1. Core process & -172 & 40\% & -69 & \textcolor{bad}{against owning} \\
+G2 clocks. Two clocks & +173 & 20\% & +35 & \textcolor{good}{supports owning} \\
+G2 rest. Built methods (rest) & +108 & 18\% & +19 & \textcolor{amber}{leans to owning} \\
+G3. Credit skills & -365 & 5\% & -18 & \textcolor{bad}{against owning} \\
+G4. Books and peers & +92 & 17\% & +16 & \textcolor{amber}{leans to owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-18} &  \\
 Trading costs &  &  & -168 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-166} &  \\
-Weighted cases and stories alone, after costs &  &  & -100 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -13 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-186} &  \\
+Weighted cases and stories alone, after costs &  &  & -86 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -15 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 66 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -13 bp a year after costs (-42 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 100 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -15 bp a year after costs (-47 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -58 bp a year before trading costs (costs are 168 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 8 of the issuers on this group alone. Best alternative for the same money: CCL.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -172 bp a year before trading costs (costs are 168 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 8 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -13 & 0\% & -0 & F9; mapping C2 \\
-Earnings quality, add-backs, FCF check (can only lower) & -167 & 25\% & -42 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & -247 & 25\% & -62 & F4; RV PDF E75-E76 \\
-Debt against market value & -264 & 25\% & -66 & F7.7 \\
-Return above cash, repriced in every story & +445 & 25\% & +111 & RV PDF E50-E60; C1, C3 \\
+Earnings quality, add-backs, FCF check (can only lower) & -283 & 25\% & -71 & F3; ebitda-addback-treatment; hy-model-standards \\
+Access to new money and the funding gap & -419 & 25\% & -105 & F4; RV PDF E75-E76 \\
+Debt against market value & -448 & 25\% & -112 & F7.7 \\
+Return above cash, repriced in every story & +459 & 25\% & +115 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 258 bp over Treasuries at 5 years. A company with its leverage (5.7x with leases) pays 208 bp on the fair line, so the bond is cheap by 50 bp. What would reveal it, and when: open question.
+The bond pays 258 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 201 bp, so the bond is cheap by 57 bp. The high yield index pays 168 bp. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} History and Development of the Company Norwegian commenced operations from Miami, Florida in 1966, launching the modern cruise industry by offering weekly departures from Miami, Florida to destinations in the Caribbean. In February 2011, NCLH, a Bermuda limited company, was formed.
@@ -1609,29 +1614,31 @@ Market value of the whole company \$25bn (shares \$10bn plus net debt): 9.2x EBI
 We put the same money in the bond nearest five years (62886HBR1, 6.75\% due 2032-02-01, price 95.44 plus 0.85 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 64\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +445 \\
+Expected return above cash, bp a year & +459 \\
 Chance of a loss over six months & 11.5\% \\
 Chance of doing worse than cash & 11.5\% \\
-Average loss in the worst 5\% of outcomes & 15.8\% \\
-Same, with rates and the market hedged out, bp a year & +143 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & CCL \\
-Return given up against that alternative, bp a year & -292 \\
+Average loss in the worst 5\% of outcomes & 15.7\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & +82 \\
+Hedge ratio on the HY index (DTS beta) & 1.79 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,178 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-11-02); Debt due by 0.5 years out
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +62 bp a year before trading costs (costs are 168 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 2 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +108 bp a year before trading costs (costs are 168 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 2 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & +90 & 42\% & +38 & Spec S14 E0; K15 \\
-Weighted cases and stories & +68 & 25\% & +17 & M5.4, M7.5 \\
-Spread against the fair line & +117 & 17\% & +19 & M7.4, M7.5 \\
-The pair & +22 & 8\% & +2 & M7.4; F10 S4 \\
-Health panel & -162 & 8\% & -13 & F8 \\
+Spread level: the extra pay over the market (carry) & +90 & 48\% & +43 & Spec S14 E0; K15 \\
+Weighted cases and stories & +82 & 29\% & +24 & M5.4, M7.5 \\
+Spread against the fair line & +133 & 4\% & +5 & M7.4, M7.5 \\
+The pair & +643 & 10\% & +62 & M7.4; F10 S4 \\
+Health panel & -274 & 10\% & -26 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +102 bp a year before trading costs (costs are 168 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 3 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +173 bp a year before trading costs (costs are 168 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 3 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & +102 & 100\% & +102 & M4.7 \\
+The two clocks & +173 & 100\% & +173 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$17.6bn, centred 5.6 years out: leases in force \$2.2bn, debt principal \$15.5bn. That is 6.5 years of today's EBITDAR; next year's bills take 41\% of it.
 The company discloses no material signed revenue, so the second clock is today's earnings held flat (chart at the end).
@@ -1646,37 +1653,36 @@ upside & 21\% & 1.8\% & 4.4x & 5.8x & \$0.5bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 5.3x & 8.6x & 0\% & 2.3\% & 61 \\
-recession & 2\% & 5.6x & 9.2x & 100\% & 3.7\% & 300 \\
-higher for longer & 8\% & 5.3x & 8.7x & 0\% & 2.3\% & 100 \\
-disinflation rally & 4\% & 5.2x & 8.6x & 0\% & 2.3\% & 15 \\
-stagflation & 0\% & 5.6x & 9.2x & 100\% & 4.4\% & 265 \\
+soft landing & 86\% & 5.3x & 8.6x & 0\% & 2.3\% & 75 \\
+recession & 2\% & 5.6x & 9.2x & 100\% & 3.6\% & 344 \\
+higher for longer & 8\% & 5.3x & 8.7x & 0\% & 2.3\% & 116 \\
+disinflation rally & 4\% & 5.2x & 8.6x & 0\% & 2.3\% & 26 \\
+stagflation & 0\% & 5.6x & 9.2x & 100\% & 4.4\% & 301 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 258 bp against a fair 208 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 258 bp against a fair 201 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Consumer Discretionary. Rating class: B (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & +28\% & +33\% \\
-Sector only & +56\% & +56\% \\
-Rating only & +55\% & +42\% \\
+Sector and rating & +28\% & +22\% \\
+Sector only & +56\% & +46\% \\
+Rating only & +56\% & +31\% \\
 \bottomrule\end{tabular}\end{center}
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 20\% of the peer bonds across all sectors, and -69\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 18\% of the peer bonds across all sectors, and -70\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
 \textbf{OneScore} (Dynkin et al. 2021, ch. 19): 50\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 67\%) and the stock's 3-month return (-12.0\%, rank 34\%). It enters the score as E16 at 4.5\%.
 \textbf{Against CCL.} Spreads at 5 years: CCL 129 bp, NCLH 258 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & CCL & NCLH & Cheaper \\\midrule
 turn of leverage & 37 & 45 & NCLH \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long NCLH, short CCL: a gap of 3 bp, which halves in about 3 weeks on six months of trades. Under the stories the pair earns soft landing +6, recession +156, higher for longer +35, disinflation rally -28, stagflation +118 bp a year; weighted +11 bp before costs.
+The fair line favours long NCLH, short CCL: a gap of 78 bp, which halves in about 3 weeks on six months of trades. Under the stories the pair earns soft landing +117, recession +451, higher for longer +166, disinflation rally +58, stagflation +411 bp a year; weighted +125 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: 68 bp a year before trading costs, -100 bp after. It does not beat costs. The expected default loss is charged on the price paid: 64\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: 82 bp a year before trading costs, -86 bp after. It does not beat costs. The expected default loss is charged on the price paid: 64\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
 Default chance at the v0 price of risk (shown, not tested) & 2.1\% & 2.3\% & 0.2\% & open & not tested \\
 Breakeven default probability, 12 months (loss on price) & 4.0\% & 2.3\% & -1.7\% & 2.0\% & no \\
-Leverage the spread is pricing & 6.37 & 5.68 & -0.69 & 0.90 & no \\
-Spread against fair (bp) & 258 & 208 & -50 & 58 & no \\
+Spread against fair, sector peers (bp) & 258 & 201 & -57 & 167 & no \\
 Rating class & open & BB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -1698,10 +1704,10 @@ Coverage & n/a & n/a \\
 Fixed-charge cover & n/a & n/a \\
 \bottomrule\end{tabular}\end{center}
 \section*{G3. Credit skills: the lender's checklists applied to a public bond}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -215 bp a year before trading costs (costs are 168 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the lender's checklists: add-backs, covenants, watchlist, trend, memo structure. Its estimate of expected profit is -365 bp a year before trading costs (costs are 168 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 5\% of the combined view and ranks 6 of the issuers on this group alone. Its estimates can only lower the combined number: a clean checklist earns no credit. Watchlist: watchlist.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Watchlist tier (can only lower) & -215 & 100\% & -215 & borrower-monitoring; covenant-compliance \\
+Watchlist tier (can only lower) & -365 & 100\% & -365 & borrower-monitoring; covenant-compliance \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G3.1 Add-backs and their cash effect}
 Reported EBITDA over the last 12 months is \$2.6bn. The company's own measure adds back \$0.2bn of one-off items to reach \$2.7bn: 6.5\% of reported EBITDA (a negative figure is a one-off gain taken out). This is above the 5\% line the lender's checklist sets for one item. They do not recur in three quarters running. If every add-back were paid in cash, free cash flow would be \$-1.4bn. The two roads to free cash flow (the EBITDA bridge, n/a; operating cash flow less capital spending, \$-1.2bn) differ by n/a of EBITDA: within the 10\% tolerance. The add-back table by category is an open question: the data has one total line.
@@ -1737,14 +1743,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +24 bp a year before trading costs (costs are 168 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 4 of the issuers on this group alone. S\&P anchor class: BB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +92 bp a year before trading costs (costs are 168 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 3 of the issuers on this group alone. S\&P anchor class: BB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & +23 & 15\% & +3 & Ganguin and Bilardello ch. 10 \\
+Spread against the S\&P risk score & +38 & 15\% & +6 & Ganguin and Bilardello ch. 10 \\
 Spread per turn of leverage (with the trap guard) & +0 & 15\% & +0 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & +132 & 26\% & +35 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & -124 & 18\% & -22 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & +27 & 26\% & +7 & Dynkin et al. ch. 19 \\
+Excess spread to sector and rating peers (ESP) & +280 & 26\% & +74 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & -42 & 18\% & -7 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & +74 & 26\% & +19 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -1788,38 +1794,38 @@ Financial risk score 7.7. Business risk score 4.5: industry 5, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_CCL_NCLH.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{MGM Resorts International (MGM)}\pdfbookmark[1]{MGM}{bm-MGM}\label{memo-start-MGM}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 6 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 6 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -4 & 40\% & -2 & \textcolor{bad}{against owning} \\
-G2 clocks. Two clocks & -108 & 20\% & -22 & \textcolor{bad}{against owning} \\
-G2 rest. Built methods (rest) & -86 & 18\% & -15 & \textcolor{bad}{against owning} \\
+G1. Core process & +25 & 40\% & +10 & \textcolor{amber}{leans to owning} \\
+G2 clocks. Two clocks & -184 & 20\% & -37 & \textcolor{bad}{against owning} \\
+G2 rest. Built methods (rest) & +27 & 18\% & +5 & \textcolor{amber}{leans to owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
-G4. Books and peers & +84 & 17\% & +14 & \textcolor{amber}{leans to owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{-25} &  \\
+G4. Books and peers & -184 & 17\% & -31 & \textcolor{bad}{against owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-53} &  \\
 Trading costs &  &  & -172 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-196} &  \\
-Weighted cases and stories alone, after costs &  &  & -395 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -16 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-225} &  \\
+Weighted cases and stories alone, after costs &  &  & -267 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -18 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 199 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -16 bp a year after costs (-50 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 42 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -18 bp a year after costs (-57 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -4 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 6 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +25 bp a year before trading costs (costs are 172 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 5 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & -26 & 0\% & -0 & F9; mapping C2 \\
-Earnings quality, add-backs, FCF check (can only lower) & -167 & 25\% & -42 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & +66 & 25\% & +17 & F7.7 \\
-Return above cash, repriced in every story & -13 & 25\% & -3 & RV PDF E50-E60; C1, C3 \\
+Default chance the price assumes (shown, weight 0) & -20 & 0\% & -0 & F9; mapping C2 \\
+Earnings quality, add-backs, FCF check (can only lower) & -283 & 25\% & -71 & F3; ebitda-addback-treatment; hy-model-standards \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & +113 & 25\% & +28 & F7.7 \\
+Return above cash, repriced in every story & +109 & 25\% & +27 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 175 bp over Treasuries at 5 years. A company with its leverage (6.4x with leases) pays 258 bp on the fair line, so the bond is expensive by 84 bp. What would reveal it, and when: open question.
+The bond pays 175 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 201 bp, so the bond is expensive by 27 bp. The high yield index pays 168 bp. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} MGM Resorts International is referred to as the “Company,” “MGM Resorts,” or the “Registrant,” and together with its subsidiaries may also be referred to as “we,” “us” or “our.” Overview MGM Resorts International is a Delaware corporation incorporated in 1986 that acts largely as a holding company and, through subsidiaries, is a global gaming and entertainment company with domestic and international locations featuring best-in-class hotels and casinos, state-of-the-art meeting and conference spa
@@ -1884,29 +1890,31 @@ Market value of the whole company \$16bn (shares \$12bn plus net debt): 6.5x EBI
 We put the same money in the bond nearest five years (552953CJ8, 6.50\% due 2032-04-15, price 98.93 plus 2.75 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 66\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & -13 \\
-Chance of a loss over six months & 11.2\% \\
+Expected return above cash, bp a year & +109 \\
+Chance of a loss over six months & 9.5\% \\
 Chance of doing worse than cash & 11.2\% \\
-Average loss in the worst 5\% of outcomes & 14.4\% \\
-Same, with rates and the market hedged out, bp a year & -208 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +460 \\
+Average loss in the worst 5\% of outcomes & 13.0\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -100 \\
+Hedge ratio on the HY index (DTS beta) & 1.15 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,528 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-10-29)
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -86 bp a year before trading costs (costs are 172 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 7 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is +27 bp a year before trading costs (costs are 172 bp a year); 3 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 4 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & +7 & 42\% & +3 & Spec S14 E0; K15 \\
-Weighted cases and stories & -223 & 25\% & -56 & M5.4, M7.5 \\
-Spread against the fair line & -200 & 17\% & -33 & M7.4, M7.5 \\
-The pair & -109 & 8\% & -9 & M7.4; F10 S4 \\
-Health panel & +117 & 8\% & +10 & F8 \\
+Spread level: the extra pay over the market (carry) & +7 & 48\% & +3 & Spec S14 E0; K15 \\
+Weighted cases and stories & -95 & 29\% & -27 & M5.4, M7.5 \\
+Spread against the fair line & -64 & 4\% & -2 & M7.4, M7.5 \\
+The pair & +353 & 10\% & +34 & M7.4; F10 S4 \\
+Health panel & +199 & 10\% & +19 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -108 bp a year before trading costs (costs are 172 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 6 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is -184 bp a year before trading costs (costs are 172 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 6 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & -108 & 100\% & -108 & M4.7 \\
+The two clocks & -184 & 100\% & -184 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$59.2bn, centred 12.2 years out: leases in force \$52.7bn, debt principal \$6.3bn, interest \$0.3bn. That is 12.5 years of today's EBITDAR; next year's bills take 82\% of it.
 The company discloses no material signed revenue, so the second clock is today's earnings held flat (chart at the end).
@@ -1921,38 +1929,36 @@ upside & 20\% & 1.1\% & 1.8x & 2.3x & \$3.1bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 2.6x & 5.6x & 0\% & 1.8\% & -214 \\
-recession & 2\% & 2.8x & 6.1x & 0\% & 4.6\% & -556 \\
-higher for longer & 8\% & 2.6x & 5.7x & 0\% & 2.1\% & -254 \\
-disinflation rally & 4\% & 2.6x & 5.6x & 0\% & 1.7\% & -186 \\
-stagflation & 0\% & 2.8x & 6.1x & 0\% & 4.7\% & -565 \\
+soft landing & 86\% & 2.6x & 5.6x & 0\% & 1.7\% & -92 \\
+recession & 2\% & 2.8x & 6.1x & 0\% & 4.2\% & -230 \\
+higher for longer & 8\% & 2.6x & 5.7x & 0\% & 1.7\% & -89 \\
+disinflation rally & 4\% & 2.6x & 5.6x & 0\% & 1.7\% & -97 \\
+stagflation & 0\% & 2.8x & 6.1x & 0\% & 4.2\% & -229 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 175 bp against a fair 258 bp.
-\textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Consumer Discretionary. Rating class: IG (implied by leverage). A positive value means the issuer pays more than the median peer.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 175 bp against a fair 201 bp.
+\textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Consumer Discretionary. Rating class: CCC (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & +24\% & -21\% \\
-Sector only & +6\% & +138\% \\
-Rating only & +24\% & -21\% \\
+Sector and rating & -13\% & -46\% \\
+Sector only & +6\% & -58\% \\
+Rating only & -37\% & -49\% \\
 \bottomrule\end{tabular}\end{center}
-The sector and rating cell has fewer than five other issuers, so that row uses the rating cell.
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 68\% of the peer bonds across all sectors, and -24\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
-\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 56\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 64\%) and the stock's 3-month return (-5.3\%, rank 49\%). It enters the score as E16 at 4.5\%.
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 6\% of the peer bonds across all sectors, and -49\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{OneScore} (Dynkin et al. 2021, ch. 19): 47\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 45\%) and the stock's 3-month return (-5.3\%, rank 49\%). It enters the score as E16 at 4.5\%.
 \textbf{Against WYNN.} Spreads at 5 years: MGM 175 bp, WYNN 165 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & MGM & WYNN & Cheaper \\\midrule
 turn of leverage & 27 & 28 & WYNN \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long WYNN, short MGM: a gap of 13 bp, which halves in about 2 weeks on six months of trades. Under the stories the pair earns soft landing +56, recession +146, higher for longer +67, disinflation rally +63, stagflation +149 bp a year; weighted +59 bp before costs.
+The fair line favours long MGM, short WYNN: a gap of 42 bp, which halves in about 2 weeks on six months of trades. Under the stories the pair earns soft landing +127, recession +339, higher for longer +171, disinflation rally +74, stagflation +350 bp a year; weighted +133 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: -223 bp a year before trading costs, -395 bp after. It does not beat costs. The expected default loss is charged on the price paid: 66\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -95 bp a year before trading costs, -267 bp after. It does not beat costs. The expected default loss is charged on the price paid: 66\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 1.4\% & 1.9\% & 0.4\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 2.7\% & 1.9\% & -0.8\% & 1.3\% & no \\
-Leverage the spread is pricing & 5.12 & 6.38 & 1.26 & 0.90 & yes \\
-Spread against fair (bp) & 175 & 258 & 84 & 72 & yes \\
+Default chance at the v0 price of risk (shown, not tested) & 1.4\% & 1.7\% & 0.3\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 2.7\% & 1.7\% & -0.9\% & 1.3\% & no \\
+Spread against fair, sector peers (bp) & 175 & 201 & 27 & 151 & no \\
 Rating class & open & BB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -2006,14 +2012,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is +84 bp a year before trading costs (costs are 172 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 3 of the issuers on this group alone. S\&P anchor class: BB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -184 bp a year before trading costs (costs are 172 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 6 of the issuers on this group alone. S\&P anchor class: BB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & -308 & 15\% & -45 & Ganguin and Bilardello ch. 10 \\
-Spread per turn of leverage (with the trap guard) & +56 & 15\% & +8 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & +116 & 26\% & +31 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & +363 & 18\% & +64 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & +99 & 26\% & +26 & Dynkin et al. ch. 19 \\
+Spread against the S\&P risk score & -523 & 15\% & -77 & Ganguin and Bilardello ch. 10 \\
+Spread per turn of leverage (with the trap guard) & -203 & 15\% & -30 & Kricheff ch. 21 \\
+Excess spread to sector and rating peers (ESP) & -18 & 26\% & -5 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & -417 & 18\% & -74 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & +4 & 26\% & +1 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
@@ -2057,38 +2063,38 @@ Financial risk score 8.6. Business risk score 5.0: industry 6, steadiness of sal
 \begin{figure}[H]\centering\includegraphics[width=0.85\linewidth]{figures/rv_MGM_WYNN.png}\caption*{The pair (section G2.3).}\end{figure}
 \newpage
 \section*{Wynn Resorts (WYNN)}\pdfbookmark[1]{WYNN}{bm-WYNN}\label{memo-start-WYNN}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
 \subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 8 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 7 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -22 & 40\% & -9 & \textcolor{bad}{against owning} \\
-G2 clocks. Two clocks & +4 & 20\% & +1 & \textcolor{amber}{leans to owning} \\
-G2 rest. Built methods (rest) & -58 & 18\% & -10 & \textcolor{bad}{against owning} \\
+G1. Core process & -49 & 40\% & -20 & \textcolor{bad}{against owning} \\
+G2 clocks. Two clocks & +7 & 20\% & +1 & \textcolor{amber}{leans to owning} \\
+G2 rest. Built methods (rest) & -110 & 18\% & -20 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
-G4. Books and peers & -154 & 17\% & -26 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{-45} &  \\
+G4. Books and peers & -219 & 17\% & -37 & \textcolor{bad}{against owning} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-75} &  \\
 Trading costs &  &  & -172 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-217} &  \\
-Weighted cases and stories alone, after costs &  &  & -336 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -17 &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-248} &  \\
+Weighted cases and stories alone, after costs &  &  & -400 &  \\
+Calibrated: after-cost number x measured slope 0.079 &  &  & -20 &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 119 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -17 bp a year after costs (-55 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+Against the weighted cases and stories alone, the combination is 152 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -20 bp a year after costs (-62 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -22 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 7 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -49 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 7 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Default chance the price assumes (shown, weight 0) & -20 & 0\% & -0 & F9; mapping C2 \\
+Default chance the price assumes (shown, weight 0) & -27 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
-Access to new money and the funding gap & +96 & 25\% & +24 & F4; RV PDF E75-E76 \\
-Debt against market value & -178 & 25\% & -44 & F7.7 \\
-Return above cash, repriced in every story & -6 & 25\% & -2 & RV PDF E50-E60; C1, C3 \\
+Access to new money and the funding gap & +162 & 25\% & +40 & F4; RV PDF E75-E76 \\
+Debt against market value & -302 & 25\% & -75 & F7.7 \\
+Return above cash, repriced in every story & -58 & 25\% & -15 & RV PDF E50-E60; C1, C3 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
-The bond pays 165 bp over Treasuries at 5 years. A company with its leverage (6.0x with leases) pays 226 bp on the fair line, so the bond is expensive by 60 bp. What would reveal it, and when: open question.
+The bond pays 165 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 251 bp, so the bond is expensive by 85 bp. The high yield index pays 168 bp. What would reveal it, and when: open question.
 \subsection*{G1.2 The business}
 \begin{enumerate}
 \item \textbf{What it sells:} Wynn Resorts, Limited ("Wynn Resorts," "Wynn," or together with its subsidiaries, "we" or the "Company") is a preeminent designer, developer, and operator of integrated resorts featuring luxury hotel rooms, high-end retail space, an array of dining and entertainment options, meeting and convention facilities, and gaming, all supported by an unparalleled focus on our guests, our people, and our community. We believe that our extensive design and operational experience across numerous gaming juris
@@ -2156,29 +2162,31 @@ Market value of the whole company \$19bn (shares \$10bn plus net debt): 10.6x EB
 We put the same money in the bond nearest five years (983133AC3, 7.12\% due 2031-02-15, price 103.79 plus 0.62 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 67\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & -6 \\
-Chance of a loss over six months & 9.4\% \\
-Chance of doing worse than cash & 9.4\% \\
-Average loss in the worst 5\% of outcomes & 12.1\% \\
-Same, with rates and the market hedged out, bp a year & -142 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & +452 \\
+Expected return above cash, bp a year & -58 \\
+Chance of a loss over six months & 9.5\% \\
+Chance of doing worse than cash & 9.5\% \\
+Average loss in the worst 5\% of outcomes & 13.4\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -174 \\
+Hedge ratio on the HY index (DTS beta) & 0.78 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
+Return given up against that alternative, bp a year & +1,696 \\
 \bottomrule\end{tabular}\end{center}
+Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-11-05)
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -58 bp a year before trading costs (costs are 172 bp a year); 4 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 5 of the issuers on this group alone. Gate: pass.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads the spread level, the fair line and the pair, the economic stories, the health panel. Its estimate of expected profit is -110 bp a year before trading costs (costs are 172 bp a year); 5 of 5 of its weighted estimates point the same way. It carries 18\% of the combined view and ranks 6 of the issuers on this group alone. Gate: pass.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread level: the extra pay over the market (carry) & -2 & 42\% & -1 & Spec S14 E0; K15 \\
-Weighted cases and stories & -164 & 25\% & -41 & M5.4, M7.5 \\
-Spread against the fair line & -144 & 17\% & -24 & M7.4, M7.5 \\
-The pair & +109 & 8\% & +9 & M7.4; F10 S4 \\
-Health panel & -6 & 8\% & -1 & F8 \\
+Spread level: the extra pay over the market (carry) & -2 & 48\% & -1 & Spec S14 E0; K15 \\
+Weighted cases and stories & -228 & 29\% & -66 & M5.4, M7.5 \\
+Spread against the fair line & -204 & 4\% & -8 & M7.4, M7.5 \\
+The pair & -353 & 10\% & -34 & M7.4; F10 S4 \\
+Health panel & -11 & 10\% & -1 & F8 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.1 The two clocks: bills against what pays for them}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +4 bp a year before trading costs (costs are 172 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 5 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads the bills the company owes against the revenue customers have signed for. Its estimate of expected profit is +7 bp a year before trading costs (costs are 172 bp a year); 1 of 1 of its weighted estimates point the same way. It carries 20\% of the combined view and ranks 5 of the issuers on this group alone. The clocks count as their own bucket in the combined view.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-The two clocks & +4 & 100\% & +4 & M4.7 \\
+The two clocks & +7 & 100\% & +7 & M4.7 \\
 \bottomrule\end{tabular}\end{center}
 Fixed bills total \$16.7bn, centred 5.9 years out: leases in force \$4.3bn, debt principal \$10.6bn, interest \$1.8bn. That is 9.3 years of today's EBITDAR; next year's bills take 115\% of it.
 The company discloses no material signed revenue, so the second clock is today's earnings held flat (chart at the end).
@@ -2193,37 +2201,36 @@ upside & 20\% & 1.8\% & 4.8x & 5.5x & \$2.4bn & no & no \\
 \bottomrule\end{tabular}\end{center}
 \begin{center}\scriptsize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrrrr@{}}\toprule
 Story & Chance & Leverage in 1 yr & Peak leverage (down) & Refi fails & Default chance & Expected profit (bp/yr) \\\midrule
-soft landing & 86\% & 5.8x & 9.3x & 0\% & 1.6\% & -158 \\
-recession & 2\% & 6.2x & 10.0x & 0\% & 4.1\% & -409 \\
-higher for longer & 8\% & 5.8x & 9.4x & 0\% & 1.9\% & -187 \\
-disinflation rally & 4\% & 5.7x & 9.2x & 0\% & 1.2\% & -123 \\
-stagflation & 0\% & 6.2x & 10.0x & 0\% & 4.1\% & -416 \\
+soft landing & 86\% & 5.8x & 9.3x & 0\% & 1.7\% & -219 \\
+recession & 2\% & 6.2x & 10.0x & 0\% & 4.5\% & -569 \\
+higher for longer & 8\% & 5.8x & 9.4x & 0\% & 2.1\% & -260 \\
+disinflation rally & 4\% & 5.7x & 9.2x & 0\% & 1.4\% & -170 \\
+stagflation & 0\% & 6.2x & 10.0x & 0\% & 4.6\% & -579 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G2.3 Relative value and the pair}
-Fair line: log spread = -5.64 + 0.312 x leverage, fitted on 8 issuers in this run. 5-year spread 165 bp against a fair 226 bp.
+Fair spread: median 5-year spread of sector x rating x maturity peers on the TRACE panel. 5-year spread 165 bp against a fair 251 bp.
 \textbf{Against peers.} Peers are the high yield bonds that traded in 2026-08-31 (733 bonds with leverage on file), in the same 3 to 7 year maturity bucket. Sector: Consumer Discretionary. Rating class: B (implied by leverage). A positive value means the issuer pays more than the median peer.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrr@{}}\toprule
 Peer group & Excess spread to peers (ESP) & Spread per turn against peers (E13) \\\midrule
-Sector and rating & -34\% & -35\% \\
-Sector only & -1\% & -13\% \\
-Rating only & -3\% & -14\% \\
+Sector and rating & -34\% & -42\% \\
+Sector only & -1\% & -18\% \\
+Rating only & -1\% & -26\% \\
 \bottomrule\end{tabular}\end{center}
-\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 24\% of the peer bonds across all sectors, and -65\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
+\textbf{SPiDER} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): cheaper than 19\% of the peer bonds across all sectors, and -70\% against sector and rating peers. It enters the score as E15 at 3\%. Its edge beyond spread level is small (t 1.3 at 12 months).
 \textbf{OneScore} (Dynkin et al. 2021, ch. 19): 30\% of the way from the bottom to the top of its sector. It averages two sector ranks: value (ESP, 19\%) and the stock's 3-month return (-9.6\%, rank 42\%). It enters the score as E16 at 4.5\%.
 \textbf{Against MGM.} Spreads at 5 years: MGM 175 bp, WYNN 165 bp.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrr@{}}\toprule
 Spread per & MGM & WYNN & Cheaper \\\midrule
 turn of leverage & 27 & 28 & WYNN \\
 \bottomrule\end{tabular}\end{center}
-The fair line favours long WYNN, short MGM: a gap of 13 bp, which halves in about 2 weeks on six months of trades. Under the stories the pair earns soft landing +56, recession +146, higher for longer +67, disinflation rally +63, stagflation +149 bp a year; weighted +59 bp before costs.
+The fair line favours long MGM, short WYNN: a gap of 42 bp, which halves in about 2 weeks on six months of trades. Under the stories the pair earns soft landing +127, recession +339, higher for longer +171, disinflation rally +74, stagflation +350 bp a year; weighted +133 bp before costs.
 \subsection*{G2.4 Expected profit and price against our view}
-Hedged 5-year bond over six months: -164 bp a year before trading costs, -336 bp after. It does not beat costs. The expected default loss is charged on the price paid: 67\% of it in default, not 60\% of face.
+Hedged 5-year bond over six months: -228 bp a year before trading costs, -400 bp after. It does not beat costs. The expected default loss is charged on the price paid: 67\% of it in default, not 60\% of face.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{5.2cm}rrrrl@{}}\toprule
 Question & Price assumes & Our view & Gap & Noise & Gap bigger than noise? \\\midrule
-Default chance at the v0 price of risk (shown, not tested) & 1.4\% & 1.6\% & 0.3\% & open & not tested \\
-Breakeven default probability, 12 months (loss on price) & 2.5\% & 1.6\% & -0.8\% & 1.2\% & no \\
-Leverage the spread is pricing & 4.95 & 5.95 & 1.00 & 0.90 & yes \\
-Spread against fair (bp) & 165 & 226 & 60 & 63 & no \\
+Default chance at the v0 price of risk (shown, not tested) & 1.4\% & 1.8\% & 0.4\% & open & not tested \\
+Breakeven default probability, 12 months (loss on price) & 2.5\% & 1.8\% & -0.7\% & 1.2\% & no \\
+Spread against fair, sector peers (bp) & 165 & 251 & 85 & 143 & no \\
 Rating class & open & BB & open & open & not tested \\
 Recovery if default (per 1 of face, discounted for delay) & open & 0.35 & open & open & not tested \\
 \bottomrule\end{tabular}\end{center}
@@ -2283,14 +2290,14 @@ Model output & base and downside: EBITDA, FCF, leverage path, covenant headroom,
 \bottomrule\end{tabular}\end{center}
 \textbf{Rules that do not transfer to a public bond:}\begin{itemize}\item The compliance certificate is the source of truth; public bonds have none. Headroom here uses our own ratio against a level parsed from the filing text. (covenant-compliance)\item Equity cures, step-down schedules and window-dressing checks need the credit agreement and monthly revolver balances. (covenant-compliance)\item Performance against the sponsor plan: no plan is public. The proxy is the same quarters a year earlier. (borrower-monitoring)\item Add-back caps and the certificate reconciliation live in the credit agreement. Compustat gives one special-items line, not the category table. (ebitda-addback-treatment)\item Sources and uses at entry, the sponsor case and the management call apply to new loans, not to bonds bought in the secondary market. (credit-memo-standards)\item Monthly lender packages do not exist for public issuers; XBRL quarters replace them. (quarterly-package-extraction)\end{itemize}
 \section*{G4. Books: Kricheff, and Ganguin and Bilardello (S\&P)}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -154 bp a year before trading costs (costs are 172 bp a year); 5 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 7 of the issuers on this group alone. S\&P anchor class: BB.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Kricheff's cash bridge and ratios; the S\&P risk profiles and rating anchor; spread against peers (Dynkin et al.). Its estimate of expected profit is -219 bp a year before trading costs (costs are 172 bp a year); 5 of 5 of its weighted estimates point the same way. It carries 17\% of the combined view and ranks 7 of the issuers on this group alone. S\&P anchor class: BB.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
-Spread against the S\&P risk score & -190 & 15\% & -28 & Ganguin and Bilardello ch. 10 \\
-Spread per turn of leverage (with the trap guard) & -106 & 15\% & -16 & Kricheff ch. 21 \\
-Excess spread to sector and rating peers (ESP) & -157 & 26\% & -42 & Dynkin et al. ch. 13 \\
-SPiDER: spread per unit of debt to 10-year EBITDA & -79 & 18\% & -14 & Dynkin et al. ch. 14 \\
-OneScore: sector ranks of ESP and 3-month stock return & -209 & 26\% & -55 & Dynkin et al. ch. 19 \\
+Spread against the S\&P risk score & -322 & 15\% & -47 & Ganguin and Bilardello ch. 10 \\
+Spread per turn of leverage (with the trap guard) & -126 & 15\% & -19 & Kricheff ch. 21 \\
+Excess spread to sector and rating peers (ESP) & -226 & 26\% & -60 & Dynkin et al. ch. 13 \\
+SPiDER: spread per unit of debt to 10-year EBITDA & -26 & 18\% & -5 & Dynkin et al. ch. 14 \\
+OneScore: sector ranks of ESP and 3-month stock return & -336 & 26\% & -89 & Dynkin et al. ch. 19 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G4.1 Kricheff's cash-flow bridge and ratio set}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
