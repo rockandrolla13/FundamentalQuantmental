@@ -1,0 +1,33 @@
+\section{Macro paths and the pairs under each path}
+\textbf{The paths.} Live forecasts as known on 2026-09-18: SPF (GDP and CPI, with ranges from its probability bins),
+FOMC SEP (policy rate), Treasury forwards (yields), and the TRACE high yield level (168 bp). Phase: expansion,
+from the indicators that have data (hy oas not late, distress ratio not late, sloos tightening not late). Probabilities combine the forecast mass with the phase prior (methodology Section 5.4).
+
+\begin{center}\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrr@{}}\toprule
+Path & Probability & GDP (avg) & Policy rate, 2 years & 10y yield, 2 years & HY spread (bp) \\\midrule
+soft landing & 86\% & 2.5\% & 3.9\% & 5.2\% & 142 \\
+recession & 2\% & -0.0\% & 2.6\% & 3.0\% & 369 \\
+higher for longer & 8\% & 2.2\% & 5.5\% & 5.9\% & 168 \\
+disinflation rally & 4\% & 2.8\% & 2.1\% & 4.6\% & 110 \\
+stagflation & 0\% & -0.1\% & 4.4\% & 3.9\% & 376 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Each pair under each path} (bp a year, 6-month horizon, before cost; long minus short, DV01-neutral at 5 years).
+Each leg's alpha comes from its own scenario page in the clock write-up: convergence to fair, the loss gap to a spread-sized hedge,
+and the default risk that the issuer's own cases add when a refinancing fails (framework F4, F6.3).
+
+\begin{center}\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrrr@{}}\toprule
+Trade & soft landing & recession & higher for longer & disinflation rally & stagflation & Weighted \\\midrule
+Long CRWV, short ORCL & +357 & +941 & +424 & +277 & +958 & +372 \\
+Long THC, short HCA & +123 & +320 & +146 & +95 & +325 & +128 \\
+Long NCLH, short CCL & +11 & +160 & +39 & -22 & +125 & +15 \\
+Long WYNN, short MGM & +56 & +146 & +67 & +62 & +149 & +59 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{How to read it.} A pair that wins in the likely path but loses heavily in a tail path is a bet on that tail not coming.
+The weighted column already prices the tails at their probability.

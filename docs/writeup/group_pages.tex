@@ -1,0 +1,346 @@
+% Two pages per group. Charts: scripts/group_pages.py writes fig_bucket_*.tex from data/raw/process/<T>.json.
+% Values are bucket alpha in bp a year before cost, from the run of 22 October 2026 (user bucket weights).
+
+\newpage
+\section*{\textcolor{gA}{G1} Core process}
+\addcontentsline{toc}{section}{G1 Core process}
+
+\begin{notebox}
+\textbf{In one line.} G1 sets the order of the steps and the rules that every number must obey. It carries 45\% of the score, the largest share.
+\end{notebox}
+
+\fld{What it is}
+G1 is the base process and the rulebook. It has four sources:
+\begin{itemize}
+\item Gatto, \emph{The Credit Investor's Handbook} (Wiley, 2023). Its seven steps, Chapters 6 to 13, give the order of the analysis.
+\item \code{docs/methodology.md}, sections M1 to M11. It gives the formulas: cases, recovery, fair spread, alpha and validation.
+\item \code{docs/framework.md}, rules F1 to F13. It gives the rules: point in time, claims sizing, the gate and the memo.
+\item The relative value PDF, read through \code{research/hyrv_extract.md} and \code{research/hyrv_mapping.md}. It adds the decision against cash and strict rules on default, loss and averages.
+\end{itemize}
+
+\fld{Why it is in the framework}
+Without G1, the other groups have no common order and no common rules. G1 also holds the two hard stops. The S11 gate can block any call. Only S15 may say ``buy''.
+
+\fld{What it adds at each step}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{24mm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Step & G1 contribution \\
+\midrule
+S1 Load & Every field carries \code{as_of} and \code{available_at}. A memo dated $t$ reads nothing released after $t$. TRACE prices are estimates, not quotes. \\
+S2 Business & Gatto step 2: industry risks, strategy, management. F2: five lines and one archetype A1 to A8. \\
+S3 Earnings & Gatto step 3a: remove one-off items. F3: keep three EBITDAs apart. Add-back classes C1 to C10. \\
+S4 Liquidity & Gatto step 3b: liquidity, maturities, access to refinance. F4: effective liquidity, runway, the wall, the refinance score. \\
+S5 Claims & Gatto steps 3c and 6: the capital structure table and the covenants. F5: size every claim, leases included. \\
+S6 Clocks & M4.7: the formulas and five rules. Gatto has no such measure. \\
+S7 Cases & Gatto step 4: base and downside cases. M5: the case engine under each macro path. \\
+S8 Value & Gatto step 5: comparables, DCF, liquidation. M6 and F7: value, waterfall, recovery. \\
+S9 Relative value & Gatto step 7: risk is PD times LGD. M7.2: the fair spread. \\
+S10 Alpha & M7.5: carry, convergence, loss and cost. The PDF: reprice each path with default inside the cash flows. \\
+S11 Gate & F9: rules G1 to G9. A wide spread never waives an open step. \\
+S12 Events & M9 and F11: the event list and the playbooks. \\
+S13 Metrics & F8: formula, unit, direction and bands for every metric. \\
+S14b Size & M11: check every forecast against what happened. \\
+S15 Decision & The PDF, Step 7: compare the bond with every other use of the money, cash included. \\
+\bottomrule
+\end{tabularx}
+}
+
+\newpage
+\fld{Its estimates in the score}
+G1 holds five estimates. They share its 45\%.\par
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{8mm}>{\raggedright\arraybackslash}p{34mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{12mm}@{}}
+\toprule
+ID & Estimate & How the code computes it & Weight \\
+\midrule
+E4 & Default the price assumes & $(PD^{\kappa} - PD^{fund})\,L^{def}$. The code shows it but does not count it until $\kappa$ is fitted (conflict C2). & 0\% \\
+E7 & Earnings quality & Minus the count of F3, add-back and FCF-check flags. It can only lower the number. & 11.25\% \\
+E8 & Liquidity and refinancing & F4 score on the likely path, plus wall cover (cap 3), plus one point if no funding gap. & 11.25\% \\
+E9 & Market value check & Minus debt over market enterprise value. & 11.25\% \\
+E10 & Excess over cash & $\mu/H$ from S15: the expected gain over cash, per year. & 11.25\% \\
+\bottomrule
+\end{tabularx}
+}
+
+\fld{What it says about the eight issuers}
+\begin{center}
+\input{fig_bucket_G1.tex}
+\end{center}
+\begin{itemize}
+\item G1 is positive for five of the eight issuers. The values run from $-58$ to $+246$ bp a year.
+\item E10 has the widest range of any G1 estimate, from $-32$ to $+1{,}289$. So E10 sets the size of the bucket for most issuers.
+\item CRWV ranks first because its bond yields far more than cash (E10 $+1{,}289$). Its weak liquidity score (E8 $-326$) takes back part of that.
+\item NCLH ranks last. It has an earnings-quality flag, a weak liquidity score and little value cover above its debt.
+\end{itemize}
+
+\fld{Evidence and limits}
+\begin{itemize}
+\item No G1 estimate has a backtest yet. The 45\% is a user choice (conflict W1), not a measured result.
+\item E10 is the bond's return over cash. It is not hedged, so it carries market risk that the hedged estimates remove.
+\item E4 stays at zero weight until the code fits the risk premium $\kappa$ by rating and cycle phase.
+\end{itemize}
+
+\fld{The test that settles its weight}
+Backtest E7, E8, E9 and E10 on the same panel as the alpha backtest. First build point-in-time inputs for each. Keep an estimate only if its rank IC after cost is above zero beyond the spread rank.
+
+% ---------------------------------------------------------------------------------------------------------------
+\newpage
+\section*{\textcolor{gB}{G2} Built methods}
+\addcontentsline{toc}{section}{G2 Built methods}
+
+\begin{notebox}
+\textbf{In one line.} G2 is the code that already runs on real data for eight issuers. It holds the only measured evidence. The two clocks carry 20\% as their own bucket. The other G2 estimates share 11.67\%.
+\end{notebox}
+
+\fld{What it is}
+G2 is every method the repository runs end to end:
+\begin{itemize}
+\item The two clocks: \code{hy/clocks.py}, from M4.7 and the Radhakrishnan card.
+\item The fair line and the pair report: \code{scripts/rv_pair.py}.
+\item The macro stories and forecast sources: \code{hy/macro.py} and \code{hy/forecasts.py}, with eleven forecast cards.
+\item The cases and the alpha: \code{scripts/scenarios.py} and \code{hy/alpha.py}.
+\item The gate, the F8 panel and the combined view: \code{scripts/process.py} and \code{hy/groups.py}. The backtest: \code{hy/backtest.py}.
+\end{itemize}
+
+\fld{Why it is in the framework}
+G1 says what to compute. G2 computes it. G2 is also the only group with a backtest record. That record decides how far the other numbers can be trusted.
+
+\fld{What it adds at each step}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{24mm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Step & G2 contribution \\
+\midrule
+S1 Load & Compustat point-in-time quarters, XBRL, EDGAR acceptance times, TRACE yields, Treasury curves, five live forecast sources. \\
+S2 Business & The archetype from the analyst file, the 10-K Item 1 text, the customer shares. \\
+S3 Earnings & Earnings tests EQ1, EQ2, EQ5 and EQ7, the 8-quarter margin trend, FCF as CFO less capex. \\
+S4 Liquidity & The scenario engine. Cash, revolver, debt ladder, severe case on each path. Four of the six refinance points. \\
+S5 Claims & Debt, leases, gross, net and lease-adjusted leverage, coverage, FCCR, a bond table from TRACE. \\
+S6 Clocks & Fixed obligations against contracted revenue, breakeven margin, renewal share, shortfall. \\
+S7 Cases & The forecast registry, the path builder and the case grid. \\
+S8 Value & Market enterprise value only. The recovery library exists but the process does not call it. \\
+S9 Relative value & The issuer curve, the fair line, the pair with its measured half-life. \\
+S10 Alpha & The hedged alpha on each path, with PD from the cases and a cost of 20 bp of spread times duration. \\
+S11 Gate & Five rows. The code computes gate rules G1, G3 and G6. \\
+S12 Events & The next results date and the next debt bucket. The event library exists but the process does not call it. \\
+S13 Metrics & Eleven F8 metrics with bands. \\
+S14b Size & The backtest engine: realised alpha, calibration slope, decile check. \\
+\bottomrule
+\end{tabularx}
+}
+
+\newpage
+\fld{Its estimates in the score}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{8mm}>{\raggedright\arraybackslash}p{34mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{12mm}@{}}
+\toprule
+ID & Estimate & How the code computes it & Weight \\
+\midrule
+E5 & Two clocks & Minus fixed charges in years of EBITDAR, standardised. & 20.00\% \\
+E0 & Spread level & The bond spread over the index spread. & 4.86\% \\
+E1 & Cases and stories & The alpha of the cases, weighted by path probability, before cost. & 2.92\% \\
+E2 & Fair-line convergence & $D(1-\rho^{4h})(s-s^{fair})/h$: the part of the gap to the fair line that closes in six months. & 1.94\% \\
+E3 & Pair convergence & The pair gap closed at its measured half-life. Plus for the long leg, minus for the short leg. & 0.97\% \\
+E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13 panel. & 0.97\% \\
+\bottomrule
+\end{tabularx}
+}
+
+\fld{What it says about the eight issuers}
+\begin{center}
+{\scriptsize\textbf{Two clocks (E5), 20\%}}\\[1pt]
+\scalebox{0.8}{\input{fig_bucket_G2C.tex}}\\[3pt]
+{\scriptsize\textbf{Rest of G2 (E0, E1, E2, E3, E6), 11.67\%}}\\[1pt]
+\scalebox{0.8}{\input{fig_bucket_G2.tex}}
+\end{center}
+\begin{itemize}
+\item The clocks score CRWV, ORCL and MGM as negative. They score the hospitals and the cruise lines as positive.
+\item In the rest of G2, CRWV is highest ($+426$). Its spread level ($+571$) and its pair gap ($+776$) drive it.
+\item E3 gives the two legs of a pair the same size with opposite signs. So CRWV gets $+776$ and ORCL gets $-776$.
+\end{itemize}
+
+\fld{Evidence and limits}
+\begin{itemize}
+\item The alpha backtest (2008 to 2026) supports spread level and the fair line. Their rank IC after cost is 0.22 to 0.29.
+\item The size is too large: realised alpha is about 0.08 times the predicted alpha. S14b applies that slope.
+\item The clocks backtest (2018 to 2026, 1,143 issuers) does not support E5. Its IC after cost is $-0.08$ to $-0.11$. Beyond the spread rank it is not different from zero.
+\item The market already prices the clocks. Issuers with heavy fixed charges pay more spread.
+\item E1 and E2 both use the fair line, so the fair line counts more than its two weights show.
+\end{itemize}
+
+\fld{The test that settles its weight}
+The clocks test is done and does not support the 20\%. The user decides whether the weight stays. For the rest, set each weight in proportion to its rank IC after cost in each cycle phase. Keep the combination only if it beats ``buy the widest'' after cost in three of the four cycles.
+
+% ---------------------------------------------------------------------------------------------------------------
+\newpage
+\section*{\textcolor{gC}{G3} Credit skills}
+\addcontentsline{toc}{section}{G3 Credit skills}
+
+\begin{notebox}
+\textbf{In one line.} G3 adds the checklists of seven credit skills. It can only lower the number. It carries 11.67\%.
+\end{notebox}
+
+\fld{What it is}
+G3 is seven skill files. One is written for this project. Six are written for private loans and adapted here to public bonds:
+\begin{itemize}
+\item \code{hy-model-standards} (this project) and \code{credit-model-standards}: debt at face, three EBITDAs, the FCF cross-check, a severe case from the issuer's own main risk.
+\item \code{ebitda-addback-treatment}: the bridge from reported to adjusted EBITDA, with limits on each add-back.
+\item \code{covenant-compliance}: headroom bands and the direction of headroom over time.
+\item \code{borrower-monitoring}: trend per line and the watchlist tiers.
+\item \code{credit-memo-standards} and \code{quarterly-package-extraction}: what a memo must hold, and how to read a statement package.
+\end{itemize}
+Code: \code{hy/skills.py}.
+
+\fld{Why it is in the framework}
+G3 holds the checks that an experienced lender runs every quarter. They catch problems that the price models do not see. A clean checklist earns no credit, because a clean result is the normal case. So G3 is one-way.
+
+\fld{What does not transfer to public bonds}
+The code lists six rules that do not transfer (\code{NOT_TRANSFERABLE}):
+\begin{enumerate}
+\item No compliance certificate exists for public bonds. The code computes its own ratio against a level parsed from the filing text.
+\item Equity cures and step-downs need the credit agreement and monthly revolver data.
+\item No sponsor plan is public. The proxy is the same quarters a year earlier.
+\item Add-back caps live in the credit agreement. Compustat gives one special-items line.
+\item Sources and uses at entry apply to new loans, not to bonds bought in the market.
+\end{enumerate}
+The sixth rule: monthly lender packages do not exist. XBRL quarters replace them.
+
+\fld{What it adds at each step}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{24mm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Step & G3 contribution \\
+\midrule
+S1 Load & Bridge the debt between the balance sheet and the documents. Flag a new line item. Do not guess its place. \\
+S2 Business & A top customer above 15 to 20\% of revenue makes the loss of that customer the downside. \\
+S3 Earnings & Flag one add-back above 5\% of EBITDA, a total above 10\%, or the same add-back for three quarters. FCF cross-check within 15\%. \\
+S4 Liquidity & Thin liquidity or a maturity with no refinance path puts a name on the watchlist, even when EBITDA holds. \\
+S5 Claims & Debt at face. Headroom bands: comfortable above 20\%, tight below 10\%. Flag a falling path early. \\
+S7 Cases & The severe case combines a revenue fall, a margin squeeze and working-capital stress. Report the first breach quarter. \\
+S8 Value & Loan to value moves with the sector multiple, even when leverage does not. \\
+S11 Gate & A memo without its key risk fails. A ``pass'' is a normal outcome. \\
+S12 Events & Watchlist tiers from the trend: watch closely at 10\% below the prior year, watchlist at 20\%. \\
+\bottomrule
+\end{tabularx}
+}
+No skill covers relative value (S9) or expected return (S10). The skills judge debt service, not price.
+
+\newpage
+\fld{Its estimate in the score}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{8mm}>{\raggedright\arraybackslash}p{34mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{12mm}@{}}
+\toprule
+ID & Estimate & How the code computes it & Weight \\
+\midrule
+E11 & Watchlist and covenant path & Minus the watchlist tier (0 none, 1 watch closely, 2 watchlist, 3 workout), minus one if headroom falls. Standardised, then capped at zero. & 11.67\% \\
+\bottomrule
+\end{tabularx}
+}
+E7 (earnings quality) also comes from the skills and is also one-way. The code counts it in G1.
+
+\fld{What it says about the eight issuers}
+\begin{center}
+\input{fig_bucket_G3.tex}
+\end{center}
+\begin{itemize}
+\item Three issuers are on the watchlist: CRWV, ORCL and NCLH. Each gets $-215$ bp a year.
+\item The other five have no tier. They get zero, not a credit.
+\item So G3 can only pull the combined number down. For CRWV it removes 25 bp a year after its 11.67\% weight.
+\item Covenant headroom is ``open'' for seven of the eight issuers. The code parsed no covenant level from their filings. So the headroom term rarely fires.
+\end{itemize}
+
+\fld{Evidence and limits}
+\begin{itemize}
+\item No backtest covers E11 yet.
+\item The thresholds come from the skills. The skills set them for private loans, not for public bonds.
+\item The plan proxy (the same quarters a year earlier) is weaker than a real plan. A fast grower can look safe when its plan was higher.
+\item Three of eight issuers share one value. So the bucket separates names in two groups only.
+\end{itemize}
+
+\fld{The test that settles its weight}
+Build the watchlist tier point in time for the backtest panel. Test whether a tier above zero predicts a lower hedged return over six months, beyond the spread rank. If it does not, keep G3 in the memo as a risk flag and remove its weight.
+
+% ---------------------------------------------------------------------------------------------------------------
+\newpage
+\section*{\textcolor{gD}{G4} Books}
+\addcontentsline{toc}{section}{G4 Books}
+
+\begin{notebox}
+\textbf{In one line.} G4 adds two textbook cross-checks that use no repository model. It carries 11.67\%.
+\end{notebox}
+
+\fld{What it is}
+G4 is two books:
+\begin{itemize}
+\item Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance} (2nd edition). It is a practitioner's view of high yield: cash flow, spread per turn of leverage, covenants, events.
+\item Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005). It is the S\&P rating method: business risk, adjusted ratios, medians by rating, recovery.
+\end{itemize}
+Code: \code{hy/books.py}. The text comes from markdown conversions of the two books. No other book is in scope, and Fabozzi is excluded.
+
+\fld{Why it is in the framework}
+G4 checks the price with methods that do not depend on our models. If our model and a textbook method agree, the call is stronger. If they disagree, the memo must explain why.
+
+\fld{What it adds at each step}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{24mm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Step & G4 contribution \\
+\midrule
+S1 Load & Start from the filed statements and the bond terms. Use several years of history. \\
+S2 Business & S\&P: industry risk sets a ceiling on the issuer's grade. \\
+S3 Earnings & Kricheff: reconcile every EBITDA and FCF figure to cash from operations. The analyst may reject new-issue add-backs. \\
+S4 Liquidity & Kricheff: restricted cash does not count. A revolver counts only if the issuer can draw it. Never assume a refinance. \\
+S5 Claims & Kricheff: leverage at each tranche level, structural subordination. S\&P: add leases and pensions to debt. \\
+S6 Clocks & S\&P: forecast past the maturity when refinance risk exists. Kricheff: PIK debt raises the claim without cash. \\
+S7 Cases & S\&P: stress the worst credible case. A high-risk issuer takes a 10 to 30\% revenue fall at the start. \\
+S8 Value & S\&P: name the default type, value at emergence, discount the recovery for time at 10\%. \\
+S9 Relative value & Kricheff: use spread to worst. A junior note must pay more per turn than a senior note. \\
+S10 Alpha & Kricheff: yield to worst is the base return. S\&P: expected loss is PD times LGD times exposure. \\
+S11 Gate & S\&P: decide on the three to five issues that matter. Soft factors can only lower a grade. \\
+S12 Events & Kricheff: pro formas for an acquisition, a takeover, an IPO, a call. \\
+S13 Metrics & S\&P ratio medians by rating. Kricheff's ratios: (EBITDA $-$ capex) over interest, FCF over debt. \\
+S15 Decision & Kricheff: define the mandate first. Ask whether a better instrument exists. \\
+\bottomrule
+\end{tabularx}
+}
+
+\newpage
+\fld{Its estimates in the score}
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{8mm}>{\raggedright\arraybackslash}p{34mm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{12mm}@{}}
+\toprule
+ID & Estimate & How the code computes it & Weight \\
+\midrule
+E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P score})$. The S\&P score (1 best, 10 worst) blends a business score and a financial score from the 2002 medians. A wide spread for the score is cheap. & 5.83\% \\
+E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It counts only if FCF over debt is above zero and the value cover is above 1. Otherwise zero. & 5.83\% \\
+\bottomrule
+\end{tabularx}
+}
+\intu{E13 holds Kricheff's trap. A high spread per turn looks cheap. If the issuer burns cash, the spread is high for a reason, so E13 gives no credit.}
+
+\fld{What it says about the eight issuers}
+\begin{center}
+\input{fig_bucket_G4.tex}
+\end{center}
+\begin{itemize}
+\item THC is highest ($+169$). Its spread is wide for its S\&P score (E12 $+133$) and for its peers' spread per turn (E13 $+205$).
+\item CRWV gets $+123$ from E12 alone. Its E13 is 0 because it burns cash. That is Kricheff's trap: a wide spread per turn is no credit when FCF is negative.
+\item WYNN is lowest ($-148$). Its spread is tight for its score (E12 $-190$) and tight per turn against its peers (E13 $-106$).
+\item For MGM the two checks disagree: E12 is $-308$ and E13 is $+56$. The memo must say which one to believe.
+\item ESP, reported without weight: CRWV pays 78\% more than its peers. HCA pays 52\% less.
+\end{itemize}
+
+\fld{Evidence and limits}
+\begin{itemize}
+\item The peer backtest (2008 to 2026) finds that E13 adds nothing beyond spread level: IC beyond spread $+0.02$, $t$ 1.1. No backtest covers E12 yet.
+\item ESP (excess spread to peers) does add information beyond spread level ($+0.07$, $t$ 2.6). But the edge disappears in the 2008 and 2020 stress windows. The memo reports ESP without weight. Decision page: \code{2026-10-22-esp-peer-groups}.
+\item No rating source covers 2017 onward. After 2017, the rating class comes from leverage. It matches the actual class on 36\% of issuer-months.
+\item The S\&P medians date from 2002, before the 2008 cycle. The book has no newer table.
+\item The industry risk map by archetype is a v0 choice. The book's own table did not survive the conversion.
+\item The Kricheff conversion lost every table. Only numbers quoted in the text survive.
+\item Both books contain a few arithmetic slips. This document does not copy them.
+\end{itemize}
+
+\fld{The test that settles its weight}
+Compute the S\&P score and the spread per turn point in time on the backtest panel. Test each one's rank IC after cost beyond the spread rank. E12 is close to the fair line in idea. If it adds nothing beyond E2, drop it.
