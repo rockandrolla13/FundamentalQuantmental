@@ -18,6 +18,9 @@ Two versions follow the book definitions (Dynkin et al. 2021, Systematic Investi
                    SustEBITDA_i = mean of the last 10 annual EBITDA figures known at t, at least 6 (ch. 14)
                    absolute: one rank across all sectors; financials (GICS 40) and real estate (60) excluded
     SPiDER_cell  = log SPiDER_i - median over peers j of log SPiDER_j               (the book's rating-industry check)
+    EMC_i        = stock total return over the last EMC_MONTHS months known at t      (equity momentum in credit, ch. 15)
+    OneScore_i   = mean of the within-sector percentile ranks of issuer ESP and EMC_i  (ch. 18 and 19, equal weights)
+                   issuer ESP = median of esp_sr over the issuer's bonds; sector = GICS sector at t
 
 Peers exclude the issuer's own bonds. A cell needs MIN_PEERS other issuers; otherwise the next cell in FALLBACK
 applies. Positive values mean the bond pays more than its peers: cheap. Every input is point in time.
@@ -42,6 +45,8 @@ RATING_STALE_DAYS = 62          # a monthly rating older than this is not "on fi
 LEV_FLOOR = 0.1                 # log leverage floor: an issuer with almost no debt reads as 0.1x
 SUST_YEARS, SUST_MIN = 10, 6    # sustainable EBITDA: average of the last 10 annual figures, at least 6
 SUST_STALE_DAYS = 550           # the latest annual figure must be at most 18 months old
+EMC_MONTHS = 3                  # equity momentum formation period; the book's main case (ch. 15)
+MIN_SECTOR = 5                  # issuers a sector needs for a within-sector rank
 FIN_SECTORS = ("40", "60")      # financials and real estate: SPiDER excludes them
 FALLBACK = {"sr": ("sr", "r", "s", "all"), "s": ("s", "all"), "r": ("r", "all"), "all": ("all",)}
 
@@ -211,11 +216,13 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
 
 
 def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFrame, gics: pd.DataFrame,
-               ratings: pd.DataFrame, as_of: pd.Timestamp, annual: pd.DataFrame | None = None) -> pd.DataFrame:
+               ratings: pd.DataFrame, as_of: pd.Timestamp, annual: pd.DataFrame | None = None,
+               equity: pd.DataFrame | None = None) -> pd.DataFrame:
     """ESP and E13 against peers for live issuers, with the latest TRACE panel month at or before `as_of` as peers.
 
     `issuers` columns: ticker, gvkey, spread (5-year, decimal), leverage, ebitda_pos, and debt for SPiDER. With
-    `annual` (`peer_data.annual_ebitda`), SPiDER and esp_lev columns use the sustainable EBITDA at `as_of`. Each issuer enters as one 5-year
+    `annual` (`peer_data.annual_ebitda`), SPiDER and esp_lev columns use the sustainable EBITDA at `as_of`. With
+    `equity` (`peer_data.equity_monthly`), emc, emc_sec and onescore use the 3 months to the last month end before `as_of`. Each issuer enters as one 5-year
     point (maturity bucket 1). The peers are the panel's bonds that month with leverage, sector and class. Cut-offs for
     the implied class are fitted on every actual rating on file (all before as_of). Returns one row per ticker with
     sector, rclass, rclass_source, esp_* and e13_* and the cell used.
@@ -245,6 +252,9 @@ def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFram
     if annual is not None:
         allb["sust_ebitda"] = allb["gvkey"].map(sustainable_ebitda(annual, as_of))
     out = peer_signals(allb)
+    if equity is not None:
+        m_end = pd.Timestamp(as_of) - pd.offsets.MonthEnd(1)
+        out = onescore(out, equity_momentum(equity, m_end, as_of))
     res = out[out["ticker"].notna()].set_index("ticker")
     if "spider" in out:                                    # percentile of the absolute SPiDER among the peer bonds
         ref = out.loc[out["ticker"].isna(), "spider"].dropna().to_numpy()
@@ -253,3 +263,38 @@ def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFram
                       "cutoffs": {k: float(np.exp(v)) for k, v in (cut or {}).items()},
                       "esp_lev_slope": out.attrs.get("esp_lev_slope", {})})
     return res
+
+
+def equity_momentum(equity: pd.DataFrame, month_end: pd.Timestamp, decision_time: pd.Timestamp,
+                    months: int = EMC_MONTHS) -> pd.Series:
+    """EMC per gvkey: compounded stock total return over the `months` month ends up to `month_end`, using only
+    returns with available_at <= decision_time. All `months` returns must be present (Dynkin et al. ch. 15).
+    Intuition: stocks absorb news before bonds, so a recent stock rally predicts the bond's next move."""
+    ends = pd.date_range(end=pd.Timestamp(month_end) + pd.offsets.MonthEnd(0), periods=months, freq="ME")
+    e = equity[equity["datadate"].isin(ends) & (equity["available_at"] <= decision_time)]
+    g = e.groupby("gvkey")["ret"]
+    n, comp = g.count(), g.apply(lambda r: float(np.prod(1.0 + r.to_numpy()) - 1.0))
+    return comp[n == months].rename("emc")
+
+
+def _sector_pct(x: pd.Series, sector: pd.Series) -> pd.Series:
+    """Percentile rank (0 to 1) within sector; NaN where the sector has fewer than MIN_SECTOR values."""
+    df = pd.DataFrame({"x": x, "s": sector.astype(str)}).dropna()
+    size = df.groupby("s")["x"].transform("count")
+    pct = df.groupby("s")["x"].rank(pct=True)
+    return pct.where(size >= MIN_SECTOR).reindex(x.index)
+
+
+def onescore(bonds: pd.DataFrame, emc: pd.Series) -> pd.DataFrame:
+    """OneScore for one date (Dynkin et al. ch. 19): issuer ESP and EMC ranked within GICS sector, then averaged.
+
+    `bonds` columns: gvkey, sector, esp_sr (from `peer_signals`). Returns the bonds with emc, emc_sec (within-sector
+    percentile), esp_sec and onescore (NaN unless both parts exist). Values are issuer-level, copied to each bond.
+    """
+    iss = bonds.groupby("gvkey").agg(sector=("sector", "first"), esp=("esp_sr", "median"))
+    iss["emc"] = iss.index.map(emc)
+    iss["esp_sec"] = _sector_pct(iss["esp"], iss["sector"])
+    iss["emc_sec"] = _sector_pct(iss["emc"], iss["sector"])
+    iss["onescore"] = (iss["esp_sec"] + iss["emc_sec"]) / 2
+    return bonds.merge(iss[["emc", "emc_sec", "esp_sec", "onescore"]], left_on="gvkey", right_index=True, how="left")
+

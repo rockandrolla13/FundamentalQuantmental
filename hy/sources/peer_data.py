@@ -97,3 +97,30 @@ def annual_ebitda(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd.
         out = pd.concat([cached, out], ignore_index=True)
     out.to_parquet(path)
     return out
+
+
+def equity_monthly(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd.DataFrame:
+    """Monthly total stock return of the primary US issue per gvkey, 2007 onward, for equity momentum (Dynkin et al.
+    2021, ch. 15 and 19). Source `comp.secm` (`trt1m`, percent, dividends included; iid = comp.company.priusa).
+    CRSP on this licence ends in December 2025, so it is not used. Columns gvkey, datadate, ret (decimal),
+    available_at (= datadate + 1 day). Cached at data/raw/backtest/equity_monthly.parquet; only missing gvkeys are
+    pulled on a later call."""
+    path = CACHE / "equity_monthly.parquet"
+    keys = sorted({str(g) for g in gvkeys if g})
+    cached = pd.read_parquet(path) if path.exists() and not refresh else None
+    if cached is not None:
+        keys = sorted(set(keys) - set(cached["gvkey"]))
+        if not keys or con is None:
+            return cached
+    parts = [con.raw_sql("select s.gvkey, s.datadate, s.trt1m from comp.secm s join comp.company c "
+                         "on s.gvkey = c.gvkey and s.iid = c.priusa where s.datadate >= '2007-01-01' "
+                         f"and s.trt1m is not null and s.gvkey in ({_in_list(c)})") for c in _chunks(keys)]
+    out = pd.concat(parts, ignore_index=True)
+    out["datadate"] = pd.to_datetime(out["datadate"])
+    out["ret"] = out.pop("trt1m").astype("float64") / 100.0
+    out["available_at"] = out["datadate"] + pd.Timedelta(days=1)
+    if cached is not None:
+        out = pd.concat([cached, out], ignore_index=True)
+    out = out.drop_duplicates(["gvkey", "datadate"], keep="last")
+    out.to_parquet(path)
+    return out

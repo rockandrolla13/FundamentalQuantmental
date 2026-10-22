@@ -604,6 +604,8 @@ Across issuers, the same idea needs peers. Two published versions exist (Dynkin 
 
 The memo reports all three in step 9. The score uses them as E13 (2.5%), E14 ESP (9%) and E15 SPiDER (3%), inside the 17% books and peers bucket (decision page `2026-10-22-weights-esp-spider`).
 
+OneScore (Dynkin et al. 2021, ch. 19) adds equity momentum: the issuer's 3-month stock return, ranked within its sector, averaged with the sector rank of ESP. Stocks absorb news before bonds, so momentum works when value fails. Among listed issuers, OneScore adds +0.034 beyond spread at 6 months (t 2.1) and passes three of four cycle windows. It is the first peer signal to pass that bar (decision page `2026-10-22-onescore`). The memo reports it without weight.
+
 ### 7.5 Residual dynamics and expected convergence
 
 Fit an AR(1) on each bond's residual to get its persistence and half-life. The expected spread change over a horizon `h` and the expected excess return follow:

@@ -429,6 +429,11 @@ def memo(d: dict) -> str:
                      "It enters the score as E15 at 3\\%. Its edge beyond spread level is small (t 1.3 at 12 months).")
         elif pe.get("spider_note"):
             L.append(f"\\textbf{{SPiDER}}: {esc(pe['spider_note'])}")
+        if pe.get("onescore") is not None:
+            L.append(f"\\textbf{{OneScore}} (Dynkin et al. 2021, ch. 19): {pct(pe['onescore'], 0)} of the way from the bottom "
+                     f"to the top of its sector. It averages two sector ranks: value (ESP, {pct(pe.get('esp_sec'), 0)}) and the "
+                     f"stock's 3-month return ({pct(pe.get('emc_3m'), 1)}, rank {pct(pe.get('emc_sec'), 0)}). "
+                     "It has no weight in the score.")
     for p in pairs:
         other = p["b"] if p["a"] == t else p["a"]
         por = p.get("price_of_risk", [])

@@ -725,7 +725,9 @@ def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None
                            pd.read_parquet(bt_dir / "leverage_full.parquet"), pd.read_parquet(bt_dir / "gics_history.parquet"),
                            pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision,
                            annual=pd.read_parquet(bt_dir / "annual_ebitda.parquet")
-                           if (bt_dir / "annual_ebitda.parquet").exists() else None)
+                           if (bt_dir / "annual_ebitda.parquet").exists() else None,
+                           equity=pd.read_parquet(bt_dir / "equity_monthly.parquet")
+                           if (bt_dir / "equity_monthly.parquet").exists() else None)
     for t, r in res.iterrows():
         o = steps_all[t]["9"].outputs
         o["peers"] = {
@@ -738,6 +740,8 @@ def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None
             **{f"esp_lev_{k}": _f(r.get(f"esp_lev_{k}"), 3) for k in ("sr", "s", "r")},
             "spider": _f(r.get("spider"), 3), "spider_sr": _f(r.get("spider_sr"), 3),
             "spider_pct": _f(r.get("spider_pct"), 3),
+            "emc_3m": _f(r.get("emc"), 3), "emc_sec": _f(r.get("emc_sec"), 3), "esp_sec": _f(r.get("esp_sec"), 3),
+            "onescore": _f(r.get("onescore"), 3),
             "spider_note": None if r.get("spider") == r.get("spider") else
             "No SPiDER: fewer than 6 annual EBITDA figures, a financial issuer, or non-positive sustainable EBITDA.",
             "cell_esp_sr": r["cell_esp_sr"], "cell_e13_sr": r["cell_e13_sr"]}

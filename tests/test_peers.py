@@ -117,3 +117,22 @@ def test_spider_is_spread_over_debt_to_sustainable_ebitda():
     assert out.loc[1, "spider"] == pytest.approx(np.log(0.04 / 4))
     assert out.loc[0, "spider"] - out.loc[1, "spider"] == pytest.approx(np.log(2.0))
     assert np.isnan(out.loc[6, "spider"])
+
+
+def test_equity_momentum_compounds_three_known_months():
+    ends = pd.to_datetime(["2020-01-31", "2020-02-29", "2020-03-31", "2020-04-30"])
+    e = pd.DataFrame({"gvkey": "1", "datadate": ends, "ret": [0.5, 0.10, 0.10, 0.10]})
+    e["available_at"] = e["datadate"] + pd.Timedelta(days=1)
+    t = pd.Timestamp("2020-04-30")
+    assert peers.equity_momentum(e, t, t + pd.Timedelta(days=1))["1"] == pytest.approx(1.1 ** 3 - 1)
+    assert "1" not in peers.equity_momentum(e, t, t).index        # April is not public on 30 April
+
+
+def test_onescore_ranks_within_sector_and_needs_both_parts():
+    g = [f"g{i}" for i in range(6)]
+    b = pd.DataFrame({"gvkey": g + ["h0"], "sector": ["20"] * 6 + ["45"], "esp_sr": [0, 1, 2, 3, 4, 5, 9.0]})
+    emc = pd.Series({k: v for k, v in zip(g, [5, 4, 3, 2, 1, 0])})
+    out = peers.onescore(b, emc).set_index("gvkey")
+    assert out.loc["g5", "esp_sec"] == pytest.approx(1.0) and out.loc["g5", "emc_sec"] == pytest.approx(1 / 6)
+    assert out.loc["g0", "onescore"] == pytest.approx((1 / 6 + 1.0) / 2)
+    assert np.isnan(out.loc["h0", "onescore"])                      # sector too small, and no EMC
