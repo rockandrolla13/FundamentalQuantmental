@@ -565,6 +565,14 @@ Use a gradient boosted model with monotone constraints, or a Gaussian process wi
 
 The log form matters. A 50 bp gap on a 300 bp bond and a 150 bp gap on a 900 bp bond are the same mispricing in log space, and the book stops quoting spreads above 1,000 bp for that reason (p. 122).
 
+**As built (decision page `2026-10-23-peer-fair-spread`).** Until `f_t` is fitted, the fair spread is the peer median. It does not depend on the other issuers in the run.
+
+```latex
+s^{fair}_i = s_i \, e^{-ESP_i} = \operatorname{median}_{j \in cell(i),\, j \ne i} s_j, \qquad cell = \text{GICS sector} \times \text{rating class} \times \text{maturity bucket}
+```
+
+Intuition: a bond is fair when it pays what bonds of the same sector, rating and maturity pay. The peers are the TRACE high yield panel's bonds in the latest month (`hy.peers`). A cell needs 5 other issuers. Otherwise the ESP fallback applies: rating x maturity, then sector x maturity, then maturity alone. With no panel, the fair spread is the HY index spread. The noise of the gap is the peers' robust sd of log spread, 1.4826 x MAD. The memo also shows the bond against the HY index and the DTS hedge ratio s_i / S.
+
 ### 7.3 Mispricing score and conformal band
 
 The residual is the raw mispricing. Positive means cheap.
