@@ -316,6 +316,8 @@ def filing_states(facts: pd.DataFrame, cik: str) -> pd.DataFrame:
             "dur_revenue": m["dur_revenue"] if rpo else np.nan,
             "duration_gap": m["duration_gap"] if rpo else np.nan,
             "renewal_dependent_share": m["renewal_dependent_share"] if rpo else np.nan,
+            "renewal_refinance_share": m["renewal_refinance_share"] if rpo else np.nan,
+            "renewal_recontract_share": m["renewal_recontract_share"] if rpo else np.nan,
             "rpo_total": rpo if rpo else np.nan, "rent_1y": rent,
             "carried": ",".join(carried), "gap_filled": bool(df.attrs.get("gap_filled", False)),
         })
@@ -339,6 +341,7 @@ def clock_signals_as_of(states: pd.DataFrame, fundamentals_t: pd.DataFrame, cik_
              When the filing gives no debt, Compustat debt at `as_of` is added (`debt_source = 'compustat'`).
     dgap   = -duration_gap                       (only where RPO exists)
     renew  = -renewal_dependent_share            (only where RPO >= RPO_MATERIAL x LTM revenue)
+    renew_refi, renew_recon = the same, split into debt (refinance) and rent plus purchases (recontract)
 
     Uses the latest filing with `available_at <= as_of` whose balance-sheet date is at most `STALE_DAYS` old, and the
     issuer's fundamentals row known at `as_of`. Intuition: fixed charges a lender must be paid, measured in years of
@@ -368,6 +371,8 @@ def clock_signals_as_of(states: pd.DataFrame, fundamentals_t: pd.DataFrame, cik_
                      "e5": -float(min(max(years, 0.0), YEARS_CAP)),
                      "dgap": -r["duration_gap"] if r["duration_gap"] == r["duration_gap"] else np.nan,
                      "renew": -r["renewal_dependent_share"] if material else np.nan,
+                     "renew_refi": -r.get("renewal_refinance_share", np.nan) if material else np.nan,
+                     "renew_recon": -r.get("renewal_recontract_share", np.nan) if material else np.nan,
                      "rpo_material": bool(material), "debt_source": debt_source, "state_as_of": r["as_of"],
                      "available_at": max(r["available_at"], fr["available_at"])})
     return pd.DataFrame(rows)

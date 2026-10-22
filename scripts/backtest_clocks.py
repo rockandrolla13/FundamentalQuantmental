@@ -44,7 +44,9 @@ OUT = RAW / "backtest"
 FIG = ROOT / "docs" / "writeup" / "figures"
 START = pd.Timestamp("2018-01-31")
 SIGNALS = {"e5": "E5: -(fixed charges in years of EBITDAR)", "dgap": "-(duration gap)",
-           "renew": "-(renewal-dependent share), RPO material"}
+           "renew": "-(renewal-dependent share), RPO material",
+           "renew_refi": "-(renewal share: debt to refinance), RPO material",
+           "renew_recon": "-(renewal share: rent and purchases to recontract), RPO material"}
 PREDICTORS = ["widest", "fair_conv", "fair_line", "fair_line_net"]
 BLUE, ORANGE, AQUA, VIOLET, INK, MUTED, SHADE = "#2a78d6", "#eb6834", "#1baf7a", "#6250d6", "#0b0b0b", "#52514e", "#e9e8e4"
 
@@ -114,11 +116,29 @@ def score(df: pd.DataFrame, sig: str, h: int) -> dict:
     }
 
 
+def renewal_split_test(d: pd.DataFrame, h: int) -> dict:
+    """Methodology 4.7 split test (research/cards/two-clocks-origin.md): per month, OLS of log G-spread on the two
+    renewal shares (refinance, recontract) across issuers with material RPO; Fama-MacBeth means with Newey-West t.
+    Prediction: the recontract coefficient is positive and larger than the refinance one."""
+    x = d.dropna(subset=["renew_refi", "renew_recon", "g_spread"])
+    x = x[x["g_spread"] > 0].groupby(["date", "gvkey"], as_index=False).agg(
+        s=("g_spread", "median"), refi=("renew_refi", "first"), recon=("renew_recon", "first"))
+    b = {"refi": [], "recon": [], "diff": []}
+    for _, g in x.groupby("date"):
+        if len(g) < 15:
+            continue
+        X = np.column_stack([np.ones(len(g)), -g["refi"], -g["recon"]])   # undo the score sign: shares, not -shares
+        coef, *_ = np.linalg.lstsq(X, np.log(g["s"].to_numpy()), rcond=None)
+        b["refi"].append(coef[1]); b["recon"].append(coef[2]); b["diff"].append(coef[2] - coef[1])
+    return {k: bt.hac_mean(pd.Series(v), h - 1) for k, v in b.items()} | {"months": len(b["refi"]),
+                                                                          "issuer_months": int(len(x))}
+
+
 def figure(res: dict, tag: str) -> Path:
     hs = sorted(res)
     fig, axes = plt.subplots(len(hs), 1, figsize=(10.5, 3.5 * len(hs)), sharex=True)
     axes = np.atleast_1d(axes)
-    cols = {"e5": BLUE, "dgap": AQUA, "renew": VIOLET}
+    cols = {"e5": BLUE, "dgap": AQUA, "renew": VIOLET, "renew_refi": ORANGE, "renew_recon": INK}
     for ax, h in zip(axes, hs):
         for c, (lo, hi) in [(2020, (2019.5, 2020.5)), (2022, (2021.5, 2022.5))]:
             ax.axvspan(lo, hi, color=SHADE, lw=0, zorder=0)
@@ -188,10 +208,15 @@ def main() -> None:
     build_s = time.time() - t0
     res = {}
     for h, f in frames.items():
-        d = f.merge(sig[["date", "gvkey", "e5", "dgap", "renew", "fixed_charge_years", "rpo_material", "debt_source"]],
+        d = f.merge(sig[["date", "gvkey", "e5", "dgap", "renew", "renew_refi", "renew_recon", "fixed_charge_years", "rpo_material", "debt_source"]],
                     on=["date", "gvkey"], how="inner")
         res[h] = {s: score(d, s, h) for s in SIGNALS}
         res[h]["_n_rows"] = len(d)
+        res[h]["_split"] = renewal_split_test(d, h)
+        sp = res[h]["_split"]
+        log(f"h={h} split test (log spread on shares, {sp['months']} months): refinance {sp['refi']['mean']:+.3f} "
+            f"(t {sp['refi']['t']:.2f})  recontract {sp['recon']['mean']:+.3f} (t {sp['recon']['t']:.2f})  "
+            f"recontract - refinance {sp['diff']['mean']:+.3f} (t {sp['diff']['t']:.2f})")
         for s in SIGNALS:
             r = res[h][s]
             log(f"h={h} {s:6s} IC net {r['ic_net']['mean']:+.4f} (t {r['ic_net']['t']:.2f})  beyond spread "
@@ -210,6 +235,7 @@ def main() -> None:
     block = {"issuers_scored_since_2018": len(gvkeys), "issuers_with_cik": len(cmap), "pull": pull,
              "build_seconds": build_s, "states": states_cov,
              "results": {str(h): {s: r[s] for s in SIGNALS} for h, r in res.items()},
+             "renewal_split_test": {str(h): r["_split"] for h, r in res.items()},
              "figure": str(fig.relative_to(ROOT)), "total_seconds": time.time() - t_all}
     p = OUT / f"summary_{a.tag}.json"
     summary = json.loads(p.read_text()) if p.exists() else {}

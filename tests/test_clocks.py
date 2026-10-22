@@ -145,3 +145,16 @@ def test_debt_ladder_reconciles_to_balance_sheet():
     assert sum(none.amounts) == pytest.approx(1000.0) and "assumption" in note
     ok, note = sc.reconcile_debt(sc.Ladder("debt", [500.0, 500.0], 1.0, 1000.0, True, []), 1000.0)
     assert note == "ladder as filed"
+
+
+def test_renewal_split_into_refinance_and_recontract():
+    # Contracts run 3 years. Rent 10/yr for 10 years; debt principal 50 due in year 6. After the runoff:
+    # rent 70 of 100, debt 50 of 50. Total obligations 150, renewal-dependent 120.
+    obl = {"Leases in force": [clocks.Bucket(0, 10, 100.0)], "Debt principal": [clocks.Bucket(5, 1, 50.0)]}
+    m = clocks.mismatch(obl, [clocks.Bucket(0, 3, 120.0)], 1.0, horizon=12).metrics
+    assert m["renewal_recontract_share"] == pytest.approx(70.0 / 150.0)
+    assert m["renewal_refinance_share"] == pytest.approx(50.0 / 150.0)
+    assert m["renewal_recontract_share"] + m["renewal_refinance_share"] == pytest.approx(m["renewal_dependent_share"])
+    assert clocks.obligation_kind("Interest") == "refinance"
+    assert clocks.obligation_kind("Signed leases not yet started") == "recontract"
+    assert clocks.obligation_kind("Purchase commitments") == "recontract"

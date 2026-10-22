@@ -290,7 +290,9 @@ The second formula is how lenders set the level at origination (p. 356). A cushi
 
 ### 4.7 Duration mismatch: the cost clock against the revenue clock
 
-Fixed obligations and contracted revenue run on two clocks. Rent starts when the landlord delivers power. Debt principal falls due on fixed dates. Contracted revenue starts on customer acceptance and stops when the contract ends. When the obligations outlast the contracts, the difference is a bet on renewal. Unsecured creditors carry that bet. Covenant tests and leverage ratios do not show it, because both use one period of earnings. Source: Radhakrishnan (2026), "Where the risk actually sits in the AI buildout"; this section turns the argument into features. Code: `hy/clocks.py`; inputs: `hy/sources/schedules.py`.
+Fixed obligations and contracted revenue run on two clocks. Rent starts when the landlord delivers power. Debt principal falls due on fixed dates. Contracted revenue starts on customer acceptance and stops when the contract ends. When the obligations outlast the contracts, the difference is a bet on renewal. Unsecured creditors carry that bet. Covenant tests and leverage ratios do not show it, because both use one period of earnings. Code: `hy/clocks.py`; inputs: `hy/sources/schedules.py`.
+
+Origin (research/cards/two-clocks-origin.md). The measure is old. Bank gap analysis puts assets and liabilities in time buckets, and the duration gap reduces them to years (Kaufman 1984). The Basel project finance slotting criteria (2003) grade a loan "Weak" when the contract tenor does not exceed the debt maturity. WeWork's 2019 S-1 shows both clocks for one company: 15-year leases against short memberships. Radhakrishnan (2026) applies the argument to AI capacity providers. What this section adds is the set of features below, built from filings. The two centres `D_O` and `D_R` are not discounted. They are weighted average lives, not Macaulay durations.
 
 Put every fixed obligation and the remaining performance obligation (RPO) on one annual grid from the filing date. Obligations: lease payments in force, signed leases not yet commenced, debt principal, interest on the declining balance, and unconditional purchase commitments.
 
@@ -305,6 +307,8 @@ O_t = \sum_{j} o_{j,t}, \qquad C_t = m \cdot R_t, \qquad D_O = \frac{\sum_t (t +
 | `duration_gap` | `D_O - D_R` | Years by which the fixed charges outlast the contracts |
 | `revenue_runoff` | First year end with 99% of RPO recognised | When the contract book is gone |
 | `renewal_dependent_share` | Share of `O` due after `revenue_runoff` | Fixed charges with no contract behind them |
+| `renewal_refinance_share` | Share of `O` due after `revenue_runoff` that is debt principal or interest | The part the capital market can roll, at a price |
+| `renewal_recontract_share` | Share of `O` due after `revenue_runoff` that is rent or purchase commitments | The part only new or renewed customer contracts can pay. DBRS (2024) treats it as a separate risk from refinancing |
 | `renewal_dependent_ebitda_years` | Renewal-dependent amount over LTM EBITDA | Size of the bet in years of today's earnings |
 | `coverage_contracted` | `sum C / sum O` | Below 1: contracts cannot pay the fixed charges even at full margin |
 | `breakeven_margin` | `sum O / sum R` | Margin at which signed contracts pay every fixed charge; above 1, no margin is enough. Test it against reported margins |
@@ -319,6 +323,8 @@ Rules:
 3. State every assumption that the filing does not give: the length of the "thereafter" bucket (default: payments continue at the last stated yearly amount), the commencement window and term of signed leases, the timing of RPO after the last stated window, and the margin. Report the sensitivity of `renewal_dependent_share` and `coverage_contracted` to each.
 4. Downside: build it from the issuer's main risk flag (Section 4.4). For customer concentration, remove the top customer's share of RPO.
 5. Early surplus cash in `C_t - O_t` is not free: capex and taxes absorb it. Read `max_cum_shortfall` as a lower bound.
+
+Test of the split: across issuers with material RPO, regress log spread on the two shares each month. If the market treats them as separate risks, the recontract coefficient is positive and larger than the refinance coefficient. Script: `scripts/backtest_clocks.py` (`renewal_split_test`). Out-of-sample case with a known outcome: WeWork, 2019 to 2023. Result (2018 to 2026, 187 issuers with material RPO, 99 months): the refinance coefficient is +0.36 (t 2.0). The recontract coefficient is -2.07 (t -2.4). The difference is -2.43 (t -2.8). The prediction fails: the market charges more spread for debt due after the contracts end, and less for rent and purchases due then. A possible reason, not tested: large, long-lease issuers are stronger credits. Neither share ranks hedged returns beyond spread level (6-month IC beyond spread: refinance -0.037, t -1.7; recontract +0.027, t 1.0). Keep both shares as risk measures. Give neither weight.
 
 Inputs to Section 7: `duration_gap`, `renewal_dependent_ebitda_years`, and `coverage_contracted` enter the forward block of the fair spread model with a positive sign on spread for the first two and a negative sign for the third. Inputs to Section 9: `revenue_runoff` and the largest contract expiry date are event dates for renewal risk.
 

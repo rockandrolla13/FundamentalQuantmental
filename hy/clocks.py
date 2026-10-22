@@ -152,6 +152,14 @@ def concentration(shares: Mapping[str, float]) -> dict[str, float]:
     return {"top1": v[0], "top3": float(sum(v[:3])), "hhi_floor": float(sum(x * x for x in v)), "disclosed": float(len(v))}
 
 
+def obligation_kind(name: str) -> str:
+    """Section 4.7 renewal split. Debt principal and interest are "refinance": the capital market can roll them.
+    Rent and purchase commitments are "recontract": only new or renewed customer contracts pay them.
+    Intuition: a bond refinanced at a wider spread survives; an empty data hall pays rent from nothing."""
+    n = name.lower()
+    return "refinance" if any(k in n for k in ("debt", "principal", "interest")) else "recontract"
+
+
 @dataclass
 class ClockResult:
     """Annual grids and the mismatch metrics for one borrower."""
@@ -178,7 +186,10 @@ def mismatch(
 
     - `dur_obligations`, `dur_revenue`, `duration_gap`: centres of mass and their difference (years).
     - `revenue_runoff`: year by which 99% of the contract book is recognised.
-    - `renewal_dependent_share`: share of fixed obligations due after the runoff.
+    - `renewal_dependent_share`: share of fixed obligations due after the runoff. It splits (`obligation_kind`) into
+      `renewal_refinance_share` (debt principal and interest: the market can roll it) and `renewal_recontract_share`
+      (rent and purchase commitments: only customers can pay it). The two add up to the total. DBRS (2024) treats
+      refinancing and recontracting as separate risks (research/cards/two-clocks-origin.md).
     - `contracted_cash`: revenue x `cash_margin`, the cash the contracts throw off for fixed charges
       (use an EBITDAR-type margin, because rent is one of the obligations).
     - `first_shortfall_year`, `max_cum_shortfall`: first year cumulative contracted cash falls below cumulative
@@ -209,6 +220,11 @@ def mismatch(
         "first_shortfall_year": float(neg[0] + 1) if len(neg) else float("nan"),
         "max_cum_shortfall": float(max(0.0, -cum_gap.min())),
     }
+    for kind in ("refinance", "recontract"):
+        g = sum((v for k, v in obs.items() if obligation_kind(k) == kind), np.zeros(horizon))
+        amt = share_after(g, run) * float(g.sum()) if g.sum() > 0 else 0.0
+        m[f"renewal_{kind}_amount"] = amt
+        m[f"renewal_{kind}_share"] = amt / float(total.sum()) if total.sum() > 0 else float("nan")
     m["duration_gap"] = m["dur_obligations"] - m["dur_revenue"]
     m["breakeven_margin"] = float(total.sum() / rev.sum()) if rev.sum() > 0 else float("nan")
     m["renewal_revenue_years"] = (

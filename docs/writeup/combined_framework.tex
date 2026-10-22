@@ -487,7 +487,7 @@ Creation leverage (C5): \textbf{wins} the PDF form.
 \item Put every fixed obligation on one yearly grid from the filing date: leases in force, signed leases not started, debt principal, interest on the falling balance, purchase commitments. Read each ladder as filed; check it against its stated total.
 \item Put the RPO on the same grid by the filer's stated windows; spread the rest over a stated tail.
 \item Choose the margin $m$ as the EBITDAR margin; add a 20\% stress margin.
-\item Compute the centres $D_O$, $D_R$, the gap, the breakeven margin, cover, shortfall, the renewal-dependent share and its size in years of EBITDA.
+\item Compute the centres $D_O$, $D_R$, the gap, the breakeven margin, cover, shortfall, the renewal-dependent share and its size in years of EBITDA. Split the renewal-dependent share in two: debt to refinance (principal and interest) and rent and purchases to recontract. The market can roll the first. Only customers can pay the second.
 \item Downside: remove the top customer's share of RPO (customer shares from XBRL; RPO split assumed equal to revenue split).
 \item If RPO is below one year of revenue, skip the revenue clock and report the cost clock against today's EBITDAR held flat.
 \item Pass \code{revenue_runoff} and the largest contract expiry to S12 as event dates.
@@ -513,9 +513,11 @@ share = \frac{\sum_{t > T^{run}} O_t}{\sum_t O_t},\qquad yrs = \frac{share\cdot\
 
 \fld{Inputs} \emph{Data:} XBRL ladders, uncommenced lease total, RPO, customer shares, LTM EBITDA and lease cost. \emph{Documents:} 10-Q prose for commencement windows, lease terms, RPO windows. \emph{Analyst:} tail lengths, RPO timing after the last window, the stress margin.
 
-\fld{Outputs} \code{duration_gap}, \code{breakeven_margin}, \code{coverage_contracted}, \code{renewal_dependent_share}, \code{renewal_dependent_ebitda_years}, \code{max_cum_shortfall}, \code{years_of_ebitdar}, scenario and sensitivity tables.
+\fld{Outputs} \code{duration_gap}, \code{breakeven_margin}, \code{coverage_contracted}, \code{renewal_dependent_share} with its split \code{renewal_refinance_share} and \code{renewal_recontract_share}, \code{renewal_dependent_ebitda_years}, \code{max_cum_shortfall}, \code{years_of_ebitdar}, scenario and sensitivity tables.
 
 \fld{Where groups disagree} No group disagrees on the measure. One gap: M4.7 says three clock features enter the fair spread model. The fair line uses only leverage. \textbf{Rule:} until the M7.2 model exists, the clocks enter as estimate E5 of the combined score and as risk metrics in the pair (S9).
+
+\fld{Origin} The measure restates bank gap analysis (Kaufman 1984) and the Basel project finance rule that contract tenor must exceed debt maturity (2003). WeWork's 2019 S-1 shows both clocks for one company. What is new here is the set of features built from filings. $D_O$ and $D_R$ are undiscounted, so they are weighted average lives, not Macaulay durations. Card: \code{research/cards/two-clocks-origin.md}. Split test (2018 to 2026, 187 issuers, monthly regression of log spread on both shares): debt to refinance $+0.36$ ($t$ 2.0), rent and purchases to recontract $-2.07$ ($t$ $-2.4$). The prediction that recontracting carries more spread fails. Neither share ranks hedged returns beyond spread level.
 
 \fld{Settling test} Decision page \code{2026-10-22-duration-mismatch}: \code{renewal_dependent_ebitda_years} must have a positive partial correlation with spread after the M7.2 features, and a positive rank IC for spread change around renewal dates. Code tests: \code{tests/test_clocks.py} (11) and \code{tests/test_clock_inputs.py} (19).
 

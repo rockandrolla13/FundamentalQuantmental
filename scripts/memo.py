@@ -374,6 +374,8 @@ def memo(d: dict) -> str:
                 ["Company margin (EBITDAR)", pct(ck.get("company_margin"))],
                 ["Share of bills paid by contracts at that margin", pct(ck.get("coverage_contracted"))],
                 ["Bills due after the contracts end", f"\\${num(ck.get('renewal_dependent_bn'), 1)}bn ({pct(ck.get('renewal_dependent_share'))})"],
+                ["\\quad of which debt to refinance", f"\\${num(ck.get('renewal_refinance_bn'), 1)}bn ({pct(ck.get('renewal_refinance_share'))})"],
+                ["\\quad of which rent and purchases to recontract", f"\\${num(ck.get('renewal_recontract_bn'), 1)}bn ({pct(ck.get('renewal_recontract_share'))})"],
                 ["Revenue to sign after the contracts end", f"{num(ck.get('renewal_revenue_years'), 1)} years of today's revenue"],
                 ["Largest running shortfall", f"\\${num(ck.get('largest_shortfall_bn'), 1)}bn"],
                 ["Top three customers", pct(ck.get("top3_customers"))]]
