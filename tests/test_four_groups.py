@@ -216,7 +216,7 @@ def test_effective_weights_keep_relative_weights_inside_a_bucket():
     assert w["E5"] == pytest.approx(0.20)
     assert w["E0"] / w["E1"] == pytest.approx(0.25 / 0.15)  # spec ratio kept inside the rest of G2
     assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0
-    assert w["E14"] == pytest.approx(0.09) and w["E15"] == pytest.approx(0.03)
+    assert w["E14"] == pytest.approx(0.045) and w["E16"] == pytest.approx(0.045) and w["E15"] == pytest.approx(0.03)
     assert w["E12"] == pytest.approx(0.025) and w["E13"] == pytest.approx(0.025)
 
 
@@ -320,3 +320,12 @@ def test_bridge_debt_survives_a_missing_anchor_value():
     anchor = pd.Series({"debt_current": pd.NA, "debt_long_term": pd.NA}, dtype="object")
     assert xbrl._bridge_debt(vals, anchor, {"debt_total": 100.0}) == []
     assert np.isnan(vals["debt_long_term"])
+
+
+def test_private_issuer_esp_takes_onescore_share():
+    # Unlisted: process.py copies E14 into E16, so ESP carries 9 of G4's 17 points.
+    est = {"E12": 0.0, "E13": 0.0, "E14": 100.0, "E15": 0.0, "E16": 100.0}
+    w = groups.effective_weights()
+    r = groups.combine(est, 0, 0)
+    assert r["combined_before_cost"] == pytest.approx(100 * 0.09 / 0.17)   # only G4 present: ESP is 9 of its 17
+    assert w["E14"] + w["E16"] == pytest.approx(0.09)
