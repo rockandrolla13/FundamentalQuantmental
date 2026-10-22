@@ -1,0 +1,34 @@
+# Analyst inputs for CoreWeave (methodology Section 4.7). These override the derived values in
+# hy/sources/clock_inputs.py. Each key holds a value and a source. Keys and shapes match the derived inputs.
+# Optional flags: fallback: true (use only when the derived value is missing or clipped); secondary: true
+# (the source is not primary, for example a press report).
+
+recourse:
+  value:
+    recourse_debt: 31405
+    non_recourse_debt: 3663
+    ring_fenced_assets: 18200
+    total_assets: 77070
+  source: "text 10-Q Jun-2026 Note 10 and balance sheet"
+
+# Single-site lease that the filing excludes from the $35.5bn of leases not yet commenced.
+scenario_extra_lease:
+  value:
+    amount: 14700
+    window: [0, 2]
+    term: 16
+  source: "text 10-Q Jun-2026: single-site lease excluded from $35.5bn, rent capped at $14.7bn over sixteen years, power delivered 2026 to 2028"
+
+debt_tail_years:
+  value: 2.0
+  source: "assumption: 2031-2032 wall ('thereafter' $14.9bn falls due in the DDTL and note maturities of 2031 and 2032)"
+
+# Equipment commitments at leased sites: tagged as a range without a ladder.
+purchase:
+  value: [1200, 2.5]
+  source: "text 10-Q Jun-2026: $500m to $1.2bn of equipment commitments 'in phases through 2028'; max used, spread to Dec-2028"
+
+# The analyst must fill the rating. No source in the system holds current ratings.
+rating:
+  value: null
+  source: "analyst must fill: no current rating on file"

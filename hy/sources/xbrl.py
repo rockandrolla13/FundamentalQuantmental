@@ -60,8 +60,9 @@ INSTANT_TAGS: dict[str, tuple[str, ...]] = {
     "inventory": ("InventoryNet",),
     "receivables": ("AccountsReceivableNetCurrent",),
     "payables": ("AccountsPayableCurrent",),
-    "debt_current": ("LongTermDebtCurrent", "DebtCurrent"),
-    "debt_long_term": ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"),
+    "debt_current": ("LongTermDebtCurrent", "DebtCurrent", "NotesPayableCurrent"),
+    "debt_long_term": ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations", "LongTermNotesAndLoans",
+                       "LongTermNotesPayable"),
     "debt_total": ("LongTermDebt", "DebtInstrumentCarryingAmount", "DebtAndCapitalLeaseObligations"),
 }
 
@@ -85,6 +86,8 @@ def company_facts(cik: int | str, fetch: Fetch = fetch_json, cache_root: Path | 
     df = pd.DataFrame(rows, columns=["tag", "start", "end", "val", "accn", "form", "filed"])
     for c in ("start", "end", "filed"):
         df[c] = pd.to_datetime(df[c], errors="coerce")
+        # Filers occasionally key in impossible years; they would overflow date arithmetic.
+        df.loc[(df[c].dt.year < 1990) | (df[c].dt.year > 2100), c] = pd.NaT
     df["days"] = (df["end"] - df["start"]).dt.days
     return df
 
@@ -115,12 +118,13 @@ def _flow(facts: pd.DataFrame, tags: Sequence[str], qend: pd.Timestamp, accn: st
     return float("nan")
 
 
-def _instant(facts: pd.DataFrame, tags: Sequence[str], qend: pd.Timestamp, accn: str) -> float:
+def _instant(facts: pd.DataFrame, tags: Sequence[str], qend: pd.Timestamp, accn: str) -> tuple[float, str | None]:
+    """First tag in `tags` with an instant value at `qend` in filing `accn`: (value, tag), else (NaN, None)."""
     for tag in tags:
         t = facts[(facts["tag"] == tag) & facts["start"].isna() & _near(facts["end"], qend) & (facts["accn"] == accn)]
         if len(t):
-            return float(t["val"].iloc[0])
-    return float("nan")
+            return float(t["val"].iloc[0]), tag
+    return float("nan"), None
 
 
 # Cash is bridged on its own; debt is bridged as a total, because filers tag the current / non-current split
@@ -132,10 +136,22 @@ CHECKED = ("oibdp",)
 CHECK_RANGE = (0.8, 1.25)
 
 
-def quarter_from_filing(facts: pd.DataFrame, qend: pd.Timestamp, accn: str, filed: pd.Timestamp) -> dict[str, float]:
-    """All loader fields for one quarter, in USD millions, as first filed in the 10-Q or 10-K `accn`."""
-    v = {name: _flow(facts, tags, qend, accn, filed) / 1e6 for name, tags in FLOW_TAGS.items()}
-    v.update({name: _instant(facts, tags, qend, accn) / 1e6 for name, tags in INSTANT_TAGS.items()})
+def quarter_from_filing(
+    facts: pd.DataFrame, qend: pd.Timestamp, accn: str, filed: pd.Timestamp, force_tags: dict[str, str] | None = None
+) -> dict:
+    """All loader fields for one quarter, in USD millions, as first filed in the 10-Q or 10-K `accn`.
+
+    `v["_tags"]` records which tag supplied each instant field ("parts" for a debt total summed from its parts).
+    `force_tags` restricts an instant field to one tag, so a bridge compares like with like across quarters.
+    """
+    force_tags = force_tags or {}
+    v: dict = {name: _flow(facts, tags, qend, accn, filed) / 1e6 for name, tags in FLOW_TAGS.items()}
+    v["_tags"] = {}
+    for name, tags in INSTANT_TAGS.items():
+        forced = force_tags.get(name)
+        use = (forced,) if forced and forced != "parts" else (() if forced == "parts" else tags)
+        val, tag = _instant(facts, use, qend, accn)
+        v[name], v["_tags"][name] = val / 1e6, tag
     if not np.isnan(v["operating_income"]):
         v["oibdp"] = v["operating_income"] + v["depreciation"]
     else:
@@ -143,6 +159,7 @@ def quarter_from_filing(facts: pd.DataFrame, qend: pd.Timestamp, accn: str, file
     v["special_items"] = 0.0  # included in oibdp; XBRL does not split it out
     if np.isnan(v["debt_total"]) and not np.isnan(v["debt_long_term"]):
         v["debt_total"] = v["debt_long_term"] + (0.0 if np.isnan(v["debt_current"]) else v["debt_current"])
+        v["_tags"]["debt_total"] = "parts"
     return v
 
 
@@ -184,7 +201,7 @@ def bridge_ratio(compustat_prior: float, xbrl_prior: float, bounds: tuple[float,
 BRIDGE_LOOKBACK_DAYS = 400
 
 
-def _bridge_anchor(g, d, pit_first, facts, filings, cik10):
+def _bridge_anchor(g, d, pit_first, facts, filings, cik10, force_tags=None):
     """Most recent first-version Compustat PIT quarter before `d` (within `BRIDGE_LOOKBACK_DAYS`) that also has a
     filing, with its XBRL values. The latest Compustat quarters are often missing too, so the anchor may sit two
     or three quarters back; balance-sheet definition gaps are stable over that span."""
@@ -195,7 +212,7 @@ def _bridge_anchor(g, d, pit_first, facts, filings, cik10):
     for _, row in cand.sort_values("datadate", ascending=False).iterrows():
         filing = _first_filing(filings, cik10, row["datadate"])
         if filing is not None:
-            return row, quarter_from_filing(facts, row["datadate"], filing["accession"], filing["filing_date"])
+            return row, quarter_from_filing(facts, row["datadate"], filing["accession"], filing["filing_date"], force_tags)
     return None, None
 
 
@@ -227,7 +244,9 @@ def fill_quarters(
             continue
         vals = quarter_from_filing(facts, d, first["accession"], first["filing_date"])
         bridged = []
-        prior_row, prior_vals = _bridge_anchor(g, d, pit_first, facts, filings, cik10)
+        # The anchor must use the same XBRL tags as the gap quarter, or the ratio mixes definitions.
+        same = {k: t for k, t in vals["_tags"].items() if k in ("cash", "debt_total", "debt_current") and t}
+        prior_row, prior_vals = _bridge_anchor(g, d, pit_first, facts, filings, cik10, same)
         if prior_row is None:
             for f in ("cash", "debt_current", "debt_long_term", *CHECKED):
                 vals[f] = float("nan")
@@ -241,6 +260,7 @@ def fill_quarters(
                     vals[f] = float("nan")
         if np.isnan(vals["revenue"]) and np.isnan(vals["oibdp"]):
             continue  # nothing usable was filed under known tags; keep the flagged Compustat row
+        vals.pop("_tags", None)
         rows.append({"gvkey": g, "datadate": d, **vals, "bridged": ",".join(bridged)})
     out = pd.DataFrame(rows)
     if out.empty:

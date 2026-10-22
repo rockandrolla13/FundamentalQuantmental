@@ -1,0 +1,27 @@
+# Analyst inputs for Oracle (methodology Section 4.7). These override the derived values in
+# hy/sources/clock_inputs.py. Each key holds a value and a source.
+# Optional flags: fallback: true (use only when the derived value is missing or clipped); secondary: true
+# (the source is not primary, for example a press report).
+
+debt_tail_years:
+  value: 10
+  source: "assumption: about $90bn of principal due after year five, spread over ten years"
+
+rpo_tail_years:
+  value: 5
+  source: "assumption: the filing says 'the remainder thereafter'; five years after month 60"
+
+# Prefer the derived rate. This value applies only when the loader gives no rate or a clipped one.
+interest_rate:
+  value: 0.045
+  source: "loader LTM cash interest / debt, rounded (earlier hand entry)"
+  fallback: true
+
+rating:
+  value: "BBB-"
+  source: "S&P July 2026 per press; verify against the agency release"
+  secondary: true
+
+recourse:
+  value: null
+  source: "Oracle debt is senior unsecured at the parent; no ring-fenced vehicle disclosed"

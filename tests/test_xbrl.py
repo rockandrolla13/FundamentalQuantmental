@@ -129,3 +129,19 @@ def test_total_debt_bridge_keeps_lease_heavy_definition_and_split():
     assert out["debt_current"] + out["debt_long_term"] == pytest.approx(2 * 39_000.0)
     assert out["debt_current"] == pytest.approx(2_000.0)
     assert "debt_split_unknown" not in out["bridged"]
+
+
+def test_bridge_never_mixes_tags_between_anchor_and_gap():
+    # CoreWeave June 2026: the gap filing tags only DebtInstrumentCarryingAmount (all debt); the anchor
+    # tagged LongTermDebt (a narrower total). A ratio across the two tags overstated debt by 39%.
+    base = _facts()
+    base = base[~base["tag"].str.startswith("LongTermDebt")]
+    facts = pd.concat([base, pd.DataFrame([
+        _fact("DebtInstrumentCarryingAmount", 35.5e9, Q4, "k", "2025-02-14"),
+        _fact("LongTermDebt", 21.4e9, Q3, "q3", "2024-10-31"),
+        _fact("DebtInstrumentCarryingAmount", 29.8e9, Q3, "q3", "2024-10-31")])], ignore_index=True)
+    pit = pd.DataFrame({"gvkey": [G], "datadate": [Q3], "cash": [1_000.0], "debt_current": [7_100.0],
+                        "debt_long_term": [22_700.0], "oibdp": [3_250.0]})  # Compustat total 29.8bn
+    out = xbrl.fill_quarters(pd.DataFrame({"gvkey": [G], "datadate": [Q4]}), {CIK: facts}, FILINGS,
+                             {G: "860730"}, pit_first=pit).iloc[0]
+    assert out["debt_current"] + out["debt_long_term"] == pytest.approx(35_500.0)  # ratio 29.8/29.8 = 1
