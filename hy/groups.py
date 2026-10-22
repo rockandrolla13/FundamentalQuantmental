@@ -22,7 +22,8 @@ import numpy as np
 ESTIMATES = {
     "E0": ("G2", "Spread level (carry)", "alpha", 0.25),
     "E1": ("G2", "Weighted cases and stories", "alpha", 0.15),
-    "E2": ("G2", "Fair-line convergence", "alpha", 0.10),
+    # User decision 2026-10-22 (decision page 2026-10-22-e2-lowest-weight): the lowest active weight, 0.10 -> 0.02.
+    "E2": ("G2", "Fair-line convergence", "alpha", 0.02),
     "E3": ("G2", "Pair convergence", "alpha", 0.05),
     "E4": ("G1", "Default the price assumes", "alpha", 0.00),  # suspended until kappa_t is fitted (mapping C2)
     "E5": ("G2", "Two clocks", "score", 0.05),

@@ -381,3 +381,11 @@ def test_trap_guard_cash_burning_run_cannot_hide_low_fcf():
     g = books.spt_trap_guard(7.0, 0.001, 1.10, _LEV, [-0.40, -0.20, -0.10, 0.05, 0.10, 0.001])
     assert g["fcf_cut"] == pytest.approx(books.SPT_TRAP["fcf_abs"])
     assert g["signs"]["low_fcf"] and g["trap"]
+
+
+def test_fair_line_has_the_lowest_active_weight():
+    # User decision 2026-10-22 (decision page 2026-10-22-e2-lowest-weight): E2 ranks no better than the widest spread
+    # and its MZ slope is 0.07, so it carries the least weight of the estimates in use. E4 is suspended at 0.
+    w = {k: v for k, v in groups.effective_weights().items() if v > 0}
+    assert min(w, key=w.get) == "E2"
+    assert sum(groups.effective_weights().values()) == pytest.approx(1.0)
