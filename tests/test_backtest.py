@@ -238,3 +238,35 @@ def test_replay_sees_only_the_past(rng):
     out = bt.run_predictions(panel, fund, {"spy": spy, "fair": bt.FairLine()}, 3)
     assert all(pmax < as_of and fmax < as_of for as_of, pmax, fmax in seen)
     assert set(out["predictor"]) == {"spy", "fair"} and out["date"].nunique() == 8
+
+
+# ---------------------------------------------------------------- peer line (decision page 2026-10-23-peer-fair-spread)
+
+
+def test_dts_realised_scales_the_index_leg_by_s_over_S():
+    # beta = 0.06 / 0.03 = 2: the index leg doubles. 0.05 - 0.01 - 2 x 0.004 = 0.032.
+    got = bt.dts_realised(np.array([0.05]), np.array([0.01]), np.array([0.004]), np.array([0.06]), np.array([0.03]))
+    assert got[0] == pytest.approx(0.032)
+
+
+def test_peer_convergence_alpha_by_hand():
+    # s = 500 bp, peer median 400 bp, so ESP = log(5/4). D = 4, rho = 0.9, h = 6: 4 x (1 - 0.9^6) x 0.01.
+    got = bt.peer_convergence_alpha(np.array([0.05]), np.array([np.log(0.05 / 0.04)]), np.array([4.0]), 0.9, 6)
+    assert got[0] == pytest.approx(4.0 * (1 - 0.9 ** 6) * 0.01)
+    rich = bt.peer_convergence_alpha(np.array([0.03]), np.array([np.log(0.03 / 0.04)]), np.array([4.0]), 0.9, 6)
+    assert rich[0] < 0  # a bond inside its peers is expected to widen toward them
+
+
+def test_peer_rho_uses_only_past_months():
+    # Issuer ESP history: an AR(1) with slope 0.8 before t, a break after t. The rho at t must not see the break.
+    rng = np.random.default_rng(1)
+    months = pd.date_range("2010-01-31", periods=60, freq="ME")
+    hist = {}
+    for g in range(40):
+        x = 0.0
+        for m in months:
+            x = 0.8 * x + rng.normal(0, 0.1) if m <= months[39] else rng.normal(0, 0.1)
+            hist.setdefault(m, {})[f"g{g}"] = x
+    hist = {m: pd.Series(v) for m, v in hist.items()}
+    rho_t, _ = bt.peer_rho(hist, months[39], min_pairs=100)
+    assert rho_t == pytest.approx(0.8, abs=0.08)

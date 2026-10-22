@@ -548,3 +548,32 @@ def evaluate(df: pd.DataFrame, pred: str, h_months: int, real: str = "realised",
         "long_short_net": long_short_summary(ls["net"], h_months),
         "_ic_net_series": ic_n, "_ls": ls,
     }
+
+
+# ---------------------------------------------------------------- peer line (decision page 2026-10-23-peer-fair-spread)
+
+
+def dts_realised(total, tsy_ret, bench_ret_beta1, s, S) -> np.ndarray:
+    """Realised return with the DTS hedge (Section 7.5 hedge; hy.fairspread.dts_beta): total - tsy - (s / S) x bench_ret,
+    where bench_ret_beta1 = S tau - D (S_end - S) is the index leg at beta 1 (`realised_excess_return`).
+    Intuition: short as much of the index as the bond's spread risk, so only the bond-specific move is left."""
+    beta = np.where(np.asarray(S) > 0, np.asarray(s) / np.asarray(S), np.nan)
+    return np.asarray(total) - np.asarray(tsy_ret) - beta * np.asarray(bench_ret_beta1)
+
+
+def peer_convergence_alpha(s, esp, dur, rho: float, h_months: int) -> np.ndarray:
+    """Section 7.5 alpha against the peer fair spread: D (1 - rho^h) (s - s exp(-ESP)). With the DTS hedge the carry
+    term s - beta S is zero, so this is the whole forecast before cost.
+    Intuition: the part of the gap to the peer median that closes before the exit, times the price move per unit."""
+    s = np.asarray(s, dtype=float)
+    return np.asarray(dur, dtype=float) * (1.0 - rho ** h_months) * (s - s * np.exp(-np.asarray(esp, dtype=float)))
+
+
+def peer_rho(history: Mapping[pd.Timestamp, pd.Series], t: pd.Timestamp, min_pairs: int = MIN_RHO_PAIRS,
+             prior: float = RHO_PRIOR_M) -> tuple[float, str]:
+    """Monthly persistence of the issuer ESP gap from months up to and including t only (`pooled_rho`). The prior
+    holds until `min_pairs` same-issuer pairs exist. Intuition: the speed the gap closed at in the past."""
+    r, pairs = pooled_rho({m: e for m, e in history.items() if m <= t and len(e)})
+    if pairs < min_pairs or not np.isfinite(r):
+        return prior, "prior"
+    return float(np.clip(r, 0.0, 0.999)), "fitted"
