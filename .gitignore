@@ -7,3 +7,5 @@ docs/writeup/*.log
 docs/writeup/*.fls
 docs/writeup/*.fdb_latexmk
 data/raw/
+docs/writeup/*.out
+docs/writeup/*.toc
