@@ -9,6 +9,16 @@ not publish either method. The definitions here are ours:
     SPT_i        = s_i / L_i                                                     (spread per turn, Kricheff; SPiDER)
     E13_cell_i   = log SPT_i - median over peers j of log SPT_j                  (spread per turn against peers)
 
+Two versions follow the book definitions (Dynkin et al. 2021, Systematic Investing in Credit, ch. 13 and 14):
+
+    ESP_lev_i    = ESP_i - b_t * XL_i,  XL_i = log L_i - median over peers j of log L_j
+                   b_t = cross-section OLS slope of ESP on XL at date t, pooled over all cells
+                   (excess spread that excess leverage over the same peers does not explain; ch. 13)
+    SPiDER_i     = s_i / (Debt_i / SustEBITDA_i)
+                   SustEBITDA_i = mean of the last 10 annual EBITDA figures known at t, at least 6 (ch. 14)
+                   absolute: one rank across all sectors; financials (GICS 40) and real estate (60) excluded
+    SPiDER_cell  = log SPiDER_i - median over peers j of log SPiDER_j               (the book's rating-industry check)
+
 Peers exclude the issuer's own bonds. A cell needs MIN_PEERS other issuers; otherwise the next cell in FALLBACK
 applies. Positive values mean the bond pays more than its peers: cheap. Every input is point in time.
 
@@ -29,6 +39,10 @@ MAT_EDGES = (3.0, 7.0)          # maturity buckets: under 3 years, 3 to 7, 7 and
 MIN_PEERS = 5                   # other issuers a cell needs
 MIN_FIT = 500                   # issuer-months of actual ratings needed to fit the implied cut-offs
 RATING_STALE_DAYS = 62          # a monthly rating older than this is not "on file"
+LEV_FLOOR = 0.1                 # log leverage floor: an issuer with almost no debt reads as 0.1x
+SUST_YEARS, SUST_MIN = 10, 6    # sustainable EBITDA: average of the last 10 annual figures, at least 6
+SUST_STALE_DAYS = 550           # the latest annual figure must be at most 18 months old
+FIN_SECTORS = ("40", "60")      # financials and real estate: SPiDER excludes them
 FALLBACK = {"sr": ("sr", "r", "s", "all"), "s": ("s", "all"), "r": ("r", "all"), "all": ("all",)}
 
 
@@ -94,6 +108,19 @@ def implied_class(leverage: float, ebitda_positive: bool, cutoffs: Mapping[str, 
     return "CCC"
 
 
+def sustainable_ebitda(annual: pd.DataFrame, decision_time: pd.Timestamp, n_years: int = SUST_YEARS,
+                       min_years: int = SUST_MIN) -> pd.Series:
+    """Sustainable EBITDA per gvkey at the decision time (Dynkin et al. ch. 14): the mean of the last `n_years`
+    annual EBITDA figures with available_at <= decision time, if at least `min_years` are present and the latest
+    is at most SUST_STALE_DAYS old. Intuition: long-run earnings power, less noisy than the last four quarters."""
+    a = annual[annual["available_at"] <= decision_time].sort_values(["gvkey", "datadate"])
+    a = a.groupby("gvkey").tail(n_years)
+    g = a.groupby("gvkey")
+    m, n, last = g["oibdp"].mean(), g["oibdp"].count(), g["datadate"].max()
+    ok = (n >= min_years) & ((decision_time - last).dt.days <= SUST_STALE_DAYS)
+    return m[ok].rename("sust_ebitda")
+
+
 def _cell_key(df: pd.DataFrame, level: str) -> pd.Series:
     m = df["mat"].astype(str)
     if level == "sr":
@@ -124,47 +151,78 @@ def _peer_median(df: pd.DataFrame, col: str, level: str) -> tuple[pd.Series, pd.
     return med, npeer
 
 
-def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) -> pd.DataFrame:
-    """ESP and spread per turn against peers for one date.
+def _slope(y: pd.Series, x: pd.Series) -> float:
+    """Cross-section OLS slope of y on x (with intercept); NaN with fewer than 30 rows."""
+    ok = y.notna() & x.notna()
+    if ok.sum() < 30 or x[ok].var() <= 0:
+        return np.nan
+    return float(np.cov(x[ok], y[ok])[0, 1] / x[ok].var())
 
-    `bonds` columns: gvkey, years, spread (decimal), leverage, sector, rclass. Returns, per row: mat, log_s, log_spt,
-    esp_<level>, e13_<level>, and cell_<level> (the level actually used after FALLBACK).
+
+def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) -> pd.DataFrame:
+    """ESP and spread per turn against peers for one date; with `debt` and `sust_ebitda` columns also SPiDER.
+
+    `bonds` columns: gvkey, years, spread (decimal), leverage, sector, rclass; optional debt, sust_ebitda. Returns,
+    per row: mat, log_s, log_spt, esp_<level>, esp_lev_<level>, e13_<level>, cell_<name>_<level> (the level used
+    after FALLBACK), and, when SPiDER inputs exist, spider (log, absolute) and spider_<level> (against peers).
+    The ESP leverage slope per level is in attrs["esp_lev_slope"].
     """
     df = bonds.copy()
     df["mat"] = df["years"].map(maturity_bucket)
     df["log_s"] = np.where(df["spread"] > 0, np.log(df["spread"].clip(lower=1e-9)), np.nan)
     spt = df["spread"] / df["leverage"]
     df["log_spt"] = np.where((df["leverage"] > 0) & (df["spread"] > 0), np.log(spt.clip(lower=1e-12)), np.nan)
+    df["log_lev"] = np.where(df["leverage"].notna(), np.log(df["leverage"].clip(lower=LEV_FLOOR)), np.nan)
+    pairs = [("log_s", "esp"), ("log_spt", "e13")]
+    if {"debt", "sust_ebitda"} <= set(df.columns):
+        for c in ("spread", "debt", "sust_ebitda"):
+            df[c] = df[c].astype("float64")
+        iss_s = df.groupby("gvkey")["spread"].transform("median")      # issuer spread: median over its bonds
+        de = df["debt"] / df["sust_ebitda"]
+        fin = df["sector"].astype(str).isin(FIN_SECTORS)
+        ok = (iss_s > 0) & (df["debt"] > 0) & (df["sust_ebitda"] > 0) & ~fin
+        df["spider"] = np.where(ok, np.log(iss_s.clip(lower=1e-9) / de.where(ok)), np.nan)
+        pairs.append(("spider", "spider"))
     cache: dict[tuple[str, str], pd.Series] = {}
-    for col in ("log_s", "log_spt"):
+    for col in [c for c, _ in pairs] + ["log_lev"]:
         for lvl in ("sr", "s", "r", "all"):
             cache[(col, lvl)] = _peer_median(df, col, lvl)[0]
+    slopes = {}
     for level in levels:
-        for col, name in (("log_s", "esp"), ("log_spt", "e13")):
+        for col, name in pairs:
             out = pd.Series(np.nan, index=df.index)
             used = pd.Series(None, index=df.index, dtype=object)
+            xl = pd.Series(np.nan, index=df.index)
             for lvl in FALLBACK[level]:
                 med = cache[(col, lvl)]
                 fill = out.isna() & med.notna() & df[col].notna()
                 out[fill] = df.loc[fill, col] - med[fill]
+                xl[fill] = df.loc[fill, "log_lev"] - cache[("log_lev", lvl)][fill]
                 used[fill] = lvl
             df[f"{name}_{level}"] = out
             df[f"cell_{name}_{level}"] = used
+            if name == "esp":
+                b = _slope(out, xl)
+                slopes[level] = b
+                df[f"xlev_{level}"] = xl
+                df[f"esp_lev_{level}"] = out - b * xl if b == b else np.nan
+    df.attrs["esp_lev_slope"] = slopes
     return df
 
 
 def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFrame, gics: pd.DataFrame,
-               ratings: pd.DataFrame, as_of: pd.Timestamp) -> pd.DataFrame:
+               ratings: pd.DataFrame, as_of: pd.Timestamp, annual: pd.DataFrame | None = None) -> pd.DataFrame:
     """ESP and E13 against peers for live issuers, with the latest TRACE panel month at or before `as_of` as peers.
 
-    `issuers` columns: ticker, gvkey, spread (5-year, decimal), leverage, ebitda_pos. Each issuer enters as one 5-year
+    `issuers` columns: ticker, gvkey, spread (5-year, decimal), leverage, ebitda_pos, and debt for SPiDER. With
+    `annual` (`peer_data.annual_ebitda`), SPiDER and esp_lev columns use the sustainable EBITDA at `as_of`. Each issuer enters as one 5-year
     point (maturity bucket 1). The peers are the panel's bonds that month with leverage, sector and class. Cut-offs for
     the implied class are fitted on every actual rating on file (all before as_of). Returns one row per ticker with
     sector, rclass, rclass_source, esp_* and e13_* and the cell used.
     """
     month = panel.loc[panel["date"] <= as_of, "date"].max()
     p = panel[panel["date"] == month][["gvkey", "years", "g_spread"]].rename(columns={"g_spread": "spread"})
-    lv = leverage[leverage["date"] == month][["gvkey", "leverage", "ltm_ebitda"]].copy()
+    lv = leverage[leverage["date"] == month][["gvkey", "leverage", "ltm_ebitda", "debt"]].copy()
     lv["ebitda_pos"] = lv["ltm_ebitda"].astype(float) > 0
     p = p.merge(lv.drop(columns="ltm_ebitda"), on="gvkey", how="inner")
     act_all = ratings.assign(rclass=ratings["splticrm"].map(rating_class)).dropna(subset=["rclass"])
@@ -173,7 +231,8 @@ def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFram
     hist = hist[(hist["leverage"] > 0) & (hist["ltm_ebitda"].astype(float) > 0)]
     cut = fit_cutoffs(np.log(hist["leverage"].astype(float)), hist["rclass"])
     me = issuers.assign(years=5.0)
-    allb = pd.concat([p.assign(ticker=None), me[["ticker", "gvkey", "years", "spread", "leverage", "ebitda_pos"]]],
+    allb = pd.concat([p.assign(ticker=None), me[["ticker", "gvkey", "years", "spread", "leverage", "ebitda_pos"]
+                                                 + (["debt"] if "debt" in me else [])]],
                      ignore_index=True)
     allb = allb[~allb["gvkey"].isin(me["gvkey"]) | allb["ticker"].notna()]  # live issuers enter once, as the 5y point
     sec = sector_at(gics, as_of)
@@ -183,8 +242,14 @@ def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFram
     allb["rclass_implied"] = [implied_class(l, bool(e), cut) for l, e in zip(allb["leverage"], allb["ebitda_pos"])]
     allb["rclass"] = allb["rclass_actual"].fillna(allb["rclass_implied"])
     allb["rclass_source"] = np.where(allb["rclass_actual"].notna(), "actual", "implied")
+    if annual is not None:
+        allb["sust_ebitda"] = allb["gvkey"].map(sustainable_ebitda(annual, as_of))
     out = peer_signals(allb)
     res = out[out["ticker"].notna()].set_index("ticker")
+    if "spider" in out:                                    # percentile of the absolute SPiDER among the peer bonds
+        ref = out.loc[out["ticker"].isna(), "spider"].dropna().to_numpy()
+        res["spider_pct"] = [float((ref < v).mean()) if v == v and len(ref) else np.nan for v in res["spider"]]
     res.attrs.update({"peer_month": str(pd.Timestamp(month).date()), "n_peer_bonds": int(len(p)),
-                      "cutoffs": {k: float(np.exp(v)) for k, v in (cut or {}).items()}})
+                      "cutoffs": {k: float(np.exp(v)) for k, v in (cut or {}).items()},
+                      "esp_lev_slope": out.attrs.get("esp_lev_slope", {})})
     return res

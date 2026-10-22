@@ -419,6 +419,13 @@ def memo(d: dict) -> str:
         if pe.get("cell_esp_sr") != "sr":
             L.append("The sector and rating cell has fewer than five other issuers, so that row uses the "
                      + {"r": "rating", "s": "sector", "all": "whole panel"}.get(pe.get("cell_esp_sr"), "next") + " cell.")
+        if pe.get("spider_pct") is not None:
+            L.append(f"\\textbf{{SPiDER}} (spread per unit of debt to 10-year average EBITDA; Dynkin et al. 2021, ch. 14): "
+                     f"cheaper than {pct(pe['spider_pct'], 0)} of the peer bonds across all sectors, and "
+                     f"{rel(pe.get('spider_sr'))} against sector and rating peers. "
+                     "It has no weight in the score: its edge beyond spread level is small (t 1.3 at 12 months).")
+        elif pe.get("spider_note"):
+            L.append(f"\\textbf{{SPiDER}}: {esc(pe['spider_note'])}")
     for p in pairs:
         other = p["b"] if p["a"] == t else p["a"]
         por = p.get("price_of_risk", [])

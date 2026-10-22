@@ -716,13 +716,16 @@ def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None
         gv = ci.values(blocks[t]["inputs"]).get("gvkey")
         if t in xs.index and lev and gv:
             rows.append({"ticker": t, "gvkey": str(gv), "spread": float(xs.loc[t, "s5"]), "leverage": float(lev),
-                         "ebitda_pos": (st["5"].outputs.get("ebitda_ltm_m") or 0) > 0})
+                         "ebitda_pos": (st["5"].outputs.get("ebitda_ltm_m") or 0) > 0,
+                         "debt": float(st["5"].outputs.get("debt_m") or np.nan)})
     if not rows:
         return
     res = peers.live_peers(pd.DataFrame(rows),
                            pd.read_parquet(bt_dir / "panel_full.parquet", columns=["date", "gvkey", "years", "g_spread"]),
                            pd.read_parquet(bt_dir / "leverage_full.parquet"), pd.read_parquet(bt_dir / "gics_history.parquet"),
-                           pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision)
+                           pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision,
+                           annual=pd.read_parquet(bt_dir / "annual_ebitda.parquet")
+                           if (bt_dir / "annual_ebitda.parquet").exists() else None)
     for t, r in res.iterrows():
         o = steps_all[t]["9"].outputs
         o["peers"] = {
@@ -732,6 +735,11 @@ def add_peers(steps_all: dict, blocks: dict, xs, decision: pd.Timestamp) -> None
             "implied_cutoffs_x": {k: round(v, 2) for k, v in res.attrs["cutoffs"].items()},
             **{f"esp_{k}": _f(r[f"esp_{k}"], 3) for k in ("sr", "s", "r")},
             **{f"e13_{k}": _f(r[f"e13_{k}"], 3) for k in ("sr", "s", "r")},
+            **{f"esp_lev_{k}": _f(r.get(f"esp_lev_{k}"), 3) for k in ("sr", "s", "r")},
+            "spider": _f(r.get("spider"), 3), "spider_sr": _f(r.get("spider_sr"), 3),
+            "spider_pct": _f(r.get("spider_pct"), 3),
+            "spider_note": None if r.get("spider") == r.get("spider") else
+            "No SPiDER: fewer than 6 annual EBITDA figures, a financial issuer, or non-positive sustainable EBITDA.",
             "cell_esp_sr": r["cell_esp_sr"], "cell_e13_sr": r["cell_e13_sr"]}
         steps_all[t]["9"].open_questions = [q for q in steps_all[t]["9"].open_questions if "Rating-index" not in q]
         steps_all[t]["9"].open_questions.append(

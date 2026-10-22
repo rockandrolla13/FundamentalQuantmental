@@ -596,6 +596,14 @@ The HCA memo compares each bond to its own capital structure and to peers by spr
 
 Compare each observed `SPT` with the model slope of `ŝ` in leverage at that issuer. A pair whose observed slope is far from the model slope is a capital structure signal in Section 8, and it needs no cross-issuer model to find.
 
+Across issuers, the same idea needs peers. Two published versions exist (Dynkin et al. 2021, ch. 13 and 14). ESP is the excess spread over sector x rating x maturity peers. SPiDER is spread / (debt / sustainable EBITDA), where sustainable EBITDA is the 10-year mean. Section 11 tests both on the TRACE high yield panel from 2008 to 2026 (decision page `2026-10-22-esp-peer-groups`):
+
+1. Plain ESP adds to spread level: rank IC beyond spread +0.096 at 12 months (t 2.6).
+2. The book's leverage control halves that edge (+0.044, t 1.3).
+3. SPiDER adds +0.032 beyond spread at 12 months (t 1.3). E13 adds +0.026 (t 0.9).
+
+The memo reports all three in step 9. E13 keeps its weight, and ESP and SPiDER get none until they pass the cycle bar.
+
 ### 7.5 Residual dynamics and expected convergence
 
 Fit an AR(1) on each bond's residual to get its persistence and half-life. The expected spread change over a horizon `h` and the expected excess return follow:

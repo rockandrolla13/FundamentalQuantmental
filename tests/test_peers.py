@@ -82,3 +82,38 @@ def test_fallback_when_cell_too_small():
     out = peers.peer_signals(pd.concat([a, b], ignore_index=True))
     assert out.loc[0, "cell_esp_sr"] == "r"                  # falls back to the rating cell
     assert out.loc[0, "esp_sr"] == pytest.approx(np.log(0.04 / 0.05))
+
+
+def test_esp_lev_removes_what_leverage_explains():
+    rng = np.random.default_rng(1)
+    n = 60
+    lev = np.exp(rng.normal(1.5, 0.4, n))
+    df = pd.DataFrame({"gvkey": [f"g{i}" for i in range(n)], "years": 5.0, "leverage": lev,
+                       "spread": 0.01 * lev ** 0.8, "sector": "20", "rclass": "B"})
+    df.loc[0, "spread"] *= 1.5                               # one bond pays 50% more than its leverage implies
+    out = peers.peer_signals(df)
+    assert out.attrs["esp_lev_slope"]["sr"] == pytest.approx(0.8, abs=0.05)
+    assert out.loc[0, "esp_lev_sr"] > 0.3
+    assert out.loc[1:, "esp_lev_sr"].abs().max() < 0.1       # the rest is explained by leverage
+    assert out.loc[1:, "esp_sr"].abs().max() > 0.3           # raw ESP calls them cheap or rich
+
+
+def test_sustainable_ebitda_needs_six_years_and_is_point_in_time():
+    years = pd.to_datetime([f"{y}-12-31" for y in range(2005, 2016)])
+    a = pd.DataFrame({"gvkey": "1", "datadate": years, "oibdp": np.arange(11, dtype=float) * 10})
+    a["available_at"] = a["datadate"] + pd.Timedelta(days=90)
+    got = peers.sustainable_ebitda(a, pd.Timestamp("2016-02-29"))   # FY2015 not public until 30 March
+    assert got["1"] == pytest.approx(np.mean(np.arange(0, 10) * 10))   # FY2005 to FY2014
+    assert "1" not in peers.sustainable_ebitda(a, pd.Timestamp("2011-02-28")).index   # 5 years only
+
+
+def test_spider_is_spread_over_debt_to_sustainable_ebitda():
+    df = _cell(7, lambda i: 0.04)
+    df["debt"] = 100.0
+    df["sust_ebitda"] = 25.0                                 # D/E = 4
+    df.loc[0, "sust_ebitda"] = 50.0                          # D/E = 2: same spread, half the risk
+    df.loc[6, "sector"] = "40"                               # financials are out
+    out = peers.peer_signals(df)
+    assert out.loc[1, "spider"] == pytest.approx(np.log(0.04 / 4))
+    assert out.loc[0, "spider"] - out.loc[1, "spider"] == pytest.approx(np.log(2.0))
+    assert np.isnan(out.loc[6, "spider"])
