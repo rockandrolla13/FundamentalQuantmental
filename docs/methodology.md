@@ -604,6 +604,8 @@ Across issuers, the same idea needs peers. Two published versions exist (Dynkin 
 
 The memo reports all three in step 9. The score uses them as E13 (2.5%), E14 ESP (9%) and E15 SPiDER (3%), inside the 17% books and peers bucket (decision page `2026-10-22-weights-esp-spider`).
 
+E13 carries a trap guard from Kricheff's DataFone case (p. 124). E13 is 0 when FCF / debt <= 0 or TEV / debt <= 1. E13 is also 0 when two of three signs hold: high total leverage, low FCF / debt, and a thin equity cushion. Each sign uses the stricter of a peer cut-off and a fixed cut-off (decision page `2026-10-22-e13-trap-guard`).
+
 OneScore (Dynkin et al. 2021, ch. 19) adds equity momentum: the issuer's 3-month stock return, ranked within its sector, averaged with the sector rank of ESP. Stocks absorb news before bonds, so momentum works when value fails. Among listed issuers, OneScore adds +0.034 beyond spread at 6 months (t 2.1) and passes three of four cycle windows. It is the first peer signal to pass that bar (decision page `2026-10-22-onescore`). The score splits ESP's 9% with it: E14 ESP 4.5%, E16 OneScore 4.5%. An unlisted issuer uses ESP for both.
 
 ### 7.5 Residual dynamics and expected convergence

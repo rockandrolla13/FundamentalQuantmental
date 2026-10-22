@@ -329,3 +329,55 @@ def test_private_issuer_esp_takes_onescore_share():
     r = groups.combine(est, 0, 0)
     assert r["combined_before_cost"] == pytest.approx(100 * 0.09 / 0.17)   # only G4 present: ESP is 9 of its 17
     assert w["E14"] + w["E16"] == pytest.approx(0.09)
+
+
+# --------------------------------------------------------------------------- G4: E13 trap guard (Kricheff p. 124)
+
+# A peer run of six issuers: leverage in turns, FCF / debt as a fraction.
+_LEV = [3.0, 3.5, 4.0, 4.5, 5.0, 7.0]
+_FCF = [0.08, 0.07, 0.06, 0.05, 0.04, 0.001]
+
+
+def test_trap_guard_catches_datafone():
+    # Kricheff p. 124: 7x leverage, FCF / debt 0.1%, "minimal" cushion. The old guard (FCF > 0, TEV / debt > 1) passed it.
+    g = books.spt_trap_guard(7.0, 0.001, 1.10, _LEV, _FCF)
+    assert not g["hard_fail"]
+    assert g["signs"] == {"high_leverage": True, "low_fcf": True, "thin_cushion": True}
+    assert g["trap"]
+
+
+def test_trap_guard_one_sign_is_not_a_trap():
+    # High leverage alone is what spread per turn pays for; healthy FCF and cushion keep the credit.
+    g = books.spt_trap_guard(7.0, 0.06, 1.80, _LEV, _FCF)
+    assert sum(g["signs"].values()) == 1 and not g["trap"]
+
+
+def test_trap_guard_two_signs_is_a_trap():
+    g = books.spt_trap_guard(4.0, 0.001, 1.10, _LEV, _FCF)
+    assert sum(g["signs"].values()) == 2 and g["trap"]
+
+
+def test_trap_guard_keeps_the_hard_floor():
+    assert books.spt_trap_guard(3.0, -0.01, 2.0, _LEV, _FCF)["trap"]   # FCF / debt <= 0
+    assert books.spt_trap_guard(3.0, 0.08, 0.95, _LEV, _FCF)["trap"]   # TEV / debt <= 1
+    assert books.spt_trap_guard(3.0, None, 2.0, _LEV, _FCF)["trap"]    # FCF unknown: no credit
+    assert books.spt_trap_guard(3.0, 0.08, None, _LEV, _FCF)["trap"]   # TEV unknown: no credit
+
+
+def test_trap_guard_missing_leverage_fires_no_leverage_sign():
+    g = books.spt_trap_guard(None, 0.06, 1.80, _LEV, _FCF)
+    assert not g["signs"]["high_leverage"] and not g["trap"]
+
+
+def test_trap_guard_small_run_uses_absolute_cutoffs():
+    # Fewer peers than SPT_TRAP["min_peers"]: quantiles mean little, so fixed cut-offs apply.
+    g = books.spt_trap_guard(6.5, 0.01, 1.80, [6.5, 3.0], [0.01, 0.08])
+    assert g["basis"] == "absolute"
+    assert g["signs"]["high_leverage"] and g["signs"]["low_fcf"] and g["trap"]
+
+
+def test_trap_guard_cash_burning_run_cannot_hide_low_fcf():
+    # Three of six peers burn cash, so the peer FCF quantile is negative; the fixed 2% cut still flags 0.1%.
+    g = books.spt_trap_guard(7.0, 0.001, 1.10, _LEV, [-0.40, -0.20, -0.10, 0.05, 0.10, 0.001])
+    assert g["fcf_cut"] == pytest.approx(books.SPT_TRAP["fcf_abs"])
+    assert g["signs"]["low_fcf"] and g["trap"]
