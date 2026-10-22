@@ -267,7 +267,7 @@ Build the watchlist tier point in time for the backtest panel. Test whether a ti
 \addcontentsline{toc}{section}{G4 Books and peers}
 
 \begin{notebox}
-\textbf{In one line.} G4 adds two textbook cross-checks and two peer signals that use no repository model. It carries 17\%.
+\textbf{In one line.} G4 adds two textbook cross-checks and three peer signals that use no repository model. It carries 17\%.
 \end{notebox}
 
 \fld{What it is}
@@ -275,7 +275,7 @@ G4 is three books:
 \begin{itemize}
 \item Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance} (2nd edition). It is a practitioner's view of high yield: cash flow, spread per turn of leverage, covenants, events.
 \item Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005). It is the S\&P rating method: business risk, adjusted ratios, medians by rating, recovery.
-\item Dynkin et al., \emph{Systematic Investing in Credit} (2021), ch.~13 and 14. It is the Barclays research on value in credit: excess spread to peers (ESP) and SPiDER.
+\item Dynkin et al., \emph{Systematic Investing in Credit} (2021), ch.~13 and 14. It is the Barclays research on value and momentum in credit: ESP, SPiDER and OneScore.
 \end{itemize}
 Code: \code{hy/books.py} and \code{hy/peers.py}. The text comes from markdown conversions of the three books. No other book is in scope, and Fabozzi is excluded.
 
@@ -315,8 +315,9 @@ ID & Estimate & How the code computes it & Weight \\
 \midrule
 E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P score})$. The S\&P score (1 best, 10 worst) blends a business score and a financial score from the 2002 medians. A wide spread for the score is cheap. & 2.5\% \\
 E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It counts only if FCF over debt is above zero and the value cover is above 1. Otherwise zero. & 2.5\% \\
-E14 & Excess spread to peers (ESP) & $\log(\text{spread})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. Dynkin et al.\ ch.~13, without their leverage control: the control halved the edge in our backtest. & 9\% \\
+E14 & Excess spread to peers (ESP) & $\log(\text{spread})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. Dynkin et al.\ ch.~13, without their leverage control: the control halved the edge in our backtest. & 4.5\% \\
 E15 & SPiDER & $\log\big(\text{spread} / (\text{debt} / \text{10-year mean EBITDA})\big)$, one rank across all sectors. None for a financial issuer or with fewer than 6 annual EBITDA figures. Dynkin et al.\ ch.~14. & 3\% \\
+E16 & OneScore & Mean of the within-sector ranks of issuer ESP and the 3-month stock return. An unlisted issuer takes its ESP value. Dynkin et al.\ ch.~19. & 4.5\% \\
 \bottomrule
 \end{tabularx}
 }
@@ -326,20 +327,19 @@ E15 & SPiDER & $\log\big(\text{spread} / (\text{debt} / \text{10-year mean EBITD
 \scalebox{0.72}{\input{fig_bucket_G4.tex}}
 \end{center}
 \begin{itemize}
-\item CRWV is highest ($+220$). It pays 78\% more than its peers (E14 $+273$), and its spread is wide for its S\&P score (E12 $+246$). Its E13 is 0 because it burns cash (Kricheff's trap). It has no SPiDER: only 3 annual EBITDA figures exist.
-\item HCA is lowest ($-210$): it pays 53\% less than its peers (E14 $-299$). Every G4 estimate calls WYNN tight ($-141$).
-\item MGM moves from the books' verdict to the peers' verdict. E12 says tight ($-308$), but ESP ($+116$) and SPiDER ($+363$, the highest) say cheap. The bucket reads $+88$. The memo must say which one to believe.
+\item CRWV is highest ($+190$). It pays 78\% more than its peers (E14 $+273$), and its spread is wide for its S\&P score (E12 $+246$). It has no E13 (it burns cash) and no SPiDER (3 years of EBITDA).
+\item HCA is lowest ($-186$): it pays 53\% less than its peers (E14 $-299$). THC rises to $+126$ because its stock is up 52\% in 3 months (E16 $+278$).
+\item For MGM the books say tight (E12 $-308$) and the peers say cheap (SPiDER $+363$). The memo must choose.
 \end{itemize}
 
 \fld{Evidence and limits}
 \begin{itemize}
 \item The peer backtest (2008 to 2026) finds that E13 adds nothing beyond spread level: IC beyond spread $+0.02$, $t$ 1.1. No backtest covers E12 yet.
-\item ESP adds information beyond spread level: $+0.07$ at 6 months and $+0.10$ at 12 months ($t$ 2.6). But the edge disappears in the 2008 and 2020 stress windows. Its 9\% is a user choice on the full-sample result. Decision pages: \code{2026-10-22-esp-peer-groups} and \code{2026-10-22-weights-esp-spider}.
+\item ESP adds information beyond spread level: $+0.07$ at 6 months and $+0.10$ at 12 months ($t$ 2.6). But the edge disappears in the 2008 and 2020 stress windows. OneScore adds stock momentum and passes three of four cycles beyond spread (+0.034, $t$ 2.1). ESP and OneScore share 9\%. Decision pages: \code{2026-10-22-esp-peer-groups} and \code{2026-10-22-weights-esp-spider}.
 \item SPiDER adds $+0.03$ beyond spread at 12 months ($t$ 1.3), and $+0.06$ ($t$ 1.6) on the book's February schedule. Its 3\% reflects that weak support.
 \item No rating source covers 2017 onward. After 2017, the rating class comes from leverage. It matches the actual class on 36\% of issuer-months.
 \item The S\&P medians date from 2002. The Kricheff conversion lost every table, so only numbers quoted in the text survive.
-\item Our ESP and SPiDER use G-spread, not OAS, and weight an issuer's bonds equally.
 \end{itemize}
 
 \fld{The test that settles its weight}
-Compute the S\&P score and the spread per turn point in time on the backtest panel. Test each one's rank IC after cost beyond the spread rank. E12 is close to the fair line in idea. If it adds nothing beyond E2, drop it. Rerun ESP and SPiDER with OAS and a rating feed after 2017. Keep ESP's 9\% if it passes the cycle bar. Move E13's weight to SPiDER if SPiDER passes $t$ 2.
+Compute the S\&P score and the spread per turn point in time on the backtest panel. Test each one's rank IC after cost beyond the spread rank. E12 is close to the fair line in idea. If it adds nothing beyond E2, drop it. Rerun ESP and SPiDER with OAS and a rating feed after 2017. Keep the 9\% for ESP and OneScore if they pass the cycle bar. Move E13's weight to SPiDER if SPiDER passes $t$ 2.

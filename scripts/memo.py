@@ -53,6 +53,7 @@ ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_f
     "E13": ("Spread per turn of leverage (with the trap guard)", "Kricheff ch. 21"),
     "E14": ("Excess spread to sector and rating peers (ESP)", "Dynkin et al. ch. 13"),
     "E15": ("SPiDER: spread per unit of debt to 10-year EBITDA", "Dynkin et al. ch. 14"),
+    "E16": ("OneScore: sector ranks of ESP and 3-month stock return", "Dynkin et al. ch. 19"),
 }
 GLOSSARY = [
     ("Spread", "The extra yield a bond pays over a US Treasury of the same maturity. More risk, more spread."),
@@ -178,7 +179,7 @@ def plain_call(g: dict) -> str:
 
 
 GROUP_OF = {"E0": "G2", "E1": "G2", "E2": "G2", "E3": "G2", "E4": "G1", "E5": "G2C", "E6": "G2", "E7": "G1",
-            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4", "E14": "G4", "E15": "G4"}  # hy.groups.ESTIMATES
+            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4", "E14": "G4", "E15": "G4", "E16": "G4"}  # hy.groups.ESTIMATES
 BUCKET_ORDER = ("G1", "G2C", "G2", "G3", "G4")  # hy.groups.BUCKETS
 BUCKET_LABEL = {"G1": "G1", "G2C": "G2 clocks", "G2": "G2 rest", "G3": "G3", "G4": "G4"}
 VERDICT_COL = {"supports owning": "good", "leans to owning": "amber", "against owning": "bad", "no view": "gray",
@@ -433,7 +434,7 @@ def memo(d: dict) -> str:
             L.append(f"\\textbf{{OneScore}} (Dynkin et al. 2021, ch. 19): {pct(pe['onescore'], 0)} of the way from the bottom "
                      f"to the top of its sector. It averages two sector ranks: value (ESP, {pct(pe.get('esp_sec'), 0)}) and the "
                      f"stock's 3-month return ({pct(pe.get('emc_3m'), 1)}, rank {pct(pe.get('emc_sec'), 0)}). "
-                     "It has no weight in the score.")
+                     "It enters the score as E16 at 4.5\\%.")
     for p in pairs:
         other = p["b"] if p["a"] == t else p["a"]
         por = p.get("price_of_risk", [])

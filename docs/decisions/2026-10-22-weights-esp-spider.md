@@ -49,3 +49,6 @@ All eight stay below zero after cost. CRWV moves most: ESP says it pays 78% more
 1. ESP keeps 9% only if it passes the cycle bar beyond spread in a rerun with OAS and a rating feed after 2017.
 2. SPiDER takes E13's weight if it passes t 2 beyond spread at 12 months.
 3. The clocks keep 20% by user choice. A later backtest that finds them positive beyond spread would support the weight.
+
+## Amendment (same day)
+E14's 9% is split: ESP 4.5% and OneScore (E16) 4.5%. See `2026-10-22-onescore.md`.
