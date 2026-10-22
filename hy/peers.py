@@ -74,7 +74,7 @@ def sector_at(gics: pd.DataFrame, t: pd.Timestamp) -> pd.Series:
 def rating_at(ratings: pd.DataFrame, decision_time: pd.Timestamp) -> pd.Series:
     """Actual rating class per gvkey known at the decision time; a rating older than RATING_STALE_DAYS drops out."""
     r = ratings[ratings["available_at"] <= decision_time]
-    r = r[r["datadate"] >= decision_time - pd.Timedelta(days=RATING_STALE_DAYS)]
+    r = r[r["datadate"] >= decision_time - pd.Timedelta(RATING_STALE_DAYS, unit="D")]
     r = r.sort_values("datadate").drop_duplicates("gvkey", keep="last")
     return r.set_index("gvkey")["splticrm"].map(rating_class).dropna()
 

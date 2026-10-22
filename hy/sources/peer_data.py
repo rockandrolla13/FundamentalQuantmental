@@ -58,7 +58,7 @@ def sp_ratings(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd.Dat
                          f"and splticrm is not null and gvkey in ({_in_list(c)})") for c in _chunks(keys)]
     out = pd.concat(parts, ignore_index=True)
     out["datadate"] = pd.to_datetime(out["datadate"])
-    out["available_at"] = out["datadate"] + pd.Timedelta(days=1)
+    out["available_at"] = out["datadate"] + pd.Timedelta(1, unit="D")
     out.to_parquet(path)
     return out
 
@@ -91,7 +91,7 @@ def annual_ebitda(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd.
     out["debt"] = out["dlc"].fillna(0.0) + out["dltt"].fillna(0.0)
     out["debt"] = out["debt"].where(out["dlc"].notna() | out["dltt"].notna())
     out = out.sort_values(["gvkey", "datadate"]).drop_duplicates(["gvkey", "fyear"], keep="last")
-    out["available_at"] = out["datadate"] + pd.Timedelta(days=ANNUAL_LAG_DAYS)
+    out["available_at"] = out["datadate"] + pd.Timedelta(ANNUAL_LAG_DAYS, unit="D")
     out = out.drop(columns=["dlc", "dltt"])
     if cached is not None:
         out = pd.concat([cached, out], ignore_index=True)
@@ -118,7 +118,7 @@ def equity_monthly(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd
     out = pd.concat(parts, ignore_index=True)
     out["datadate"] = pd.to_datetime(out["datadate"])
     out["ret"] = out.pop("trt1m").astype("float64") / 100.0
-    out["available_at"] = out["datadate"] + pd.Timedelta(days=1)
+    out["available_at"] = out["datadate"] + pd.Timedelta(1, unit="D")
     if cached is not None:
         out = pd.concat([cached, out], ignore_index=True)
     out = out.drop_duplicates(["gvkey", "datadate"], keep="last")

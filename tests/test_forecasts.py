@@ -40,7 +40,7 @@ def test_errors_bias_coverage_and_widen_factor():
     for i in range(12):
         v = datetime(2023 + i // 4, 1 + 3 * (i % 4), 15)
         reg.add(_row(v, v, 0.02, h=1, q=(0.015, 0.02, 0.025)))
-        tgt = (np.datetime64(v, "M") + 3).astype("datetime64[D]").astype(datetime)
+        tgt = (np.datetime64(v, "M") + np.timedelta64(3, "M")).astype("datetime64[D]").astype(datetime)
         reg.record_realised("gdp_growth", tgt, 0.02 + (0.01 if i % 2 else -0.01))  # misses the band every time
     rep = reg.error_report().iloc[0]
     assert rep["n"] == 12 and rep["bias"] == pytest.approx(0.0) and rep["coverage_80"] == 0.0

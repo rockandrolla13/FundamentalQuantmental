@@ -19,7 +19,7 @@ def _row(pointdate, datadate, qback, **vals):
 
 
 def _fq():
-    return pd.DataFrame({"gvkey": G, "datadate": QDATES, "fqtr": [1, 2, 3, 4], "rdqe": QDATES + pd.Timedelta(days=25)})
+    return pd.DataFrame({"gvkey": G, "datadate": QDATES, "fqtr": [1, 2, 3, 4], "rdqe": QDATES + pd.Timedelta(25, unit="D")})
 
 
 def test_decumulate_turns_ytd_into_quarters():

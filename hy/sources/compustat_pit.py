@@ -179,7 +179,7 @@ def build_vintages(snap: pd.DataFrame) -> pd.DataFrame:
     key = df["gvkey"].astype(str) + "|" + df["datadate"].astype(str)
     changed = (vals != vals.groupby(key).shift(1)).any(axis=1)
     out = df.loc[changed].copy()
-    out["snapshot_available_at"] = out["pointdate"] + pd.Timedelta(days=1)
+    out["snapshot_available_at"] = out["pointdate"] + pd.Timedelta(1, unit="D")
     out["vintage"] = out.groupby(["gvkey", "datadate"]).cumcount()
     return out.drop(columns=["qtrsback"], errors="ignore").reset_index(drop=True)
 

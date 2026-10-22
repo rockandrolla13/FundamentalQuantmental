@@ -45,7 +45,7 @@ TENORS: dict[str, float] = {
     "30 Yr": 30.0,
 }
 TENOR_COLUMNS = list(TENORS.values())
-PUBLICATION_LAG = pd.Timedelta(days=1)
+PUBLICATION_LAG = pd.Timedelta(1, unit="D")
 
 
 def fetch_url(url: str) -> str:

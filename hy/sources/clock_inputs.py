@@ -557,7 +557,7 @@ def loader_quarters(ticker: str, gvkey: str | None, raw: Path, decision_time: pd
     if gvkey is None:
         return [], "no gvkey"
     hit = _parquet_for(gvkey, raw)
-    stale = hit is None or (need_through is not None and hit[0]["datadate"].max() < need_through - pd.Timedelta(days=10))
+    stale = hit is None or (need_through is not None and hit[0]["datadate"].max() < need_through - pd.Timedelta(10, unit="D"))
     if stale and allow_wrds:
         try:
             run_loader([ticker], raw, end=str(decision_time.date()))

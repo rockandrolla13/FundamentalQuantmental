@@ -42,7 +42,7 @@ from hy.forecasts import FALLBACK_ORDER, ForecastRegistry, ForecastRow
 log = logging.getLogger(__name__)
 
 DEFAULT_CACHE_ROOT = Path(__file__).resolve().parents[2] / "data" / "raw"
-END_OF_DAY = pd.Timedelta(days=1)  # release date d is readable from d + 1 day, 00:00
+END_OF_DAY = pd.Timedelta(1, unit="D")  # release date d is readable from d + 1 day, 00:00
 NAN = float("nan")
 
 Fetch = Callable[[str], bytes]
@@ -665,7 +665,7 @@ def load_trace_hy(decision_time, cache_root: Path | str | None = None, bonds: pd
     if bonds is None:
         if con is not None:
             last = con.raw_sql(f"select max(trd_exctn_dt) as m from {trace_bonds.TRADE_TABLES[0]} "
-                               f"where trd_exctn_dt <= '{end:%Y-%m-%d}' and trd_exctn_dt >= '{end - pd.Timedelta(days=180):%Y-%m-%d}'")
+                               f"where trd_exctn_dt <= '{end:%Y-%m-%d}' and trd_exctn_dt >= '{end - pd.Timedelta(180, unit="D"):%Y-%m-%d}'")
             if pd.isna(last["m"].iloc[0]):
                 raise ValueError(f"no TRACE trades on WRDS in the 180 days before {end.date()}")
             end = min(end, pd.Timestamp(last["m"].iloc[0]))

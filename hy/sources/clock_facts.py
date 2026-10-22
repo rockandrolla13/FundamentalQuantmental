@@ -309,7 +309,7 @@ def filing_states(facts: pd.DataFrame, cik: str) -> pd.DataFrame:
         rent = op.amounts[0] / op.first_length if op is not None and op.first_length > 0 else 0.0
         rows.append({
             "cik": str(cik), "accn": accn, "form": meta["form"], "as_of": as_of,
-            "available_at": pd.Timestamp(meta["filed"]) + pd.Timedelta(days=1),
+            "available_at": pd.Timestamp(meta["filed"]) + pd.Timedelta(1, unit="D"),
             "obligations_total": m["obligations_total"], "lease_total": grids.get("Leases in force", 0.0),
             "debt_total": grids.get("Debt principal", 0.0), "purchase_total": grids.get("Purchase commitments", 0.0),
             "dur_obligations": m["dur_obligations"],

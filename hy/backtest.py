@@ -53,7 +53,7 @@ class LookAheadError(AssertionError):
 
 def decision_time(month_end: pd.Timestamp) -> pd.Timestamp:
     """Decision time for month end t: t + 1 day, when the last trade, the curve, and the snapshot are all loaded."""
-    return pd.Timestamp(month_end) + pd.Timedelta(days=1)
+    return pd.Timestamp(month_end) + pd.Timedelta(1, unit="D")
 
 
 def assert_no_lookahead(df: pd.DataFrame, as_of: pd.Timestamp, what: str = "input", col: str = "available_at") -> None:

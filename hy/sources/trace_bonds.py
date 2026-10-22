@@ -39,7 +39,7 @@ LIVE_STATUS = ("M", "O")
 REPLACING_STATUS = ("N", "O")
 DEFAULT_BUCKETS: tuple[tuple[float, float], ...] = ((1, 3), (3, 5), (5, 7), (7, 10), (10, 15))
 DAYS_PER_YEAR = 365.25
-DISSEMINATION_LAG = pd.Timedelta(days=1)
+DISSEMINATION_LAG = pd.Timedelta(1, unit="D")
 
 
 # ---------------------------------------------------------------- input validation
@@ -284,7 +284,7 @@ def latest_snapshot(quotes: pd.DataFrame, window_days: int = 10) -> pd.DataFrame
     """
     q = quotes.copy()
     last = q.groupby("cusip")["trade_date"].transform("max")
-    q = q[q["trade_date"] > last - pd.Timedelta(days=int(window_days))]
+    q = q[q["trade_date"] > last - pd.Timedelta(int(window_days), unit="D")]
     q["py"], q["pp"] = q["yield_vw"] * q["par_volume"], q["price_vw"] * q["par_volume"]
     g = q.groupby("cusip", as_index=False).agg(
         py=("py", "sum"), pp=("pp", "sum"), par_volume=("par_volume", "sum"),
@@ -300,7 +300,7 @@ def latest_snapshot(quotes: pd.DataFrame, window_days: int = 10) -> pd.DataFrame
 
 def remaining_years(maturity: Any, as_of: Any) -> np.ndarray | float:
     m, a = pd.to_datetime(maturity), pd.to_datetime(as_of)
-    days = (m - a) / pd.Timedelta(days=1)
+    days = (m - a) / pd.Timedelta(1, unit="D")
     return np.asarray(days, dtype=float) / DAYS_PER_YEAR if np.ndim(days) else float(days) / DAYS_PER_YEAR
 
 
@@ -336,7 +336,7 @@ def hy_benchmark(
     server, so the transfer is one row per bond.
     """
     e = pd.Timestamp(_day(end))
-    s = e - pd.Timedelta(days=int(window_days) - 1)
+    s = e - pd.Timedelta(int(window_days) - 1, unit="D")
     lo = e + pd.DateOffset(days=int(round(min_years * DAYS_PER_YEAR)))
     hi = e + pd.DateOffset(days=int(round(max_years * DAYS_PER_YEAR)))
     es, ss, los, his = _day(e), _day(s), _day(lo), _day(hi)

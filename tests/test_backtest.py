@@ -15,7 +15,7 @@ def _row(cusip, date, price, tsy, coupon=0.06, mat="2026-01-31", dur=4.0, g=0.04
     return dict(cusip=cusip, date=d, price=price, coupon=coupon, maturity=pd.Timestamp(mat),
                 years=(pd.Timestamp(mat) - d).days / 365.25, **{"yield": tsy + g}, g_spread=g, tsy_yield=tsy,
                 mod_dur=dur, carried=carried, accrue_to=pd.Timestamp(accrue_to or d), hedge_date=pd.Timestamp(hedge_date or d),
-                available_at=d + pd.Timedelta(days=1), bid_ask_pts=ba, gvkey=gvkey)
+                available_at=d + pd.Timedelta(1, unit="D"), bid_ask_pts=ba, gvkey=gvkey)
 
 
 def test_realised_excess_return_by_hand():
@@ -158,7 +158,7 @@ def _synthetic_market(rng, n_iss=60, months=30, rho=0.8, a=-4.5, b=0.25):
             for j, mat in enumerate([3.0, 7.0]):
                 rows.append(_row(f"C{i:03d}{j}", d, 100.0, 0.02, g=s, mat=d + pd.DateOffset(years=int(mat)),
                                  gvkey=f"G{i:03d}"))
-            fund.append(dict(date=d, gvkey=f"G{i:03d}", leverage=lev[i], available_at=d + pd.Timedelta(days=1)))
+            fund.append(dict(date=d, gvkey=f"G{i:03d}", leverage=lev[i], available_at=d + pd.Timedelta(1, unit="D")))
     panel = pd.DataFrame(rows)
     panel["years"] = (panel["maturity"] - panel["date"]).dt.days / 365.25
     return panel, pd.DataFrame(fund), eps, dates
@@ -212,13 +212,13 @@ def test_lookahead_fixture_fails(rng):
     as_of = bt.decision_time(t)
     bt.predict_widest(p_t, f_t, as_of, 3)                     # clean inputs pass
     leak = p_t.copy()
-    leak.loc[leak.index[0], "available_at"] = as_of + pd.Timedelta(days=1)
+    leak.loc[leak.index[0], "available_at"] = as_of + pd.Timedelta(1, unit="D")
     with pytest.raises(bt.LookAheadError):
         bt.predict_widest(leak, f_t, as_of, 3)
     with pytest.raises(bt.LookAheadError):
         bt.FairLine()(leak, f_t, as_of, 3)
     f_leak = f_t.copy()
-    f_leak.loc[f_leak.index[-1], "available_at"] = as_of + pd.Timedelta(days=30)
+    f_leak.loc[f_leak.index[-1], "available_at"] = as_of + pd.Timedelta(30, unit="D")
     with pytest.raises(bt.LookAheadError):
         bt.FairLine()(p_t, f_leak, as_of, 3)
     with pytest.raises(bt.LookAheadError):

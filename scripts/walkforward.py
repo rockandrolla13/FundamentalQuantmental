@@ -221,7 +221,7 @@ def outcomes() -> pd.DataFrame:
         if not cus:
             continue
         last = min(q + pd.DateOffset(months=max(HORIZONS)), pd.Timestamp(TRACE_END))
-        quotes = tb.bond_quotes(con, cus, str((q + pd.Timedelta(days=1)).date()), str(last.date()), cache_root=RAW)
+        quotes = tb.bond_quotes(con, cus, str((q + pd.Timedelta(1, unit="D")).date()), str(last.date()), cache_root=RAW)
         run = RUNS / str(q.date())
         S0 = json.loads((run / "_run.json").read_text())["macro"]["s_index_now"]
         c0 = curve_at(q)
@@ -348,7 +348,7 @@ def timeline_figure(t: str, d: pd.DataFrame, ev: dict, path: Path) -> None:
             transform=a1.transAxes, ha="right", fontsize=7, color="#666")
     x = np.arange(len(d))
     dates_ = d["date"].to_numpy()
-    width = pd.Timedelta(days=55)
+    width = pd.Timedelta(55, unit="D")
     pos, neg = np.zeros(len(d)), np.zeros(len(d))
     for g in BUCKETS:
         v = d[f"{g}_contrib"].fillna(0).to_numpy(float)
@@ -411,8 +411,8 @@ def summary_figures(sc: pd.DataFrame, df: pd.DataFrame) -> None:
     ic = wf.rank_ic_by_date(df[df["h"] == 3], "combined_after_cost", "realised_net_bp_yr")
     ic1 = wf.rank_ic_by_date(df[df["h"] == 3], "E1", "realised_bp_yr")
     fig, ax = plt.subplots(figsize=(8, 3.2))
-    ax.bar(ic.index - pd.Timedelta(days=12), ic.values, width=24, color="#222", label="Combined")
-    ax.bar(ic1.index + pd.Timedelta(days=12), ic1.reindex(ic1.index).values, width=24, color="#5FA0C8", label="E1 cases alone")
+    ax.bar(ic.index - pd.Timedelta(12, unit="D"), ic.values, width=24, color="#222", label="Combined")
+    ax.bar(ic1.index + pd.Timedelta(12, unit="D"), ic1.reindex(ic1.index).values, width=24, color="#5FA0C8", label="E1 cases alone")
     ax.axhline(0, color="#999", lw=0.8)
     ax.set_ylabel("rank IC, next 3 months")
     ax.set_title("Quarter by quarter: did the ranking work?", fontsize=10)

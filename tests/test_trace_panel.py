@@ -94,7 +94,7 @@ def test_finish_month_rejects_a_curve_after_month_end():
 def test_exit_rows_carry_last_price_one_month_and_redeem_matured_bonds():
     rows = []
     for m in ["2020-01-31", "2020-02-29", "2020-03-31"]:
-        rows.append(tp.finish_month(_raw(cusip_id="AAAAAAAA1", last_trade=pd.Timestamp(m) - pd.Timedelta(days=1)), m,
+        rows.append(tp.finish_month(_raw(cusip_id="AAAAAAAA1", last_trade=pd.Timestamp(m) - pd.Timedelta(1, unit="D")), m,
                                     _curve(m)))
     rows.append(tp.finish_month(_raw(cusip_id="BBBBBBBB1", price_vw=40.0,
                                      last_trade=pd.Timestamp("2020-01-29")), "2020-01-31", _curve("2020-01-31")))
@@ -129,7 +129,7 @@ def _vintages():
     q = pd.to_datetime(["2019-03-31", "2019-06-30", "2019-09-30", "2019-12-31", "2020-03-31"])
     rows = []
     for i, d in enumerate(q):
-        rows.append(dict(gvkey="001", datadate=d, vintage=0, snapshot_available_at=d + pd.Timedelta(days=45),
+        rows.append(dict(gvkey="001", datadate=d, vintage=0, snapshot_available_at=d + pd.Timedelta(45, unit="D"),
                          pit_exact=True, oibdp=25.0, debt_current=10.0, debt_long_term=290.0))
     # restatement of Q4 2019 seen later: EBITDA falls to 5
     rows.append(dict(gvkey="001", datadate=q[3], vintage=1, snapshot_available_at=pd.Timestamp("2020-06-01"),

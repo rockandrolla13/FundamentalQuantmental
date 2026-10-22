@@ -24,7 +24,7 @@ A4_TEMPLATE = {"annual": (-0.20, -0.10), "recovery_shape": "u", "trough_margin":
 
 def synthetic_registry(gdp_median: float, vintage: datetime) -> list[ForecastRow]:
     """Survey-style GDP and CPI quantiles, a policy path, and a forward curve, all released 14 days after vintage."""
-    avail = vintage + pd.Timedelta(days=14)
+    avail = vintage + pd.Timedelta(14, unit="D")
     rows = []
     for h in range(H):
         rows.append(ForecastRow("spf", "gdp_growth", h, vintage, avail, gdp_median, gdp_median - 0.015,

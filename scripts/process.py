@@ -1106,7 +1106,7 @@ def step_events(blk, decision, st: dict | None = None, sc_out=None) -> Step:
     per = idx[idx["form"].isin(["10-Q", "10-K"]) & (idx["acceptance"] <= decision)].sort_values("acceptance")
     ev = []
     if len(per):
-        nxt = per["acceptance"].iloc[-1] + pd.Timedelta(days=91)
+        nxt = per["acceptance"].iloc[-1] + pd.Timedelta(91, unit="D")
         ev.append({"event": "Next quarterly results (estimated from filing cadence)", "date": str(nxt.date()),
                    "confirmed": False})
     lad = blk["case"]["ladders"]["debt"]
@@ -1229,8 +1229,8 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     """
     out_dir = OUT if out_dir is None else Path(out_dir)
     end = pd.Timestamp(end_str)
-    decision = end + pd.Timedelta(days=1)
-    start = (end - pd.Timedelta(days=rv_pair.HISTORY_DAYS)).strftime("%Y-%m-%d")
+    decision = end + pd.Timedelta(1, unit="D")
+    start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
     con = con or cp.connect()
     mac = scenarios.live_paths(con, decision, end)
     curve_now = tr.curve_on(end, cache_root=RAW)  # Treasury par curve as of the last TRACE date (no look-ahead)

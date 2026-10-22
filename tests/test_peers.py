@@ -29,7 +29,7 @@ def test_sector_at_is_point_in_time():
 def test_rating_at_ignores_future_and_stale():
     r = pd.DataFrame({"gvkey": ["1", "1", "2"], "splticrm": ["BB", "B", "BBB"],
                       "datadate": pd.to_datetime(["2015-05-31", "2015-06-30", "2014-01-31"])})
-    r["available_at"] = r["datadate"] + pd.Timedelta(days=1)
+    r["available_at"] = r["datadate"] + pd.Timedelta(1, unit="D")
     got = peers.rating_at(r, pd.Timestamp("2015-06-30"))   # the June rating is not public until 1 July
     assert got["1"] == "BB"
     assert "2" not in got.index                             # older than RATING_STALE_DAYS
@@ -101,7 +101,7 @@ def test_esp_lev_removes_what_leverage_explains():
 def test_sustainable_ebitda_needs_six_years_and_is_point_in_time():
     years = pd.to_datetime([f"{y}-12-31" for y in range(2005, 2016)])
     a = pd.DataFrame({"gvkey": "1", "datadate": years, "oibdp": np.arange(11, dtype=float) * 10})
-    a["available_at"] = a["datadate"] + pd.Timedelta(days=90)
+    a["available_at"] = a["datadate"] + pd.Timedelta(90, unit="D")
     got = peers.sustainable_ebitda(a, pd.Timestamp("2016-02-29"))   # FY2015 not public until 30 March
     assert got["1"] == pytest.approx(np.mean(np.arange(0, 10) * 10))   # FY2005 to FY2014
     assert "1" not in peers.sustainable_ebitda(a, pd.Timestamp("2011-02-28")).index   # 5 years only
@@ -122,9 +122,9 @@ def test_spider_is_spread_over_debt_to_sustainable_ebitda():
 def test_equity_momentum_compounds_three_known_months():
     ends = pd.to_datetime(["2020-01-31", "2020-02-29", "2020-03-31", "2020-04-30"])
     e = pd.DataFrame({"gvkey": "1", "datadate": ends, "ret": [0.5, 0.10, 0.10, 0.10]})
-    e["available_at"] = e["datadate"] + pd.Timedelta(days=1)
+    e["available_at"] = e["datadate"] + pd.Timedelta(1, unit="D")
     t = pd.Timestamp("2020-04-30")
-    assert peers.equity_momentum(e, t, t + pd.Timedelta(days=1))["1"] == pytest.approx(1.1 ** 3 - 1)
+    assert peers.equity_momentum(e, t, t + pd.Timedelta(1, unit="D"))["1"] == pytest.approx(1.1 ** 3 - 1)
     assert "1" not in peers.equity_momentum(e, t, t).index        # April is not public on 30 April
 
 

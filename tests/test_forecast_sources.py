@@ -102,7 +102,7 @@ def _curve(fn, date="2026-10-20"):
     from hy.sources.treasury import TENOR_COLUMNS
 
     row = pd.Series({t: fn(t) for t in TENOR_COLUMNS})
-    row["available_at"] = pd.Timestamp(date) + pd.Timedelta(days=1)
+    row["available_at"] = pd.Timestamp(date) + pd.Timedelta(1, unit="D")
     row.name = pd.Timestamp(date)
     return row
 

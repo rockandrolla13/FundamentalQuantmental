@@ -38,7 +38,7 @@ def decision_dates(first: str, data_end: str, min_months: int = 3) -> list[pd.Ti
 
 def decision_time(quarter_end: pd.Timestamp) -> pd.Timestamp:
     """Decision time for quarter end t: t + 1 day (the process rule: TRACE through t, filings as known the next day)."""
-    return pd.Timestamp(quarter_end) + pd.Timedelta(days=1)
+    return pd.Timestamp(quarter_end) + pd.Timedelta(1, unit="D")
 
 
 def assert_pit(times: Iterable, decision: pd.Timestamp, what: str) -> None:
@@ -62,7 +62,7 @@ def end_quote(quotes: pd.DataFrame, cusip: str, t: pd.Timestamp, end: pd.Timesta
         return None
     r = q.sort_values("trade_date").iloc[-1]
     return {"date": r["trade_date"], "price": float(r["price_vw"]), "yield": float(r["yield_vw"]),
-            "early": bool(r["trade_date"] < end - pd.Timedelta(days=window_days))}
+            "early": bool(r["trade_date"] < end - pd.Timedelta(window_days, unit="D"))}
 
 
 def bond_realised(p0: float, p_end: float, coupon: float, tau: float, tsy0: float, tsy_end: float, dur: float,

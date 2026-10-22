@@ -95,7 +95,7 @@ def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str)
     recent = False
     if len(quotes) and len(bonds):
         first = quotes[quotes["cusip"].isin(bonds["cusip"])].groupby("cusip")["trade_date"].min()
-        recent = bool((pd.to_datetime(first) > pd.Timestamp(start) + pd.Timedelta(days=14)).any())
+        recent = bool((pd.to_datetime(first) > pd.Timestamp(start) + pd.Timedelta(14, unit="D")).any())
     longest = bonds.sort_values("maturity_years").iloc[-1][["g_spread", "price"]].to_dict() if len(bonds) else None
     return {"inputs": inputs, "recent_raise": recent, "longest": longest,
             "basis": basis, "ticker": ticker, "name": case["name"], "case": case, "risk": risk, "bonds": bonds, "quotes": quotes,
@@ -239,8 +239,8 @@ def main() -> None:
     ap.add_argument("--end", default="2026-09-17", help="last TRACE date; filings read as of the next day")
     args = ap.parse_args()
     end = pd.Timestamp(args.end)
-    decision = end + pd.Timedelta(days=1)
-    start = (end - pd.Timedelta(days=HISTORY_DAYS)).strftime("%Y-%m-%d")
+    decision = end + pd.Timedelta(1, unit="D")
+    start = (end - pd.Timedelta(HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
     pairs = [tuple(p.upper().split(":")) for p in args.pairs]
     tickers = list(dict.fromkeys(t for p in pairs for t in p))
 

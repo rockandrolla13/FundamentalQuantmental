@@ -148,9 +148,9 @@ def _curve():
 def test_g_spread_arithmetic_and_no_look_ahead():
     c = _curve()
     as_of = pd.Timestamp("2026-09-17")
-    mat = as_of + pd.Timedelta(days=round(7.5 * tb.DAYS_PER_YEAR))
+    mat = as_of + pd.Timedelta(round(7.5 * tb.DAYS_PER_YEAR), unit="D")
     assert tb.g_spread(0.09, mat, as_of, c) == pytest.approx(0.09 - (0.04 + 0.005 / 6), abs=1e-5)  # 7.5y: 1/6 of 7y->10y
-    out = tb.g_spread([0.08, 0.10], [as_of + pd.Timedelta(days=round(5 * 365.25))] * 2, [as_of] * 2, c)
+    out = tb.g_spread([0.08, 0.10], [as_of + pd.Timedelta(round(5 * 365.25), unit="D")] * 2, [as_of] * 2, c)
     assert out == pytest.approx([0.045, 0.065], abs=1e-5)
     with pytest.raises(ValueError):
         tb.g_spread(0.09, mat, "2026-09-16", c)
@@ -161,10 +161,10 @@ def test_benchmark_by_bucket_medians_and_distress_filter():
     yrs = [2.0, 2.0, 2.0, 2.0, 4.0, 2.0]
     df = pd.DataFrame({
         "cusip": [f"X0000000{i}" for i in range(6)],
-        "maturity": [as_of + pd.Timedelta(days=round(y * tb.DAYS_PER_YEAR)) for y in yrs],
+        "maturity": [as_of + pd.Timedelta(round(y * tb.DAYS_PER_YEAR), unit="D") for y in yrs],
         "yield": [0.06, 0.07, 0.08, 0.20, 0.30, -0.01],
         "price": [100.0, 99.0, 98.0, 70.0, 85.0, 100.0],  # 4th distressed; 5th yield above 25%; 6th negative yield
-        "as_of": as_of, "available_at": as_of + pd.Timedelta(days=1),
+        "as_of": as_of, "available_at": as_of + pd.Timedelta(1, unit="D"),
     })
     out = tb.benchmark_by_bucket(df, _curve()).set_index("bucket")
     assert out.loc["1-3y", "count"] == 3

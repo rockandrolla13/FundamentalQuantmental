@@ -82,7 +82,7 @@ def _sql_list(values: Sequence[str]) -> str:
 def window(month_end: Any, window_days: int = WINDOW_DAYS) -> tuple[str, str]:
     """('YYYY-MM-DD' start, end) of the last `window_days` calendar days of the month that contains `month_end`."""
     e = pd.Timestamp(month_end) + pd.offsets.MonthEnd(0)
-    s = e - pd.Timedelta(days=int(window_days) - 1)
+    s = e - pd.Timedelta(int(window_days) - 1, unit="D")
     return s.strftime("%Y-%m-%d"), e.strftime("%Y-%m-%d")
 
 
@@ -284,7 +284,7 @@ def add_exit_rows(panel: pd.DataFrame) -> pd.DataFrame:
     ex["accrue_to"] = np.where(matured, last["maturity"], last["last_trade"])
     ex["hedge_date"] = last["date"]
     ex["years"] = (ex["maturity"] - ex["date"]).dt.days / tb.DAYS_PER_YEAR
-    ex["available_at"] = ex["date"] + pd.Timedelta(days=1)
+    ex["available_at"] = ex["date"] + pd.Timedelta(1, unit="D")
     out = pd.concat([panel, ex[panel.columns]], ignore_index=True)
     return out.sort_values(["date", "cusip"]).reset_index(drop=True)
 
@@ -492,7 +492,7 @@ def leverage_history(vintages: pd.DataFrame, months: Sequence[pd.Timestamp]) -> 
     """`leverage_as_of` at each month's decision time (month end + 1 day), stacked with a `date` column (month end)."""
     frames = []
     for m in months:
-        f = leverage_as_of(vintages, m + pd.Timedelta(days=1))
+        f = leverage_as_of(vintages, m + pd.Timedelta(1, unit="D"))
         f.insert(0, "date", m)
         frames.append(f)
     return pd.concat(frames, ignore_index=True)

@@ -89,7 +89,7 @@ def phase_indicators(con, end: pd.Timestamp, registry) -> tuple[dict, pd.DataFra
     # Two quarters of SLOOS need two vintages; `as_of` keeps only the newest, so filter the history by release.
     allrows = registry.frame()
     sl = allrows[(allrows["variable"] == "sloos_tightening")
-                 & (pd.to_datetime(allrows["available_at"]) <= pd.Timestamp(end) + pd.Timedelta(days=1))]
+                 & (pd.to_datetime(allrows["available_at"]) <= pd.Timestamp(end) + pd.Timedelta(1, unit="D"))]
     sl = sl.sort_values("vintage").drop_duplicates("vintage", keep="last")
     if len(sl) >= 2:
         ind["sloos_tightening"] = list(sl["point"].iloc[-2:])
