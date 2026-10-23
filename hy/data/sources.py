@@ -17,7 +17,8 @@ from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
 from hy.data.source import FORECAST_STATUS_COLUMNS, PANELS
 from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
-                             IssuerFacts, IssuerFinancials, MarketValue, check_observations)
+                             IssuerFacts, IssuerFinancials, MarketValue, ReportedCashFlow, FilingText,
+                             check_observations)
 from hy.forecasts import ForecastRow
 
 
@@ -43,6 +44,12 @@ class WarehouseSource:
     def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
         return edgar_filings.balance_sheet(issuer, accession, self.cfg)
 
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        return edgar_filings.filing_text(issuer, accession, self.cfg)
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow:
+        return edgar_filings.reported_cash_flow(issuer, period_end, decision_time, self.cfg)
+
     def bonds(self, issuer: Issuer) -> list[Bond]:
         return trace.bonds(issuer, self.cfg)
 
@@ -51,6 +58,9 @@ class WarehouseSource:
 
     def curve(self, on: datetime) -> Curve:
         return treasury_curve.curve(on, self.cfg)
+
+    def curves(self, start: datetime, end: datetime) -> list[Curve]:
+        return treasury_curve.curves(start, end, self.cfg)
 
     def hy_index(self, on: datetime) -> IndexLevel:
         return trace.hy_index(on, self.cfg)
@@ -96,7 +106,8 @@ class FakeSource:
                  index_levels: Sequence[IndexLevel] = (), classifications: Sequence[Classification] = (),
                  forecasts: Sequence[ForecastRow] = (), analyst: Sequence[AnalystInput] = (),
                  panels: dict[str, pd.DataFrame] | None = None, market_values: Sequence[MarketValue] = (),
-                 balance_sheets: Sequence[BalanceSheet] = ()) -> None:
+                 balance_sheets: Sequence[BalanceSheet] = (), texts: Sequence[FilingText] = (),
+                 cash_flows: Sequence[ReportedCashFlow] = ()) -> None:
         self._issuers = {i.ticker: i for i in issuers}
         self._financials, self._facts, self._filings = list(financials), list(facts), list(filings)
         self._bonds, self._curves, self._index = list(bonds), list(curves), list(index_levels)
@@ -105,6 +116,8 @@ class FakeSource:
         self._panels = dict(panels or {})
         self._mv = list(market_values)
         self._sheets = {b.accession: b for b in balance_sheets}
+        self._texts = {x.accession: x for x in texts}
+        self._cash_flows = list(cash_flows)
         self._obs = check_observations(observations) if observations is not None else pd.DataFrame(columns=list(BOND_OBS_COLUMNS))
 
     def issuers(self, tickers: Sequence[str]) -> list[Issuer]:
@@ -130,6 +143,18 @@ class FakeSource:
             raise DataUnavailable("balance_sheet", accession, "not in the fake source")
         return self._sheets[accession]
 
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        if accession not in self._texts:
+            raise DataUnavailable("filing_text", accession, "not in the fake source")
+        return self._texts[accession]
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow:
+        hit = [c for c in self._cash_flows if c.issuer_ticker == issuer.ticker and c.as_of == period_end
+               and c.available_at <= decision_time]
+        if not hit:
+            raise DataUnavailable("reported_cash_flow", issuer.ticker, "not in the fake source")
+        return min(hit, key=lambda c: c.available_at)
+
     def bonds(self, issuer: Issuer) -> list[Bond]:
         return [b for b in self._bonds if b.issuer_ticker == issuer.ticker]
 
@@ -143,6 +168,9 @@ class FakeSource:
         if not c:
             raise DataUnavailable("curve", str(on), "none public by the date")
         return max(c, key=lambda x: x.as_of)
+
+    def curves(self, start: datetime, end: datetime) -> list[Curve]:
+        return sorted((x for x in self._curves if start <= x.as_of <= end), key=lambda x: x.as_of)
 
     def hy_index(self, on: datetime) -> IndexLevel:
         c = [x for x in self._index if x.available_at <= on]

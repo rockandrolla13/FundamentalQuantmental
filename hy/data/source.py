@@ -12,7 +12,7 @@ from typing import Protocol, Sequence, runtime_checkable
 import pandas as pd
 
 from hy.data.records import (AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
-                             IssuerFinancials, MarketValue)
+                             IssuerFinancials, MarketValue, ReportedCashFlow, FilingText)
 from hy.forecasts import ForecastRow
 
 
@@ -31,6 +31,8 @@ class FilingSource(Protocol):
     def facts(self, issuer: Issuer, decision_time: datetime) -> IssuerFacts: ...
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]: ...
     def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet: ...
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText: ...
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow: ...
 
 
 @runtime_checkable
@@ -44,9 +46,11 @@ class BondSource(Protocol):
 
 @runtime_checkable
 class MarketSource(Protocol):
-    """Market-wide levels: the Treasury par curve and the high yield index."""
+    """Market-wide levels: the Treasury par curve (one date, or every date from `start` to `end`) and the high yield
+    index."""
 
     def curve(self, on: datetime) -> Curve: ...
+    def curves(self, start: datetime, end: datetime) -> list[Curve]: ...
     def hy_index(self, on: datetime) -> IndexLevel: ...
 
 

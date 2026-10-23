@@ -241,9 +241,8 @@ def main() -> None:
     pairs = [tuple(p.upper().split(":")) for p in args.pairs]
     tickers = list(dict.fromkeys(t for p in pairs for t in p))
 
-    con = CONFIG.connect()
-    curves = pd.concat([tr.par_curve(y, cache_root=RAW) for y in sorted({start[:4], str(end.year)})]).sort_index()
-    curves = curves[~curves.index.duplicated()]
+    con = CONFIG.connect()  # the benchmark band of the figure only (display; no data-contract kind)
+    curves = DataView(WarehouseSource(CONFIG), decision).curve_history(pd.Timestamp(f"{start[:4]}-01-01"))
     bench = tb.hy_benchmark(con, args.end, cache_root=RAW)
     buckets = tb.benchmark_by_bucket(bench, tr.curve_on(end, cache_root=RAW))
 

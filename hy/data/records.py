@@ -235,6 +235,30 @@ class BalanceSheet(Stamped):
     customer_shares: dict[str, float] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, eq=False)
+class FilingText(Stamped):
+    """The plain text of one filing's primary document (framework F2 business line, F5 covenant levels). `as_of` and
+    `available_at` are the acceptance time."""
+
+    issuer_ticker: str = ""
+    accession: str = ""
+    text: str = ""
+
+
+@dataclass(frozen=True)
+class ReportedCashFlow(Stamped):
+    """One quarter's cash flows as the first 10-Q or 10-K that reported it states them (methodology 3.2), USD millions,
+    3-month values. Used only to fill a quarter that the financials leave blank. `as_of` is the quarter end;
+    `available_at` is the filing's acceptance time. NaN when the filing does not state the flow."""
+
+    issuer_ticker: str = ""
+    accession: str = ""
+    operating_cash_flow: float = float("nan")
+    capex: float = float("nan")
+    interest_paid: float = float("nan")
+    taxes_paid: float = float("nan")
+
+
 # Bond observations come as a frame for volume (600k bond-months). Neutral names: no vendor field leaves an adapter.
 BOND_OBS_COLUMNS = ("cusip", "date", "price", "yield", "n_trades", "par_volume", "available_at")
 

@@ -121,3 +121,49 @@ def test_the_clock_case_reads_the_balance_sheet_record():
     assert case["ladders"]["debt"] == [100.0, 0.0, 400.0, 500.0]
     assert case["as_of"] == "2026-06-30" and case["revenue_clock"].startswith("skipped")
     assert case["metrics"]["obligations_total"] > 1000.0  # leases + debt + interest
+
+
+# ------------------------------------------------------------------ filing text and reported cash flows (F2, F5; 3.2)
+
+
+def _q(q_end, filed, cfo):
+    return records.IssuerFinancials("000001", q_end, filed, revenue=100.0, operating_cash_flow=cfo, capex_total=10.0,
+                                    cash_interest=5.0, cash_taxes=1.0)
+
+
+def test_a_blank_quarter_is_filled_only_from_a_filing_public_by_the_decision_time():
+    nan = float("nan")
+    qs = [_q(datetime(2026, 3, 31), datetime(2026, 5, 1), 20.0), _q(datetime(2026, 6, 30), datetime(2026, 8, 1), nan)]
+    early = records.ReportedCashFlow("ABC Q2", datetime(2026, 6, 30), datetime(2026, 8, 2), issuer_ticker="ABC",
+                                     accession="A1", operating_cash_flow=30.0, capex=12.0)
+    late = records.ReportedCashFlow("ABC Q2", datetime(2026, 6, 30), datetime(2026, 10, 2), issuer_ticker="ABC",
+                                    accession="A2", operating_cash_flow=99.0)
+    src = sources.FakeSource(issuers=[ISS], cash_flows=[late, early])
+    got, filled = process.fill_cash_flow_gaps(qs, DataView(src, T), ISS)
+    assert got[-1].operating_cash_flow == 30.0 and got[-1].capex_total == 10.0  # capex was not blank: kept
+    assert filled == ["2026-06-30 from A1: operating_cash_flow"]
+    got, filled = process.fill_cash_flow_gaps(qs, DataView(sources.FakeSource(issuers=[ISS], cash_flows=[late]), T), ISS)
+    assert got[-1].operating_cash_flow != got[-1].operating_cash_flow and filled == []
+
+
+def test_the_business_line_reads_the_filing_text_through_the_view():
+    txt = ("Table of contents Item 1. Business 3 Item 1A. Risk Factors 9 ... Item 1. Business. "
+           "Overview ABC runs hospitals in ten states. It earns fees from insurers. A third sentence.")
+    src = sources.FakeSource(issuers=[ISS], texts=[records.FilingText("K1", datetime(2026, 2, 20), datetime(2026, 2, 20),
+                                                                       issuer_ticker="ABC", accession="K1", text=txt)])
+    inputs = {"k": ("K1", ""), "q": ("Q2", ""), "cik": ("1", "")}
+    sells, where = process.business_text(inputs, DataView(src, T), ISS)
+    assert sells == "ABC runs hospitals in ten states. It earns fees from insurers." and where == "10-K K1, Item 1"
+    sells, where = process.business_text(inputs, DataView(sources.FakeSource(issuers=[ISS]), T), ISS)
+    assert sells == "" and where.startswith("no filing text")
+
+
+# ------------------------------------------------------------------ Treasury curve history (Section 3.6; pair step 7.5)
+
+
+def test_the_curve_history_stops_at_the_decision_time():
+    cs = [records.Curve("UST", datetime(2026, 9, d), datetime(2026, 9, d + 1), tenors=(2.0, 10.0), yields=(0.04, 0.045))
+          for d in (16, 17, 18)]
+    h = DataView(sources.FakeSource(issuers=[ISS], curves=cs), T).curve_history(datetime(2026, 1, 1))
+    assert list(h.index) == [pd.Timestamp("2026-09-16"), pd.Timestamp("2026-09-17")]  # the 18th is public on the 19th
+    assert list(h.columns) == [2.0, 10.0, "available_at"] and h.loc["2026-09-17", 10.0] == 0.045
