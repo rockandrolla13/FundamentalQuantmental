@@ -577,3 +577,104 @@ def peer_rho(history: Mapping[pd.Timestamp, pd.Series], t: pd.Timestamp, min_pai
     if pairs < min_pairs or not np.isfinite(r):
         return prior, "prior"
     return float(np.clip(r, 0.0, 0.999)), "fitted"
+
+
+# ---------------------------------------------------------------- portfolios (decision page 2026-10-23-peer-fair-spread)
+
+DISTRESSED_SPREAD = 0.10  # 1,000 bp: the market's distressed cut; Gatto stops quoting spreads above it (p. 122)
+
+
+def not_distressed(df: pd.DataFrame, spread_col: str = "g_spread", cap: float = DISTRESSED_SPREAD) -> pd.Series:
+    """True for a bond whose spread is below `cap`; a missing spread is out. Intuition: above 1,000 bp a bond trades
+    on recovery, not on spread, and the DTS hedge ratio s / S becomes too large to mean anything."""
+    s = df[spread_col].astype(float)
+    return (s < cap) & s.notna()
+
+
+def quarter_end_dates(dates) -> list[pd.Timestamp]:
+    """The March, June, September and December month ends among `dates`: the quarterly rebalance dates."""
+    return sorted(pd.Timestamp(d) for d in pd.unique(pd.Series(pd.to_datetime(dates))) if pd.Timestamp(d).month % 3 == 0)
+
+
+def spread_neutral_long_short(df: pd.DataFrame, pred: str, real: str, cost: str | None, control: str,
+                              date_col: str = "date", n_ctrl: int = 5, n_bins: int = 5) -> pd.DataFrame:
+    """Double sort: per date, split bonds into `n_ctrl` groups of `control` (spread level); inside each group, long the
+    top and short the bottom of `n_bins` groups of `pred`; equal weight across all bonds of each leg. Cost as in
+    `long_short`. Intuition: long and short legs carry about the same spread, so only the part of `pred` that spread
+    level does not explain can earn. Limit: spread still varies inside each control group, so a pure spread signal
+    keeps a residual (about a fifth of its plain-sort premium in the test)."""
+    cols = [date_col, pred, real, control] + ([cost] if cost else [])
+    d = df[cols].dropna().copy()
+    d["ctrl"] = decile_ranks(d, control, date_col, n_ctrl, min_n=n_ctrl * n_bins)
+    d = d.dropna(subset=["ctrl"])
+    key = d[date_col].astype(str) + "|" + d["ctrl"].astype(int).astype(str)
+    d["bin"] = d.groupby(key)[pred].transform(
+        lambda g: np.floor(g.rank(method="first", pct=True) * n_bins - 1e-9).clip(0, n_bins - 1) + 1)
+    top, bot = d[d["bin"] == n_bins].groupby(date_col), d[d["bin"] == 1].groupby(date_col)
+    out = pd.DataFrame({"long": top[real].mean(), "short": bot[real].mean()})
+    out["gross"] = out["long"] - out["short"]
+    out["cost"] = (top[cost].mean() + bot[cost].mean()) if cost else 0.0
+    out["net"] = out["gross"] - out["cost"]
+    return out.sort_index()
+
+
+def portfolio_stats(r: pd.Series, periods_per_year: int = 4,
+                    windows: Mapping[int, tuple[str, str]] = CYCLE_WINDOWS) -> dict:
+    """Return per period -> annual mean, annual volatility, Sharpe (no risk-free: the returns are already excess),
+    hit rate, compounded path, maximum drawdown, compound annual growth, and the mean in each cycle window.
+    Intuition: what a book that held this portfolio would have seen."""
+    s = r.dropna().sort_index()
+    if s.empty:
+        return {"n": 0}
+    wealth = (1.0 + s).cumprod()
+    mean, vol = float(s.mean()) * periods_per_year, float(s.std(ddof=1)) * np.sqrt(periods_per_year)
+    by = {}
+    for c, (a, b) in windows.items():
+        w = s[(s.index >= pd.Timestamp(a)) & (s.index <= pd.Timestamp(b))]
+        by[c] = float(w.mean()) * periods_per_year if len(w) else float("nan")
+    return {"n": int(len(s)), "ann_mean": mean, "ann_vol": vol, "sharpe": mean / vol if vol > 0 else float("nan"),
+            "hit_rate": float((s > 0).mean()), "cum_return": float(wealth.iloc[-1] - 1.0),
+            "max_drawdown": max_drawdown(pd.concat([pd.Series([1.0]), wealth])),
+            "cagr": float(wealth.iloc[-1] ** (periods_per_year / len(s)) - 1.0),
+            "by_cycle_ann_mean": by, "cycles_positive": int(sum(1 for v in by.values() if v == v and v > 0)),
+            "cycles_with_data": int(sum(1 for v in by.values() if v == v))}
+
+
+def turnover_cost(legs: pd.DataFrame, id_col: str, cost: str, date_col: str = "date") -> pd.DataFrame:
+    """Cost of a rebalanced long-short book when only the bonds that enter a leg trade. `legs` has one row per
+    (date, bond, leg) with leg in {long, short}. Per date and leg: the sum of the round-trip cost of the entering
+    bonds over the leg size; the book's cost is long plus short. A bond's round trip is charged when it enters,
+    because it will leave later. Turnover = entering bonds over all bonds. Intuition: a signal that persists keeps
+    most bonds in the book, so the book pays for the names that change, not for the whole book each quarter."""
+    out = {}
+    prev = {"long": set(), "short": set()}
+    for t, g in legs.sort_values(date_col).groupby(date_col):
+        c, enter, total = 0.0, 0, 0
+        for leg in ("long", "short"):
+            x = g[g["leg"] == leg]
+            new = ~x[id_col].isin(prev[leg])
+            c += float(x.loc[new, cost].sum()) / len(x) if len(x) else 0.0
+            enter, total = enter + int(new.sum()), total + len(x)
+            prev[leg] = set(x[id_col])
+        out[t] = {"cost": c, "turnover": enter / total if total else float("nan")}
+    return pd.DataFrame(out).T.astype(float)
+
+
+def book_legs(df: pd.DataFrame, pred: str, id_col: str, control: str | None = None, date_col: str = "date",
+              n_bins: int = 10, n_ctrl: int = 5) -> pd.DataFrame:
+    """The members of the long and short legs per date, by the same rule as `long_short` (control None: top and
+    bottom of n_bins) or `spread_neutral_long_short` (control given: top and bottom of n_bins inside each of n_ctrl
+    control groups). Returns rows (date, id, leg)."""
+    cols = [date_col, id_col, pred] + ([control] if control else [])
+    d = df[cols].dropna().copy()
+    if control is None:
+        d["bin"] = decile_ranks(d, pred, date_col, n_bins)
+    else:
+        d["ctrl"] = decile_ranks(d, control, date_col, n_ctrl, min_n=n_ctrl * n_bins)
+        d = d.dropna(subset=["ctrl"])
+        key = d[date_col].astype(str) + "|" + d["ctrl"].astype(int).astype(str)
+        d["bin"] = d.groupby(key)[pred].transform(
+            lambda g: np.floor(g.rank(method="first", pct=True) * n_bins - 1e-9).clip(0, n_bins - 1) + 1)
+    d = d[d["bin"].isin([1, n_bins])]
+    return d.assign(leg=np.where(d["bin"] == n_bins, "long", "short"))[[date_col, id_col, "leg"]]
+

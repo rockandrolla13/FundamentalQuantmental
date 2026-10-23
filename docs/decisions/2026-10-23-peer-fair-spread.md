@@ -60,3 +60,20 @@ What we decide:
 1. Keep the peer fair spread. It passes the three-of-four-cycles bar beyond spread at 3 and 12 months. It fails it at 6 months after the skip (2 of 4).
 2. Use it to rank bonds within a spread level, not as a return forecast. The total hedged return in the memo is a rank, not a size, until the MZ slope is positive.
 3. The settling test of this page passes in part: the cycle bar holds at 12 months. The MZ slope test fails.
+
+## Open question from the run of 23 October 2026
+The peer cells use the panel's point-in-time debt for each live issuer, so the issuer joins its cell by the same rule as its peers. For MGM the panel file records $31.7bn of debt, against $6.1bn in step 5. Its panel leverage is 14.3x, so its implied rating class may differ from the class step 5 would give. SPiDER for MGM moved from +363 to -417 bp a year with this change. What makes up the $25.6bn gap is not yet checked. Check MGM, WYNN and CRWV: compare the Compustat debt items behind `leverage_full` with the debt note of the latest 10-Q.
+
+## Quarterly books, distressed bonds out, user cost (23 October 2026)
+Write-up: `docs/writeup/backtest_peer_line.pdf`. Script: `scripts/backtest_peer_line.py --cost-bp 15`. The user reports 12 to 15 bp of price to get in and out, so 15 bp per round trip is the main case. The TRACE bid-ask proxy (median 24 bp, mean 37 bp, distressed out) is the sensitivity. Bonds at 1,000 bp and wider are out of the scored universe (`hy.backtest.not_distressed`).
+
+What the data says:
+1. With carry kept, the peer-gap-plus-carry decile book earns +3.7% a year after 15 bp (Sharpe 0.48, worst drawdown -14%, 3 of 4 stress windows). Buy the widest earns +4.1% (Sharpe 0.37, worst drawdown -24%).
+2. With carry hedged out, the peer decile book earns +1.4% a year, but one quarter (formed 2019-12-31) earns +37.8%. Without it the book loses 0.65% a year.
+3. With distressed bonds in, the carry books earn 13 to 14% a year with drawdowns of -43% to -51%: the default premium.
+4. At the TRACE-proxy cost almost every book loses.
+
+What we decide:
+1. Distressed bonds stay out of the scored universe.
+2. The peer gap is a tie-breaker inside a carry book, not a stand-alone trade.
+3. The forecast is a rank, not a size, until its calibration slope is positive and near 1.

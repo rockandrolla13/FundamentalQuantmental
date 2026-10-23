@@ -270,3 +270,77 @@ def test_peer_rho_uses_only_past_months():
     hist = {m: pd.Series(v) for m, v in hist.items()}
     rho_t, _ = bt.peer_rho(hist, months[39], min_pairs=100)
     assert rho_t == pytest.approx(0.8, abs=0.08)
+
+
+# ---------------------------------------------------------------- portfolios, distressed bonds out
+
+
+def test_distressed_bonds_are_out_at_1000bp():
+    df = pd.DataFrame({"g_spread": [0.03, 0.0999, 0.10, 0.25, np.nan]})
+    assert bt.not_distressed(df).tolist() == [True, True, False, False, False]
+
+
+def test_quarter_end_dates_keep_march_june_september_december():
+    d = pd.date_range("2020-01-31", periods=12, freq="ME")
+    got = bt.quarter_end_dates(d)
+    assert [x.month for x in got] == [3, 6, 9, 12]
+
+
+def _book(n_dates=8, n=200, seed=0, edge=0.01):
+    rng = np.random.default_rng(seed)
+    rows = []
+    for t in pd.date_range("2019-03-31", periods=n_dates, freq="QE"):
+        spread = rng.uniform(0.02, 0.09, n)
+        signal = rng.normal(0, 1, n)
+        real = edge * signal + 0.5 * spread + rng.normal(0, 0.01, n)  # spread level pays, the signal pays on top
+        rows.append(pd.DataFrame({"date": t, "widest": spread, "sig": signal, "real": real, "cost": 0.001}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def test_spread_neutral_long_short_removes_the_spread_premium():
+    # A signal that is pure spread level earns in a plain sort and nothing once spread is held fixed.
+    df = _book(edge=0.0)
+    df["sig"] = df["widest"]
+    plain = bt.long_short(df, "sig", "real", "cost", n_bins=5)["gross"].mean()
+    neutral = bt.spread_neutral_long_short(df, "sig", "real", "cost", "widest")["gross"].mean()
+    # Spread still varies inside each of the 5 groups, so a residual remains; most of the premium goes.
+    assert plain > 0.02 and abs(neutral) < 0.25 * plain
+
+
+def test_spread_neutral_long_short_keeps_a_real_signal():
+    df = _book(edge=0.01)
+    ls = bt.spread_neutral_long_short(df, "sig", "real", "cost", "widest")
+    assert ls["gross"].mean() > 0.02 and (ls["net"] < ls["gross"]).all()
+
+
+def test_portfolio_stats_by_hand():
+    r = pd.Series([0.02, -0.01, 0.03, 0.00], index=pd.date_range("2020-03-31", periods=4, freq="QE"))
+    s = bt.portfolio_stats(r, periods_per_year=4)
+    assert s["ann_mean"] == pytest.approx(0.04)  # mean 0.01 a quarter x 4
+    assert s["ann_vol"] == pytest.approx(r.std(ddof=1) * 2.0)
+    assert s["sharpe"] == pytest.approx(s["ann_mean"] / s["ann_vol"])
+    assert s["hit_rate"] == pytest.approx(0.5)
+    assert s["max_drawdown"] == pytest.approx(-0.01)
+
+
+def test_turnover_cost_charges_only_entries():
+    # Quarter 1: legs {a, b} long, {c, d} short, all new: full cost. Quarter 2: long keeps a, adds e; short unchanged.
+    legs = pd.DataFrame({
+        "date": pd.to_datetime(["2020-03-31"] * 4 + ["2020-06-30"] * 4),
+        "id": ["a", "b", "c", "d", "a", "e", "c", "d"],
+        "leg": ["long", "long", "short", "short", "long", "long", "short", "short"],
+        "cost": [0.01, 0.01, 0.02, 0.02, 0.01, 0.03, 0.02, 0.02]})
+    tc = bt.turnover_cost(legs, "id", "cost")
+    # q1: long 0.01 + short 0.02 = 0.03 (every bond enters). q2: long (e enters: 0.03 / 2) + short 0 = 0.015.
+    assert tc.loc[pd.Timestamp("2020-03-31"), "cost"] == pytest.approx(0.03)
+    assert tc.loc[pd.Timestamp("2020-06-30"), "cost"] == pytest.approx(0.015)
+    assert tc.loc[pd.Timestamp("2020-06-30"), "turnover"] == pytest.approx(0.25)  # 1 of 4 names changed
+
+
+def test_book_legs_match_the_long_short_legs():
+    df = _book(edge=0.01).reset_index().rename(columns={"index": "id"})
+    for control, n_bins, ls in ((None, 10, bt.long_short(df, "sig", "real", "cost", n_bins=10)),
+                                ("widest", 5, bt.spread_neutral_long_short(df, "sig", "real", "cost", "widest"))):
+        legs = bt.book_legs(df, "sig", "id", control=control, n_bins=n_bins).merge(df[["id", "real"]], on="id")
+        got = legs.groupby(["date", "leg"])["real"].mean().unstack()
+        np.testing.assert_allclose(got["long"], ls["long"]); np.testing.assert_allclose(got["short"], ls["short"])
