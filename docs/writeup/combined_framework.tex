@@ -104,7 +104,7 @@
 \foreach \s in {s2,s3,s5,s6,s8} \draw[a] (s1.south) -- (\s.north);
 \draw[a] (s3) -- (s5);
 % forecast and price
-\node[p] (s9) at (3.25,-6.3) {\textbf{S9 Relative}\\\textbf{value}\\fair line, pair};
+\node[p] (s9) at (3.25,-6.3) {\textbf{S9 Relative}\\\textbf{value}\\peer fair spread, pair};
 \node[p,text width=38mm] (s7) at (8.1,-6.3) {\textbf{S7 Stories and cases}\\5 macro paths $\times$ cases; PD};
 \node[p] (s4) at (13,-6.3) {\textbf{S4 Liquidity}\\runway, wall, gap};
 \draw[a] (s5.south) -- (s9.north east);
@@ -154,7 +154,7 @@ Group & Sources & What it brings to the one framework & Role in the score \\
 \midrule
 \endhead
 \GA{} Core process & Gatto, \emph{The Credit Investor's Handbook} (2023); \code{docs/methodology.md}; \code{docs/framework.md} F1--F13; relative value PDF via \code{research/hyrv_extract.md} and \code{research/hyrv_mapping.md} & The order of the steps; the rules (point in time, two views, claims sizing, the gate); the formulas; the PDF's decision against cash and its strict rules on PD, loss and averaging & 40\% of the score (E4, E7--E10); the loss on price; the gate; size calibration; the decision \\
-\GB{} Built methods & Two clocks (M4.7, Radhakrishnan card); fair line and pair (\code{scripts/rv_pair.py}); stories and forecast sources (\code{hy/macro.py}, \code{hy/forecasts.py}, eleven forecast cards); cases and alpha (\code{scripts/scenarios.py}, \code{hy/alpha.py}); F9 gate, F8 panel, combined view (\code{scripts/process.py}); the backtest (\code{hy/backtest.py}) & Working code on real data for eight issuers; the only measured evidence (the backtest) & Two clocks (E5): 20\%; the rest (E0--E3, E6): 18\% \\
+\GB{} Built methods & Two clocks (M4.7, Radhakrishnan card); peer fair spread and pair (\code{scripts/rv_pair.py}); stories and forecast sources (\code{hy/macro.py}, \code{hy/forecasts.py}, eleven forecast cards); cases and alpha (\code{scripts/scenarios.py}, \code{hy/alpha.py}); F9 gate, F8 panel, combined view (\code{scripts/process.py}); the backtest (\code{hy/backtest.py}) & Working code on real data for eight issuers; the only measured evidence (the backtest) & Two clocks (E5): 20\%; the rest (E0--E3, E6): 18\% \\
 \GC{} Skills & \code{hy-model-standards}; \code{credit-model-standards}; \code{credit-memo-standards}; \code{ebitda-addback-treatment}; \code{covenant-compliance}; \code{borrower-monitoring}; \code{quarterly-package-extraction} & Practitioner rules: three EBITDAs, add-back push-back thresholds, FCF cross-check, covenant headroom and trajectory, watchlist tiers, debt bridges. Written for private loans; where a rule does not transfer to public bonds, the step says so & 5\%, one-way (E11); E7 is one-way but counted in G1 \\
 \GD{} Books and peers & Kricheff, \emph{A Pragmatist's Guide to Leveraged Finance}; Ganguin and Bilardello, \emph{Standard \& Poor's Fundamentals of Corporate Credit Analysis} (2005); Dynkin et al., \emph{Systematic Investing in Credit} (2021), ch.~13--14 & Kricheff: cash-flow underwriting, spread per turn and its trap, covenant capacity, event pro formas, recovery timing. S\&P: business risk grading, analytical adjustments (leases, pensions), ratio medians by rating, stress and default cases, recovery method. Dynkin et al.: excess spread to peers (ESP), SPiDER and OneScore & 17\%: E12 (S\&P score gap), E13 (spread per turn), E14 (ESP), E15 (SPiDER), E16 (OneScore) \\
 \bottomrule
@@ -522,7 +522,7 @@ share = \frac{\sum_{t > T^{run}} O_t}{\sum_t O_t},\qquad yrs = \frac{share\cdot\
 
 \fld{Outputs} \code{duration_gap}, \code{breakeven_margin}, \code{coverage_contracted}, \code{renewal_dependent_share} with its split \code{renewal_refinance_share} and \code{renewal_recontract_share}, \code{renewal_dependent_ebitda_years}, \code{max_cum_shortfall}, \code{years_of_ebitdar}, scenario and sensitivity tables.
 
-\fld{Where groups disagree} No group disagrees on the measure. One gap: M4.7 says three clock features enter the fair spread model. The fair line uses only leverage. \textbf{Rule:} until the M7.2 model exists, the clocks enter as estimate E5 of the combined score and as risk metrics in the pair (S9).
+\fld{Where groups disagree} No group disagrees on the measure. One gap: M4.7 says three clock features enter the fair spread model. The peer fair spread uses none of them. \textbf{Rule:} until the M7.2 model exists, the clocks enter as estimate E5 of the combined score and as risk metrics in the pair (S9).
 
 \fld{Origin} The measure restates bank gap analysis (Kaufman 1984) and the Basel project finance rule that contract tenor must exceed debt maturity (2003). WeWork's 2019 S-1 shows both clocks for one company. What is new here is the set of features built from filings. $D_O$ and $D_R$ are undiscounted, so they are weighted average lives, not Macaulay durations. Card: \code{research/cards/two-clocks-origin.md}. Split test (2018 to 2026, 187 issuers, monthly regression of log spread on both shares): debt to refinance $+0.36$ ($t$ 2.0), rent and purchases to recontract $-2.07$ ($t$ $-2.4$). The prediction that recontracting carries more spread fails. Neither share ranks hedged returns beyond spread level.
 
@@ -669,7 +669,7 @@ score^{rec} = 1 + 1\{R<1\} + 1\{R<0.75\} + 1\{R<0.5\} + 1\{R<0.25\}.
 \fld{What each group contributes}
 \begin{itemize}
 \item \GA{} Gatto step 7 (Chapter 13, pp.~366--414): risk is PD times LGD (p.~119); relative value against rating indices, peers and the issuer's own tranches, with the risk measure beside the spread (HCA, pp.~412--413: 172 bp a turn adequate, 35 bp a turn not). M7.2 two-stage fair spread with monotone constraints; M7.3 conformal band; M7.4 spread per turn; M7.5 AR(1) half-life. F9 spread row; F10 S1 and S4. PDF: never feed the bond's own price into the fair model (R169, C14); issuer weights; leave the bond out of its own curve (R171); error-scaled residual $Z = e/u$ (E140); convergence and cost hurdle (E141); spread per turn and its trap (E107, R136, Case B).
-\item \GB{} Built: issuer curve (spread linear in maturity) and its 5-year point; the fair line of log 5-year spread on lease-adjusted leverage across the issuers in the run; the pair report (spread per unit of four risks, a vote, a weekly AR(1) half-life of the pair gap, convergence alpha, and the pair under each path).
+\item \GB{} Built: issuer curve (spread linear in maturity) and its 5-year point; the peer fair spread: the median 5-year spread of bonds in the same GICS sector, rating class and maturity bucket on the TRACE panel, with the HY index as fallback; the bond against the HY index with its DTS hedge ratio; the pair report (spread per unit of four risks, a vote, a weekly AR(1) half-life of the pair gap, convergence alpha, and the pair under each path).
 \item \GC{} No skill covers relative value; the skills target loans held to maturity.
 \item \GD{} Kricheff (Ch.~8, 21): spread to worst, not to maturity; spread per turn = STW over bond-level leverage; one sheet per security (STW, bond-level and total leverage, FCF/debt, EV cushion, spread per turn, call, size, rating); junior notes must pay more per turn than senior notes, an inversion needs a reason; never trust the widest spread per turn alone (DataFone: 7x total leverage, FCF/debt 0.1\%, minimal cushion); compare with an index, CDS, IG comparables. S\&P (Ch.~11, App.~C, D): spread = PD + recovery + liquidity and supply; compare each bond's OAS with the rating composite at the same maturity; map an internal score to a buy level.
 \end{itemize}
@@ -678,8 +678,9 @@ score^{rec} = 1 + 1\{R<1\} + 1\{R<0.75\} + 1\{R<0.5\} + 1\{R<0.25\}.
 \begin{algobox}
 \begin{enumerate}
 \item Per issuer: fit $s = a_i + b_i T$ on its senior unsecured bonds (all seniorities if fewer than two); read the 5-year point. Use spread to worst once call schedules exist (Kricheff, C18).
-\item Fair line across the run: $\log s_5 = a + b\,Lev^{lease} + \varepsilon$, weighted one per issuer. Residual $\varepsilon_i$. Later: the M7.2 model with monotone constraints, no own price (C14).
-\item Error scale $u$: leave-one-issuer-out residual standard deviation (later: conformal by rating and liquidity cell). $Z = \varepsilon / u$.
+\item Peer fair spread: place the issuer's 5-year point in its cell (GICS sector $\times$ rating class $\times$ maturity bucket) on the TRACE panel of the latest month. Fall back to rating, then sector, then maturity alone when a cell has fewer than 5 other issuers; with no panel, use the HY index spread. $s^{fair}$ is the peers' median spread, own issuer left out. Residual $\varepsilon_i = \log(s_5/s^{fair})$, which is ESP. Later: the M7.2 model with monotone constraints, no own price (C14).
+\item Error scale $u$: the peers' robust standard deviation of log spread, $1.4826\times$MAD (later: conformal by rating and liquidity cell). $Z = \varepsilon / u$.
+\item The bond against the HY index: $s_5 - S$ and the DTS hedge ratio $\beta = s_5/S$.
 \item Leave-one-out issuer curve for each bond with at least three same-rank bonds (PDF U46): within-issuer cheapness.
 \item Spread per turn per security on bond-level and total leverage (Kricheff). Read it only beside FCF/debt and the EV cushion (trap guard).
 \item Pair: for issuers $a$ and $b$, spread per unit of each risk (lease-adjusted leverage, renewal-dependent EBITDA years, breakeven margin, duration gap). The verdict holds only where the metrics agree.
@@ -690,10 +691,10 @@ score^{rec} = 1 + 1\{R<1\} + 1\{R<0.75\} + 1\{R<0.5\} + 1\{R<0.25\}.
 
 \fld{Metrics}
 \begin{equation}
-\log s_{5,i} = a + b\,Lev_i + \varepsilon_i,\qquad s^{fair}_i = e^{a + b\,Lev_i},\qquad Z_i = \frac{\varepsilon_i}{u}.
+s^{fair}_i = \operatorname{median}_{j \in cell(i),\,j \ne i} s_j,\qquad \varepsilon_i = \log\frac{s_{5,i}}{s^{fair}_i},\qquad Z_i = \frac{\varepsilon_i}{u_{cell}},\qquad \beta_i = \frac{s_{5,i}}{S}.
 \end{equation}
-\intu{more leverage should pay more spread; the residual is how much more (or less) the market pays than the line says, in units of the line's own error.}
-\sym{$s_{5,i}$ issuer $i$'s 5-year G-spread; $Lev_i$ lease-adjusted leverage; $a$, $b$ OLS coefficients; $u$ leave-one-out residual standard deviation.}
+\intu{a bond is fair when it pays what bonds of the same sector, rating and maturity pay; the residual is how much more (or less) it pays, in units of the peers' own spread dispersion.}
+\sym{$s_{5,i}$ issuer $i$'s 5-year G-spread; $cell(i)$ its peer cell; $u_{cell}$ the peers' robust sd of log spread; $S$ the HY index spread; $\beta_i$ the DTS hedge ratio.}
 \begin{equation}
 SPT_b = \frac{STW_b}{Lev^{thr}_b},\qquad slope_{a,b} = \frac{s_a - s_b}{r_a - r_b},\qquad h_{1/2} = \frac{\log 2}{-\log\rho_w}.
 \end{equation}
@@ -707,17 +708,17 @@ gap^{bp} = s_{L}\,(1 - e^{-\Delta\varepsilon}),\qquad \alpha^{pair} = D_5\,(1 - 
 
 \fld{Bands} $|Z|$: above the conformal threshold (v0: 1.0 until cells exist) is a signal; above 2 is strong. Spread per turn: rank inside the archetype; junior below senior per turn is red. Pair votes: all metrics agree is green; a split is amber. Half-life: $<26$ weeks green, 26--52 amber, $>52$ red.
 
-\fld{Inputs} \emph{Data:} TRACE yields, maturities, seniority; Treasury curve; lease-adjusted leverage; clock metrics. \emph{Documents:} call schedules (for STW and OAS). \emph{Analyst:} pairs; peer set by archetype.
+\fld{Inputs} \emph{Data:} TRACE yields, maturities, seniority; the TRACE panel with GICS sector, rating class and point-in-time leverage for the peer cells; the HY index spread; Treasury curve; clock metrics. \emph{Documents:} call schedules (for STW and OAS). \emph{Analyst:} pairs; peer set by archetype.
 
-\fld{Outputs} \code{s5_bp}, \code{fair_s5_bp}, \code{resid_log}, \code{z_rv}, \code{curve_resid_bp}, \code{spt_bond}, \code{spt_total}, \code{pair_price_of_risk}, \code{pair_votes}, \code{half_life_weeks}, \code{pair_alpha_bp}, \code{jtd_ratio}.
+\fld{Outputs} \code{s5_bp}, \code{fair_s5_bp}, \code{fair_basis}, \code{hy_index_bp}, \code{dts_beta}, \code{resid_log}, \code{z_rv}, \code{curve_resid_bp}, \code{spt_bond}, \code{spt_total}, \code{pair_price_of_risk}, \code{pair_votes}, \code{half_life_weeks}, \code{pair_alpha_bp}, \code{jtd_ratio}.
 
-\fld{Where groups disagree} PD in the spread (C2, B5): G1 M7.1 builds the fair spread from PD$\times$LGD$\times\kappa$; Kricheff and S\&P treat spread as relative value only; the PDF forbids the PD mapping. \textbf{Wins:} the anchor stays only as an offset inside M7.2; the gate reads relative value, not a PD. Spread per turn (B11): Kricheff uses STW and bond-level leverage; the code uses G-spread and total leverage. \textbf{Wins:} print both bond-level and total, and require FCF/debt $>0$ and cushion $>1$ before the figure counts (DataFone trap). Own price (C14): \textbf{wins} the PDF.
+\fld{Where groups disagree} PD in the spread (C2, B5): G1 M7.1 builds the fair spread from PD$\times$LGD$\times\kappa$; Kricheff and S\&P treat spread as relative value only; the PDF forbids the PD mapping. \textbf{Wins:} the anchor stays only as an offset inside M7.2; the gate reads relative value, not a PD. Spread per turn (B11): Kricheff uses STW and bond-level leverage; the code uses G-spread and total leverage. \textbf{Wins:} print both bond-level and total, and set the figure to 0 on the trap guard: FCF/debt $\le 0$ or cushion $\le 1$, or two of high leverage, low FCF/debt and a thin cushion (DataFone trap; decision page \code{2026-10-22-e13-trap-guard}). Own price (C14): \textbf{wins} the PDF.
 
-\fld{Settling test} CLAUDE.md definition of done: positive rank IC after costs in three of four cycles (2008, 2015, 2020, 2022). Current evidence (\code{docs/writeup/backtest_alpha.tex}, 2008--2026): the fair line passes the cycle bar (positive in all four windows), but after cost it ranks below ``buy the widest'' (IC 0.21 against 0.22 at 3 months; 0.25 against 0.29 at 6 months). The leverage residual adds an IC of 0.036 ($t$ 2.2) beyond the spread rank. Calendar 2008 and 2015 are negative for every rule. The fair line keeps a small weight until it beats the widest rule; the lease adjustment (not in the backtest) is the first change to test. Code tests: \code{tests/test_rv.py} (7), \code{tests/test_backtest.py::test_fair_line_residuals_and_pooled_rho_recover_the_truth}, \code{tests/test_fairspread.py} (13, library).
+\fld{Settling test} CLAUDE.md definition of done: positive rank IC after costs in three of four cycles (2008, 2015, 2020, 2022). Current evidence (\code{docs/writeup/backtest_alpha.tex}, 2008--2026): the fair line passes the cycle bar (positive in all four windows), but after cost it ranks below ``buy the widest'' (IC 0.21 against 0.22 at 3 months; 0.25 against 0.29 at 6 months). The leverage residual adds an IC of 0.036 ($t$ 2.2) beyond the spread rank. Calendar 2008 and 2015 are negative for every rule. The peer fair spread replaced the leverage line on 23 October 2026 (decision page \code{2026-10-23-peer-fair-spread}; \code{scripts/backtest_peer_line.py}). With the DTS hedge and a month skipped against bid-ask bounce, the peer gap alone does not rank returns (IC after cost 0.00 at 3 months). It does add beyond spread level: IC $+0.073$ ($t$ 6.1) at 3 months, $+0.100$ ($t$ 5.3) at 6, $+0.181$ ($t$ 6.7) at 12, positive in 3, 2 and 3 of the four cycle windows; the old line reaches 2 of 4. Its calibration slope is negative, so its bp sizes carry no information. E2 holds the lowest active weight (0.69\%). Code tests: \code{tests/test_rv.py} (7), \code{tests/test_backtest.py::test_fair_line_residuals_and_pooled_rho_recover_the_truth}, \code{tests/test_fairspread.py} (library, with \code{peer_fair_spread} and \code{dts_beta}), \code{tests/test_backtest.py} (DTS realised, peer alpha, peer $\rho$).
 
-\fld{Status} \stpartial. Built: issuer curves, the one-variable fair line, the pair report. Missing: the M7.2 model, conformal bands, $Z$ with a documented error scale, leave-one-out curves, spread to worst, spread per turn by bond, rating-index benchmark, JTD pair ratio.
+\fld{Status} \stpartial. Built: issuer curves, the peer fair spread with its error scale, the bond against the HY index, the pair report. Missing: the M7.2 model, conformal bands, leave-one-out curves, spread to worst, spread per turn by bond, rating-index benchmark, JTD pair ratio.
 
-\fld{CRWV} 5-year spread 739 bp against a fair 574 bp: cheap by 165 bp. Fair line $\log s = -5.64 + 0.312\,Lev$ on 8 issuers. Pair with ORCL: CRWV pays more per unit on all four risk metrics; long CRWV, short ORCL; gap 159 bp; weekly $\rho$ 0.959, half-life 16.7 weeks; 66\% closes in six months; convergence gain 388 bp of price; pair alpha 372 bp a year, weighted over paths.
+\fld{CRWV} 5-year spread 739 bp against a peer fair spread of 416 bp: cheap by 323 bp. Peers: 5 issuers in Information Technology, class CCC, 3 to 7 years; $Z$ 0.41, so the gap is inside the peers' own dispersion. HY index 168 bp; DTS hedge ratio 4.62. Pair with ORCL: CRWV pays more per unit on all four risk metrics; long CRWV, short ORCL; gap 400 bp; weekly $\rho$ 0.959, half-life 16.7 weeks; 66\% closes in six months; pair alpha 805 bp a year, weighted over paths. The backtest gives these sizes no weight: the MZ slope of the peer forecast is negative.
 
 %======================================================================
 \section{S10 Expected alpha}\label{s10}
@@ -803,10 +804,10 @@ L^{def} = \frac{P^d/100 - R^{PV}}{P^d/100},\qquad JTD = N\Big(\frac{P^d}{100} - 
 
 \fld{Metrics}
 \begin{equation}
-Lev^{impl} = Lev + \frac{\log(s/s^{fair})}{b},\qquad PD^{\kappa} = 1 - e^{-s/(\kappa\,LGD)},\qquad G1 = \bigvee_{r\in counted} \{|gap_r| > noise_r\}.
+PD^{\kappa} = 1 - e^{-s/(\kappa\,LGD)},\qquad G1 = \bigvee_{r\in counted} \{|gap_r| > noise_r\}.
 \end{equation}
-\intu{the leverage at which the fair line would charge today's spread; the PD the spread implies at a stated price of risk (display only); and the gap test.}
-\sym{$b$ fair-line slope; $\kappa$ price of risk (v0: 2); $noise_r$: for the spread row, $u\cdot s^{fair}$; for the leverage row, $u/b$; for the PD row, 0.5$\times$ the implied PD (v0, no decision page yet).}
+\intu{the PD the spread implies at a stated price of risk (display only); and the gap test. The leverage row left the gate with the leverage line (decision page \code{2026-10-23-peer-fair-spread}).}
+\sym{$\kappa$ price of risk (v0: 2); $noise_r$: for the spread row, $u_{cell}\cdot s^{fair}$ (untested on the index fallback); for the PD row, 0.5$\times$ the implied PD (v0, no decision page yet).}
 
 \fld{Bands} Pass or fail per rule. The call needs G1, G2, G3, G6 and G8.
 
@@ -920,7 +921,7 @@ panel = \frac{n_{green} - n_{red}}{n_{banded}},\qquad rating^{SP} = \operatornam
 
 \textbf{Purpose.} Turn every group's evidence into one expected alpha per issuer and one rank. Section~\ref{sec:score} gives the full rule; this section gives the step.
 
-\fld{What each group contributes} By the user's bucket weights: G1 40\% (liquidity, value, earnings quality, excess over cash); the two clocks 20\%; the rest of G2 18\% (spread level, cases, fair line, pair, panel); G4 17\% (the S\&P score gap, Kricheff's spread per turn, ESP and SPiDER); G3 5\%, one-way.
+\fld{What each group contributes} By the user's bucket weights: G1 40\% (liquidity, value, earnings quality, excess over cash); the two clocks 20\%; the rest of G2 18\% (spread level, cases, peer fair spread, pair, panel); G4 17\% (the S\&P score gap, Kricheff's spread per turn, ESP and SPiDER); G3 5\%, one-way.
 
 \fld{Algorithm}
 \begin{algobox}
@@ -940,7 +941,7 @@ panel = \frac{n_{green} - n_{red}}{n_{banded}},\qquad rating^{SP} = \operatornam
 
 \fld{Where groups disagree} Composite form (C15, B13): the PDF wants ablation; Kricheff ends in a category grid; the repo wants IC weights. \textbf{Wins:} IC weights with ablation; print Kricheff's grid label as a reading aid.
 
-\fld{Settling test} The ensemble's rank IC after cost must beat E1 alone and the ``widest spread'' baseline in at least three of four cycles. Today only the fair line has a record, and it does not beat the baseline.
+\fld{Settling test} The ensemble's rank IC after cost must beat E1 alone and the ``widest spread'' baseline in at least three of four cycles. Today the peer fair spread has a record: it adds beyond spread level in 3 of 4 cycles at 3 and 12 months, but its sizes do not calibrate.
 
 \fld{Status} \stpartial. Built: E0--E16, one-way clipping, group shares (\code{hy/groups.py}), the user's bucket weights (Section~\ref{sec:score}). Missing: the baseline test against the widest rule.
 
@@ -1034,7 +1035,7 @@ s_H(m) = s_b\,\frac{S_H(m)}{S_0} - \big(1-\rho^{4h}\big)\,\big(s_5 - s^{fair}_5\
 \sym{$s_b$ the bond's spread today; $S_H(m)$ the index spread at $H$ on path $m$; $S_0$ the index spread today; $\bar S(m)$ the path's mean index spread over four quarters; $\rho$ quarterly persistence (v0 0.85, so about 40\% of the gap closes in six months); $s_5 - s^{fair}_5$ the issuer's gap at 5 years.}
 \textbf{Current choice: measured speed}, as the code does. \textbf{Alternative: full convergence by six months}, $1-\rho^{4h} \to 1$. The alternative makes every cheap bond look better and contradicts the backtest, whose calibration slope says gaps close far more slowly than the model's own sizes assume. Settling test: the realised share of the gap closed after six months, by decile of the gap, on the backtest panel.
 
-The code also reports a hedged version beside it: rates held at today's curve, the market move removed, and $\beta = 1$ times the index carry less its expected loss subtracted (K15). E10 of the combined score uses the unhedged excess over cash.
+The code also reports a hedged version beside it: rates held at today's curve, the market move removed, and the DTS hedge ratio $\beta = s/S$ times the index carry less its expected loss subtracted (K15). The memo prints it as the total hedged return, with the catalysts that fall inside the horizon. E10 of the combined score uses the unhedged excess over cash.
 
 \fld{Status} \stbuilt. Code: \code{step_decision} in \code{scripts/process.py} and \code{decision_against_cash}, \code{opportunity_cost} in \code{hy/alpha.py}. It fills \code{replaces_position} with the best admissible alternative, cash when no bond beats it. Inputs still v0: recovery 0.4, delay 1 year, required return 15\% on a defaulted claim; the claims view and documents replace them.
 \newpage
@@ -1067,16 +1068,16 @@ E10 & Excess over cash & G1 & alpha & $\mu/H$ from S15 & 10.00\% & yes \\
 \midrule
 E5 & Two clocks & Clocks & score & $-$(fixed charges in years of EBITDAR), standardised & 20.00\% & yes \\
 \midrule
-E0 & Spread level (carry) & G2 rest & alpha & $(s - S_0)$, hedge $\beta = 1$ & 7.50\% & yes \\
-E1 & Weighted cases and stories & G2 rest & alpha & Scenario-weighted alpha before cost (S10) & 4.50\% & yes \\
-E2 & Fair-line convergence & G2 rest & alpha & $D(1-\rho^{4h})(s-s^{fair})/h$ & 3.00\% & yes \\
-E3 & Pair convergence & G2 rest & alpha & Pair gap closed at its measured half-life, $\pm$ by leg & 1.50\% & yes \\
-E6 & Health panel & G2 rest & score & $(n_{green}-n_{red})/n$ on the S13 panel & 1.50\% & yes \\
+E0 & Spread level (carry) & G2 rest & alpha & $(s - S_0)$, hedge $\beta = 1$ & 8.65\% & yes \\
+E1 & Weighted cases and stories & G2 rest & alpha & Scenario-weighted alpha before cost (S10), toward the peer fair spread & 5.19\% & yes \\
+E2 & Fair-line convergence & G2 rest & alpha & $D(1-\rho^{4h})(s-s^{fair})/h$, $s^{fair}$ the peer median; the lowest active weight by user choice & 0.69\% & yes \\
+E3 & Pair convergence & G2 rest & alpha & Pair gap closed at its measured half-life, $\pm$ by leg & 1.73\% & yes \\
+E6 & Health panel & G2 rest & score & $(n_{green}-n_{red})/n$ on the S13 panel & 1.73\% & yes \\
 \midrule
 E11 & Watchlist and covenant path & G3 & one-way & $-$(tier 0--3) $-$ 1\{headroom falling\} & 5.00\% & yes \\
 \midrule
 E12 & Ratio-implied rating gap & G4 & score & $z(\log s) - z(\text{S\&P risk score})$: a wide spread for the score is cheap & 2.50\% & yes \\
-E13 & Spread per turn against peers & G4 & score & $\log SPT$ minus the peer median (same GICS sector, rating class and maturity bucket) if FCF/debt $>0$ and cushion $>1$, else 0 & 2.50\% & yes \\
+E13 & Spread per turn against peers & G4 & score & $\log SPT$ minus the peer median (same GICS sector, rating class and maturity bucket) ; 0 on the trap guard (FCF/debt $\le0$ or cushion $\le1$, or two of high leverage, low FCF/debt, thin cushion) & 2.50\% & yes \\
 E14 & Excess spread to peers (ESP) & G4 & score & $\log s$ minus the peer median (same GICS sector, rating class and maturity bucket); Dynkin et al.\ ch.~13 without the leverage control & 4.50\% & yes \\
 E15 & SPiDER & G4 & score & $\log\big(s \,/\, (D/\overline{EBITDA}_{10y})\big)$, absolute across sectors; none without 6 annual EBITDA figures; Dynkin et al.\ ch.~14 & 3.00\% & yes \\
 E16 & OneScore & G4 & score & Mean of the within-sector ranks of issuer ESP and the 3-month stock return; an unlisted issuer takes its E14 value; Dynkin et al.\ ch.~19 & 4.50\% & yes \\
@@ -1118,11 +1119,11 @@ Two notes on the table. First, E4 keeps its zero weight inside G1, so G1's 40\% 
 The alpha backtest (2008--2026, 13,271 bonds) found:
 \begin{enumerate}
 \item spread level ranks best: IC after cost 0.22 at 3 months and 0.29 at 6 months for ``buy the widest'';
-\item the fair line ranks slightly worse (0.21 and 0.25), and the leverage residual adds an IC of 0.036 ($t$ 2.2) beyond the spread rank;
+\item the old leverage line ranks slightly worse (0.21 and 0.25), and its residual adds an IC of 0.036 ($t$ 2.2) beyond the spread rank; the peer fair spread that replaced it (23 October 2026) adds $+0.073$ to $+0.181$ beyond spread with a month skipped, in more cycle windows;
 \item the size is far too large: calibration slope 0.07--0.08;
 \item the cycle windows all pass, but calendar 2008 and 2015 are negative for every rule.
 \end{enumerate}
-The earlier v0 weights followed that evidence (spread level 25\%, untested estimates capped at 5\%). The user replaced them with bucket weights. The second revision moves 5\% from G1 and 6.67\% from G3 to the tested blocks: spread level now carries 7.5\%, and ESP and OneScore share 9\%. OneScore is the only peer signal that passes the three-of-four-cycles bar beyond spread (+0.034 at 6 months, $t$ 2.1, listed issuers). The weights still put 60\% on two blocks without backtest support: the G1 rules (40\%, no backtest yet) and the clocks (20\%; the clocks backtest finds a rank IC beyond spread of $-0.03$ at 6 months, $t$ $-1.2$). The user keeps the clocks at 20\% by choice.
+The earlier v0 weights followed that evidence (spread level 25\%, untested estimates capped at 5\%). The user replaced them with bucket weights. The second revision moves 5\% from G1 and 6.67\% from G3 to the tested blocks: spread level now carries 8.65\% (after E2 moved to 0.69\%), and ESP and OneScore share 9\%. OneScore is the only peer signal that passes the three-of-four-cycles bar beyond spread (+0.034 at 6 months, $t$ 2.1, listed issuers). The weights still put 60\% on two blocks without backtest support: the G1 rules (40\%, no backtest yet) and the clocks (20\%; the clocks backtest finds a rank IC beyond spread of $-0.03$ at 6 months, $t$ $-1.2$). The user keeps the clocks at 20\% by choice.
 
 The peer backtest (2008--2026, decision page \code{2026-10-22-esp-peer-groups}) sets the G4 split. ESP adds to spread level: IC beyond spread $+0.096$ at 12 months ($t$ 2.6). SPiDER adds $+0.032$ ($t$ 1.3), and E13 adds $+0.026$ ($t$ 0.9). ESP fails the three-of-four-cycles bar beyond spread, so its 9\% is a user choice backed by the full-sample result only.
 
@@ -1185,7 +1186,7 @@ K10 & Circularity & \code{credit-model-standards}: iterate. \code{hy-model-stand
 K11 & Minimum cash & F4.4: one month of cash operating cost. Code: 2\% of quarterly revenue. Mapping item 3: (COGS + SG\&A)/3. & F4.4 via (COGS + SG\&A)/3. & Runway change under both. \\
 K12 & Text lags code & M4.3 (8x), M5.1 (debt recursion), F6.1 (order) state rules the code already replaced (C6, C8, C9). & The code, after a decision page that updates the text. & None; documentation. \\
 K13 & Trend length & \code{borrower-monitoring}: a trend needs 3--4 quarters. F8: margin slope $t$ over 8 quarters. & Both: 8-quarter $t$ for the band; the last 3--4 quarters' direction for the watchlist. & None. \\
-K15 & Hedge ratio & \code{scripts/scenarios.py}: $\beta = s/S_0$, so carry is zero in E1. Backtest: $\beta=1$; carry (spread level) is the best ranker. M9.3: $\beta$ from the model's $\partial s/\partial S_{mkt}$. & One $\beta$ for prediction and test, estimated from history by bucket; 1 until then. Add carry as E0 (now in code; S15 hedges with $\beta=1$). & IC of E1 with and without carry; hedged P\&L variance under each $\beta$. \\
+K15 & Hedge ratio & \code{scripts/scenarios.py}: $\beta = s/S_0$, so carry is zero in E1. Backtest: $\beta=1$; carry (spread level) is the best ranker. M9.3: $\beta$ from the model's $\partial s/\partial S_{mkt}$. & One $\beta$ for prediction and test, estimated from history by bucket; 1 until then. Add carry as E0 (now in code; S15 hedges with the DTS $\beta = s/S$ since 23 October 2026). & IC of E1 with and without carry; hedged P\&L variance under each $\beta$. \\
 K14 & Capex in the cases & F4.7: maintenance floor; growth capex cuttable in two quarters. Code: now runs maintenance-only and committed capex; quotes the shorter. \code{credit-model-standards}: all capex in FCF. & Run two cases: maintenance-only and committed capex. Quote the shorter runway. & For CRWV the static runway is 2 quarters; the case shows no shortfall in 8. \\
 \midrule
 W1 & Combination weights & Backtest-led v0: spread level 25\%, cases 15\%, fair line 10\%, untested estimates capped at 5\% (the backtest supported spread level best, IC after cost 0.22 and 0.29; the leverage residual added 0.036; the clocks and G1 estimates were untested). User choice (22 October 2026, revised the same day): G1 40\%, clocks 20\%, G2 rest 18\%, G4 17\% (ESP 4.5, OneScore 4.5, SPiDER 3, E12 and E13 2.5 each), G3 5\%, relative weights kept inside each bucket. & The user's weights, by user choice; they replace the backtest-led weights. & The clocks backtest ran (E5 below zero beyond spread); next a backtest of each G1 estimate (E7--E10); then the rank-IC rule with ablation. \\
@@ -1328,8 +1329,10 @@ EBITDA, EBITDAR & Earnings before interest, tax, depreciation and amortisation; 
 EBITDA, three kinds & Reported (as filed), adjusted (the analyst's, by the F3 rules), covenant (by the document's definition). \\
 Expected alpha & The expected return of a hedged long position over the horizon, after expected default loss and cost. \\
 Expected shortfall (ES) & The average loss in the worst $(1-\alpha)$ share of outcomes. \\
-Fair line & A line of log 5-year spread on lease-adjusted leverage, fitted across the issuers in the run. \\
-Fair spread & The spread a bond should pay for its risk, from the fair line today (and the M7 model later). \\
+Fair line & Until 22 October 2026, a line of log 5-year spread on lease-adjusted leverage across the issuers in the run. Replaced by the peer fair spread. \\
+Peer fair spread & The median 5-year spread of bonds in the same GICS sector, rating class and maturity bucket on the TRACE panel, own issuer left out; the HY index spread when no peer cell exists. \\
+DTS hedge ratio & $\beta = s/S$: the units of HY index to short per unit of bond, so the bond-specific move is left. \\
+Fair spread & The spread a bond should pay for its risk, from the peer fair spread today (and the M7 model later). \\
 FCF & Free cash flow: cash left after capex, cash interest, cash tax and working capital. \\
 FFO & Funds from operations (S\&P): cash earnings before working capital. \\
 Force rank & All candidates sorted on one score across sectors. \\

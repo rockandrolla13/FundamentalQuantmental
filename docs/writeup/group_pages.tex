@@ -55,10 +55,10 @@ G1 holds five estimates. They share its 40\%.\par
 ID & Estimate & How the code computes it & Weight \\
 \midrule
 E4 & Default the price assumes & $(PD^{\kappa} - PD^{fund})\,L^{def}$. The code shows it but does not count it until $\kappa$ is fitted (conflict C2). & 0\% \\
-E7 & Earnings quality & Minus the count of F3, add-back and FCF-check flags. It can only lower the number. & 11.25\% \\
-E8 & Liquidity and refinancing & F4 score on the likely path, plus wall cover (cap 3), plus one point if no funding gap. & 11.25\% \\
-E9 & Market value check & Minus debt over market enterprise value. & 11.25\% \\
-E10 & Excess over cash & $\mu/H$ from S15: the expected gain over cash, per year. & 11.25\% \\
+E7 & Earnings quality & Minus the count of F3, add-back and FCF-check flags. It can only lower the number. & 10.00\% \\
+E8 & Liquidity and refinancing & F4 score on the likely path, plus wall cover (cap 3), plus one point if no funding gap. & 10.00\% \\
+E9 & Market value check & Minus debt over market enterprise value. & 10.00\% \\
+E10 & Excess over cash & $\mu/H$ from S15: the expected gain over cash, per year. & 10.00\% \\
 \bottomrule
 \end{tabularx}
 }
@@ -68,10 +68,10 @@ E10 & Excess over cash & $\mu/H$ from S15: the expected gain over cash, per year
 \input{fig_bucket_G1.tex}
 \end{center}
 \begin{itemize}
-\item G1 is positive for five of the eight issuers. The values run from $-58$ to $+246$ bp a year.
-\item E10 has the widest range of any G1 estimate, from $-32$ to $+1{,}289$. So E10 sets the size of the bucket for most issuers.
-\item CRWV ranks first because its bond yields far more than cash (E10 $+1{,}289$). Its weak liquidity score (E8 $-326$) takes back part of that.
-\item NCLH ranks last. It has an earnings-quality flag, a weak liquidity score and little value cover above its debt.
+\item G1 is positive for five of the eight issuers. The values run from $-172$ to $+281$ bp a year.
+\item E10 has the widest range of any G1 estimate, from $-157$ to $+1{,}638$. So E10 sets the size of the bucket for most issuers.
+\item CRWV ranks first because its bond yields far more than cash (E10 $+1{,}638$). Its weak liquidity score (E8 $-553$) takes back part of that.
+\item NCLH ranks last in G1. It has an earnings-quality flag, a weak liquidity score and little value cover above its debt.
 \end{itemize}
 
 \fld{Evidence and limits}
@@ -97,7 +97,7 @@ Backtest E7, E8, E9 and E10 on the same panel as the alpha backtest. First build
 G2 is every method the repository runs end to end:
 \begin{itemize}
 \item The two clocks: \code{hy/clocks.py}, from M4.7 and the Radhakrishnan card.
-\item The fair line and the pair report: \code{scripts/rv_pair.py}.
+\item The peer fair spread (\code{hy.fairspread.peer_fair_spread}) and the pair report: \code{scripts/rv_pair.py}.
 \item The macro stories and forecast sources: \code{hy/macro.py} and \code{hy/forecasts.py}, with eleven forecast cards.
 \item The cases and the alpha: \code{scripts/scenarios.py} and \code{hy/alpha.py}.
 \item The gate, the F8 panel and the combined view: \code{scripts/process.py} and \code{hy/groups.py}. The backtest: \code{hy/backtest.py}.
@@ -120,7 +120,7 @@ S5 Claims & Debt, leases, gross, net and lease-adjusted leverage, coverage, FCCR
 S6 Clocks & Fixed obligations against contracted revenue, breakeven margin, renewal share, shortfall. \\
 S7 Cases & The forecast registry, the path builder and the case grid. \\
 S8 Value & Market enterprise value only. The recovery library exists but the process does not call it. \\
-S9 Relative value & The issuer curve, the fair line, the pair with its measured half-life. \\
+S9 Relative value & The issuer curve, the peer fair spread, the bond against the HY index with its DTS hedge ratio, the pair with its measured half-life. \\
 S10 Alpha & The hedged alpha on each path, with PD from the cases and a cost of 20 bp of spread times duration. \\
 S11 Gate & Five rows. The code computes gate rules G1, G3 and G6. \\
 S12 Events & The next results date and the next debt bucket. The event library exists but the process does not call it. \\
@@ -138,11 +138,11 @@ S14b Size & The backtest engine: realised alpha, calibration slope, decile check
 ID & Estimate & How the code computes it & Weight \\
 \midrule
 E5 & Two clocks & Minus fixed charges in years of EBITDAR, standardised. & 20.00\% \\
-E0 & Spread level & The bond spread over the index spread. & 4.86\% \\
-E1 & Cases and stories & The alpha of the cases, weighted by path probability, before cost. & 2.92\% \\
-E2 & Fair-line convergence & $D(1-\rho^{4h})(s-s^{fair})/h$: the part of the gap to the fair line that closes in six months. & 1.94\% \\
-E3 & Pair convergence & The pair gap closed at its measured half-life. Plus for the long leg, minus for the short leg. & 0.97\% \\
-E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13 panel. & 0.97\% \\
+E0 & Spread level & The bond spread over the index spread. & 8.65\% \\
+E1 & Cases and stories & The alpha of the cases, weighted by path probability, before cost. & 5.19\% \\
+E2 & Fair-line convergence & $D(1-\rho^{4h})(s-s^{fair})/h$: the part of the gap to the peer fair spread that closes in six months. The lowest active weight, by user choice. & 0.69\% \\
+E3 & Pair convergence & The pair gap closed at its measured half-life. Plus for the long leg, minus for the short leg. & 1.73\% \\
+E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13 panel. & 1.73\% \\
 \bottomrule
 \end{tabularx}
 }
@@ -156,17 +156,17 @@ E6 & Health panel & Green metrics minus red metrics, over all metrics on the S13
 \end{center}
 \begin{itemize}
 \item The clocks score CRWV, ORCL and MGM as negative. They score the hospitals and the cruise lines as positive.
-\item In the rest of G2, CRWV is highest ($+426$). Its spread level ($+571$) and its pair gap ($+776$) drive it.
-\item E3 gives the two legs of a pair the same size with opposite signs. So CRWV gets $+776$ and ORCL gets $-776$.
+\item In the rest of G2, CRWV is highest ($+648$). Its spread level ($+571$) and its pair gap ($+1{,}950$) drive it.
+\item E3 gives the two legs of a pair the same size with opposite signs. So CRWV gets $+1{,}950$ and ORCL gets $-1{,}950$. Against the peer fair spread the pair gap is 400 bp, not 159 bp. These sizes are not calibrated.
 \end{itemize}
 
 \fld{Evidence and limits}
 \begin{itemize}
-\item The alpha backtest (2008 to 2026) supports spread level and the fair line. Their rank IC after cost is 0.22 to 0.29.
+\item The alpha backtest (2008 to 2026) supports spread level and the old leverage line. Their rank IC after cost is 0.22 to 0.29 with the $\beta = 1$ hedge. The peer fair spread that replaced the line adds beyond spread level in 3 of 4 cycles at 3 and 12 months. Its sizes do not calibrate.
 \item The size is too large: realised alpha is about 0.08 times the predicted alpha. S14b applies that slope.
 \item The clocks backtest (2018 to 2026, 1,143 issuers) does not support E5. Its IC after cost is $-0.08$ to $-0.11$. Beyond the spread rank it is not different from zero.
 \item The market already prices the clocks. Issuers with heavy fixed charges pay more spread.
-\item E1 and E2 both use the fair line, so the fair line counts more than its two weights show.
+\item E1, E2 and E10 all use the peer fair spread, and E14 measures the same gap. So the peer gap counts more than any one weight shows.
 \end{itemize}
 
 \fld{The test that settles its weight}
@@ -244,9 +244,9 @@ E7 (earnings quality) also comes from the skills and is also one-way. The code c
 \input{fig_bucket_G3.tex}
 \end{center}
 \begin{itemize}
-\item Three issuers are on the watchlist: CRWV, ORCL and NCLH. Each gets $-215$ bp a year.
+\item Three issuers are on the watchlist: CRWV, ORCL and NCLH. Each gets $-365$ bp a year.
 \item The other five have no tier. They get zero, not a credit.
-\item So G3 can only pull the combined number down. For CRWV it removes 11 bp a year after its 5\% weight.
+\item So G3 can only pull the combined number down. For CRWV it removes 18 bp a year after its 5\% weight.
 \item Covenant headroom is ``open'' for seven of the eight issuers. The code parsed no covenant level from their filings. So the headroom term rarely fires.
 \end{itemize}
 
@@ -314,7 +314,7 @@ S15 Decision & Kricheff: define the mandate first. Ask whether a better instrume
 ID & Estimate & How the code computes it & Weight \\
 \midrule
 E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P score})$. The S\&P score (1 best, 10 worst) blends a business score and a financial score from the 2002 medians. A wide spread for the score is cheap. & 2.5\% \\
-E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It counts only if FCF over debt is above zero and the value cover is above 1. Otherwise zero. & 2.5\% \\
+E13 & Spread per turn against peers & $\log(\text{spread}/\text{leverage})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. It is zero on Kricheff's trap guard: FCF over debt at or below zero, value cover at or below 1, or two of high leverage, low FCF over debt and a thin cushion. & 2.5\% \\
 E14 & Excess spread to peers (ESP) & $\log(\text{spread})$ minus the median of peers in the same GICS sector, rating class and maturity bucket. Dynkin et al.\ ch.~13, without their leverage control: the control halved the edge in our backtest. & 4.5\% \\
 E15 & SPiDER & $\log\big(\text{spread} / (\text{debt} / \text{10-year mean EBITDA})\big)$, one rank across all sectors. None for a financial issuer or with fewer than 6 annual EBITDA figures. Dynkin et al.\ ch.~14. & 3\% \\
 E16 & OneScore & Mean of the within-sector ranks of issuer ESP and the 3-month stock return. An unlisted issuer takes its ESP value. Dynkin et al.\ ch.~19. & 4.5\% \\
@@ -327,9 +327,9 @@ E16 & OneScore & Mean of the within-sector ranks of issuer ESP and the 3-month s
 \scalebox{0.72}{\input{fig_bucket_G4.tex}}
 \end{center}
 \begin{itemize}
-\item CRWV is highest ($+190$). It pays 78\% more than its peers (E14 $+273$), and its spread is wide for its S\&P score (E12 $+246$). It has no E13 (it burns cash) and no SPiDER (3 years of EBITDA).
-\item HCA is lowest ($-186$): it pays 53\% less than its peers (E14 $-299$). THC rises to $+126$ because its stock is up 52\% in 3 months (E16 $+278$).
-\item For MGM the books say tight (E12 $-308$) and the peers say cheap (SPiDER $+363$). The memo must choose.
+\item CRWV is highest ($+353$). It pays 78\% more than its peers (E14 $+527$), and its spread is wide for its S\&P score (E12 $+417$). It has no E13 (it burns cash, so the trap guard sets it to zero) and no SPiDER (3 years of EBITDA).
+\item HCA is lowest ($-262$): it pays 52\% less than its peers (E14 $-476$). THC rises to $+313$ because its stock is up 52\% in 3 months (E16 $+508$).
+\item For MGM the books say tight (E12 $-523$), and SPiDER now agrees ($-417$). SPiDER was $+363$ on 22 October. The change comes from the debt figure. The peer cells now use the panel's point-in-time debt for every issuer: \$31.7bn for MGM, against \$6.1bn in step 5. What makes up the gap is an open question.
 \end{itemize}
 
 \fld{Evidence and limits}

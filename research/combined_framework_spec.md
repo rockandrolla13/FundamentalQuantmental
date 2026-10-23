@@ -3,7 +3,7 @@
 Status: FINAL v2, 2026-10-22 (user bucket weights; code state after agent one's run). Agent two wrote this file from `docs/writeup/combined_framework.tex` (46 pages).
 Agent one aligns `scripts/process.py` and `scripts/memo.py` with it. When this file and the .tex disagree, the .tex wins.
 
-Groups: G1 core process (Gatto, methodology.md, framework.md, RV PDF); G2 built methods (clocks, fair line, pair, stories, cases, alpha, gate, panel, combined view, backtest); G3 skills (hy-model-standards plus six private-credit skills, adapted to public HY); G4 books (Kricheff; Ganguin and Bilardello, S&P).
+Groups: G1 core process (Gatto, methodology.md, framework.md, RV PDF); G2 built methods (clocks, peer fair spread, pair, stories, cases, alpha, gate, panel, combined view, backtest); G3 skills (hy-model-standards plus six private-credit skills, adapted to public HY); G4 books (Kricheff; Ganguin and Bilardello, S&P).
 
 Conventions: spreads and rates in decimals unless the id ends in `_bp`; money in USD m unless `_bn`. `E` = LTM EBITDA; `I_c` = LTM cash interest; `D` = financial debt at face; `R` = annual lease cost; `K` = capex; `K_m` = maintenance capex. Bands are `[green, amber, red]` thresholds and are v0 (framework R9). Status codes: `built`, `partial`, `not_built` (code on 2026-10-22).
 
@@ -29,7 +29,7 @@ steps:
   - {id: S15, name: decision_against_cash,  code: [process.step_decision, hy.alpha.decision_against_cash, hy.alpha.opportunity_cost], status: built, groups: [G1,G2,G3,G4], note: "v0 recovery 0.4, tau 1y, k 15%"}
 ```
 
-Order in code: S7 runs before S4 (S4 reads case statistics). S9's fair line feeds S7.
+Order in code: S7 runs before S4 (S4 reads case statistics). S9's peer fair spread feeds S7.
 
 ## Per-step outputs and the key rule changes (what agent one should implement)
 
@@ -61,12 +61,14 @@ S8:  {outputs: [market_cap_bn, market_tev_bn, tev_to_ebitda, debt_to_market_tev]
       add: [v_low, v_mid, v_high, v_default, recovery_k, recovery_pv_k, recovery_adj_k, recovery_score, ltv_k],
       rules: ["recovery_pv = R / (1 + 0.15) ** tau; tau by S&P bucket: <0.5y good collateral, 0.5-2.5y partial liquidation, >2.5y unsecured (B9)",
               "prior when no waterfall: senior unsecured recovery 0.37-0.40"]}
-S9:  {outputs: [spread_5y_bp, fair_5y_bp, cheap_by_bp, fair_line, pairs],
-      add: [z_rv (resid / leave-one-issuer-out sd), curve_resid_bp (leave-one-out issuer curve), spt_bond, spt_total, jtd_ratio]}
+S9:  {outputs: [spread_5y_bp, fair_5y_bp, cheap_by_bp, fair_basis, fair_line, hy_index_bp, vs_index_bp, dts_beta, z_rv, peers, pairs],
+      rules: ["fair_5y = s5 exp(-ESP_sr) = median spread of sector x rating x maturity peers on the TRACE panel, leave own issuer out; fallback HY index spread (decision page 2026-10-23-peer-fair-spread)",
+              "z_rv = log(s5 / fair_5y) / peers' robust sd of log spread (1.4826 MAD)"],
+      add: [curve_resid_bp (leave-one-out issuer curve), spt_bond, jtd_ratio]}
 S10: {outputs: [weighted_bp_year_before_cost, weighted_bp_year_after_cost, by_path_bp_year, passes_cost_test],
       add: [l_def, jtd_per_mm, info_ratio, alpha_sized],
       rules: ["loss on price: l_def = (P_dirty/100 - R_pv) / (P_dirty/100) replaces LGD on face (C3)",
-              "one hedge beta for prediction and test; beta = 1 until estimated; the code's beta = s/S sets carry to zero (K15)"]}
+              "one hedge beta for prediction and test: DTS beta = s/S on the HY index, carry zero (K15; decision page 2026-10-23-peer-fair-spread)"]}
 S11: {outputs: [table, G1, G2, G3, G6, call, direction],
       add: [G4, G5, G7, G8, G9, credit_floor],
       rules: ["PD row shown, not counted in G1 until kappa_t is fitted by bucket and date (C2)",
@@ -87,33 +89,37 @@ S15: {outputs: [mu_excess, pi_loss, pi_cash, es95, opportunity_cost, best_admiss
               "survive value: remaining cash flows at fwd UST + s_fair(m); default: R_pv",
               "admissible if es95 <= 0.25; choose max mu among admissible",
               "convergence at H (current choice, as coded): s_H = s_b * S_H(m)/S0 - (1 - rho^(4h)) * (s5 - s_fair5) * Sbar(m)/S0; alternative: full convergence by 6 months (1 - rho^(4h) -> 1)",
-              "hedged version beside it with beta = 1 (K15); E10 uses the unhedged mu"]}
+              "total hedged return beside it: Treasury of the same tenor + DTS beta s/S x HY index (K15); E10 uses the unhedged mu",
+              "catalysts: step 12 events inside the horizon (hy.events.catalysts_in_horizon)"]}
 ```
 
 ## Combined score (S14) - replaces ENSEMBLE_WEIGHTS
 
 ```yaml
-buckets:  # user choice, 2026-10-22 (conflict W1); within a bucket, estimates keep their relative weights
-  G1: {weight: 0.45, estimates: [E4, E7, E8, E9, E10]}
+buckets:  # user choice, 2026-10-22 (W1; decision pages four-group-combination, weights-esp-spider); within a bucket, estimates keep their relative weights
+  G1: {weight: 0.40, estimates: [E4, E7, E8, E9, E10]}
   clocks: {weight: 0.20, estimates: [E5]}
-  G2_rest: {weight: 0.11667, estimates: [E0, E1, E2, E3, E6]}
-  G3: {weight: 0.11667, estimates: [E11], one_way: true}
-  G4: {weight: 0.11667, estimates: [E12, E13]}
-estimates:
-  - {id: E0,  bucket: G2_rest, type: alpha,   w: 0.0486, formula: "(s5 - S_index) * 1e4, beta = 1"}
-  - {id: E1,  bucket: G2_rest, type: alpha,   w: 0.0292, formula: "scenario alpha before cost"}
-  - {id: E2,  bucket: G2_rest, type: alpha,   w: 0.0194, formula: "D (1 - rho^(4h)) (s - s_fair) / h"}
-  - {id: E3,  bucket: G2_rest, type: alpha,   w: 0.0097, formula: "pair convergence, sign by leg"}
-  - {id: E6,  bucket: G2_rest, type: score,   w: 0.0097, formula: "(greens - reds) / banded"}
+  G2_rest: {weight: 0.18, estimates: [E0, E1, E2, E3, E6]}
+  G3: {weight: 0.05, estimates: [E11], one_way: true}
+  G4: {weight: 0.17, estimates: [E12, E13, E14, E15, E16]}
+estimates:  # w = effective weight (hy.groups.effective_weights), 2026-10-23
+  - {id: E0,  bucket: G2_rest, type: alpha,   w: 0.0865, formula: "(s5 - S_index) * 1e4, beta = 1"}
+  - {id: E1,  bucket: G2_rest, type: alpha,   w: 0.0519, formula: "scenario alpha before cost; s_fair = peer fair spread"}
+  - {id: E2,  bucket: G2_rest, type: alpha,   w: 0.0069, formula: "D (1 - rho^(4h)) (s - s_fair) / h; s_fair = peer median", note: "lowest active weight (decision page 2026-10-22-e2-lowest-weight)"}
+  - {id: E3,  bucket: G2_rest, type: alpha,   w: 0.0173, formula: "pair convergence, sign by leg"}
+  - {id: E6,  bucket: G2_rest, type: score,   w: 0.0173, formula: "(greens - reds) / banded"}
   - {id: E5,  bucket: clocks,  type: score,   w: 0.2000, formula: "-years_of_ebitdar"}
   - {id: E4,  bucket: G1,      type: alpha,   w: 0.0000, formula: "(PD_kappa_t - PD_fund) * l_def", note: "held at 0 until kappa_t fitted (C2)"}
-  - {id: E7,  bucket: G1,      type: one_way, w: 0.1125, formula: "-(eq_score + addback_flags + fcf_check_flag)", note: "G1+G3 rules; counted in G1 as hy/groups.py does"}
-  - {id: E8,  bucket: G1,      type: score,   w: 0.1125, formula: "refi_score(modal) + min(wall_cover_4, 3) + 1{funding_gap_min >= 0}"}
-  - {id: E9,  bucket: G1,      type: score,   w: 0.1125, formula: "-debt_to_tev"}
-  - {id: E10, bucket: G1,      type: alpha,   w: 0.1125, formula: "mu_excess / H (S15, unhedged)"}
-  - {id: E11, bucket: G3,      type: one_way, w: 0.1167, formula: "-(watch_tier) - 1{headroom falling}"}
-  - {id: E12, bucket: G4,      type: score,   w: 0.0583, formula: "z(log s5) - z(S&P default risk score)"}
-  - {id: E13, bucket: G4,      type: score,   w: 0.0583, formula: "z(spt) if fcf_to_debt > 0 and tev/debt > 1 else 0"}
+  - {id: E7,  bucket: G1,      type: one_way, w: 0.1000, formula: "-(eq_score + addback_flags + fcf_check_flag)", note: "G1+G3 rules; counted in G1 as hy/groups.py does"}
+  - {id: E8,  bucket: G1,      type: score,   w: 0.1000, formula: "refi_score(modal) + min(wall_cover_4, 3) + 1{funding_gap_min >= 0}"}
+  - {id: E9,  bucket: G1,      type: score,   w: 0.1000, formula: "-debt_to_tev"}
+  - {id: E10, bucket: G1,      type: alpha,   w: 0.1000, formula: "mu_excess / H (S15, unhedged)"}
+  - {id: E11, bucket: G3,      type: one_way, w: 0.0500, formula: "-(watch_tier) - 1{headroom falling}"}
+  - {id: E12, bucket: G4,      type: score,   w: 0.0250, formula: "z(log s5) - z(S&P default risk score)"}
+  - {id: E13, bucket: G4,      type: score,   w: 0.0250, formula: "spread per turn against peers; 0 if books.spt_trap_guard calls a trap (FCF/debt <= 0 or TEV/debt <= 1, or two of high leverage, low FCF/debt, thin cushion; decision page 2026-10-22-e13-trap-guard)"}
+  - {id: E14, bucket: G4,      type: score,   w: 0.0450, formula: "ESP: log s5 - peer median log s (sector x rating x maturity)"}
+  - {id: E15, bucket: G4,      type: score,   w: 0.0300, formula: "SPiDER: log s / (debt / 10-year mean EBITDA)"}
+  - {id: E16, bucket: G4,      type: score,   w: 0.0450, formula: "OneScore: mean of within-sector ranks of ESP and 3-month stock return; E14 when unlisted"}
 rule:
   score_to_bp: "alpha_j = (x_j - mean_run) / sd_run * sd_run(E1)"
   one_way: "alpha_j = min(0, alpha_j) for E7, E11"
@@ -134,6 +140,12 @@ evidence_2026_10_22:
   mz_slope: {full: [0.07, 0.08], pilot_2019_2026: [0.25, 0.31]}
   cycles_positive: "4 of 4 windows; calendar 2008 and 2015 negative"
   loss_term: off
+evidence_2026_10_23:  # scripts/backtest_peer_line.py, DTS-hedged realised after cost, 2008-01 to 2026-07
+  peer_line_ic_net: {h3: 0.054, h6: 0.038, h12: -0.008, skip_month: {h3: 0.000, h6: 0.004, h12: -0.021}}
+  peer_line_beyond_spread_skip_month: {h3: [0.073, "3 of 4"], h6: [0.100, "2 of 4"], h12: [0.181, "3 of 4"]}
+  old_line_beyond_spread_skip_month: {h3: [0.103, "2 of 4"], h6: [0.138, "2 of 4"]}
+  peer_line_mz_slope: {h3: -0.06, h6: -0.05, h12: -0.19}
+  reading: "the peer gap ranks within a spread level; its bp size carries no information"
 weights_history: {backtest_led_v0: {E0: 0.25, E1: 0.15, E2: 0.10, E3: 0.05, E5: 0.05, E6: 0.05, E7: 0.05, E8: 0.05, E9: 0.05, E10: 0.05, E11: 0.05, E12: 0.05, E13: 0.05}, replaced_by: user bucket weights (W1)}
 revisit_test: ["clocks backtest (now running): IC of E5 after cost, beyond the spread rank, per cycle", "backtest of each G1 estimate (E7-E10)", "then rank-IC weights with ablation; must beat widest in >= 3 of 4 cycles"]
 crwv_check: {old_weights: {raw_after_cost: 145, calibrated: 11}, new_weights: "pending agent one rerun; expected to fall (clocks and G1 scores weak)"}
