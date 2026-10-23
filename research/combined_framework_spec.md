@@ -82,7 +82,8 @@ S14: {outputs: [rows, combined_before_cost, combined_after_cost, cost, anchor_be
 S14b: {outputs: [mz_a, mz_b, alpha_sized, pit_deciles],
        rules: ["alpha_sized = a + b * alpha_net, (a, b) from pooled Mincer-Zarnowitz on past closed horizons; v0 a = 0, b = 0.08",
                "raw alpha sets the rank; alpha_sized feeds S15 and size",
-               "if b is not > 0 by 2 se: rank only, minimum size"]}
+               "if b is not > 0 by 2 se: rank only, minimum size",
+               "2026-10-23: (a, b) refitted point in time by hy.calibration (expanding window, outcomes finished by the decision time; b shrunk: b_s = max(0, b)(1 - (2 se / b)^2)); the map is chosen out of sample; hy.groups reads the latest map before the decision time, else v0 (decision page 2026-10-23-size-calibration)"]}
 S15: {outputs: [mu_excess, pi_loss, pi_cash, es95, opportunity_cost, best_admissible, replaces_position],
       rules: ["actions: S14 candidates passing S11, each holding (retain, sell), cash",
               "states: path m x {survive, default}; q = p(m)(1-PD_H(m)) or p(m) PD_H(m)",

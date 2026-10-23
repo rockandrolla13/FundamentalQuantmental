@@ -634,6 +634,27 @@ Set the signal horizon in Section 8 to about two half-lives. Reject a residual a
 
 Intuition: the bond pays its spread, the hedge costs the market's spread, the mispricing closes at its measured speed, and defaults take their expected share; alpha is what remains, averaged over the macro stories. Report `alpha_sd`, the dispersion of the bracket across paths, and `info_ratio = alpha / alpha_sd`. Framework F9 G3 passes when `alpha` after cost is above zero. The fields enter `bond_daily` (Section 10.1).
 
+**Size calibration (spec S14b).** The raw `alpha` ranks bonds. It does not size them: the panel backtest gives a Mincer-Zarnowitz (MZ) slope of realised on predicted return near 0.08, not 1. The memo therefore reports a calibrated return `m(alpha)`, fitted from past outcomes. Code: `hy/calibration.py`. Refit: `scripts/calibrate_sizes.py`. Decision page: `2026-10-23-size-calibration`.
+
+Assumptions:
+1. A row is one bond-month: the forecast `x` and the realised return `y` over `h` months, both after cost, distressed bonds out.
+2. The outcome of a row formed at month end `t` is known at the decision time of month end `t + h`. A fit at decision time `T` reads only rows with that time at or before `T`. A bond that stopped trading early still waits the full `h` months.
+3. The map is the same for every bond on a date, except for the spread band in the bucket variant.
+
+```latex
+\text{(MZ)}\quad y = a + b\,x + e, \qquad \hat b_s = \max(0,\hat b)\,\max\!\Big(0,\ 1 - \big(z\,\widehat{se}_b / \hat b\big)^2\Big), \qquad \hat a_s = \bar y - \hat b_s \bar x, \qquad z = 2
+```
+
+Intuition: keep the share of each predicted bp that arrived, and keep it only as far as the data can tell it from zero. The standard errors are Driscoll-Kraay with `h - 1` lags, because bonds on one date share shocks and horizons overlap. The slope is 0 with fewer than 24 finished months.
+
+```latex
+\text{(pool)}\quad b_k^{*} = w_k \hat b_k + (1 - w_k)\,\hat b_s, \qquad w_k = \frac{\tau^2}{\tau^2 + se_k^2}, \qquad \text{(iso)}\quad m(x) = \text{PAVA}\big(\bar y_d\big)\ \text{for the decile } d \text{ of } x
+```
+
+Intuition: a spread band keeps its own slope only when it is both different and precise (`τ²` is the DerSimonian-Laird spread of the band slopes). The isotonic map reads the decile table of Section 11 as a lookup, made to rise, and caps the top decile at what it earned.
+
+Choose among the three maps out of sample, not on the fit. Each month `T` is forecast with the maps fitted on outcomes finished by `T`. Take the linear map unless a richer map lowers the squared error with a Diebold-Mariano t above 2. Score each map by the MZ slope of realised on the calibrated forecast, pooled and with the date means removed, by the rank IC, and in the four stress windows. The S14b rule stays: when the raw slope is not above 0 by two standard errors, the memo ranks by raw `alpha` and sizes at the minimum. `hy.groups.combine` reads the latest map available before the decision time and falls back to the v0 slope 0.08 when no map exists.
+
 ### 7.6 Outputs of this layer
 
 | Output | Definition |
