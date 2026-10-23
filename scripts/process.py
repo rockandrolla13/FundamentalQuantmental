@@ -43,7 +43,6 @@ from hy import books, fairspread, forward, groups, peers, recovery, rv, skills, 
 from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import edgar  # noqa: E402
-from hy.sources import forecast_sources as fs  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG
@@ -99,8 +98,8 @@ def _f(x, nd=2):
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def step_inputs(con, t, decision, start, end, view: DataView) -> tuple[Step, dict]:
-    blk = rv_pair.issuer_block(con, t, decision, start, end, view=view)
+def step_inputs(t, decision, start, end, view: DataView) -> tuple[Step, dict]:
+    blk = rv_pair.issuer_block(t, decision, start, end, view=view)
     inputs = blk["inputs"]
     s = Step("1 Inputs", "Methodology 3; framework R5")
     s.outputs = {"filing": blk["filing"], "bonds_priced": int(len(blk["bonds"])), "curve_basis": blk["basis"],
@@ -1221,13 +1220,12 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     decision = end + pd.Timedelta(1, unit="D")
     start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
     view = view.at(decision) if view is not None else DataView(WarehouseSource(CONFIG), decision)
-    con = con or CONFIG.connect()
-    mac = scenarios.live_paths(con, decision, end)
+    mac = scenarios.live_paths(view, decision, end)
     curve_now = view.curve().as_row()  # the latest Treasury curve public at the decision time
     steps_all, blocks, fits = {}, {}, {}
     for t in tickers:
         try:
-            s1, blk = step_inputs(con, t, decision, start, end_str, view)
+            s1, blk = step_inputs(t, decision, start, end_str, view)
         except Exception as e:
             print(f"{t}: inputs failed ({type(e).__name__}: {e})")
             continue
@@ -1257,7 +1255,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
             print(f"{t}: no spread; steps 7 to 11 blocked")
             continue
         arch = st["2"].outputs.get("archetype") or "A4"
-        start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision)
+        start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision, view)
         qs = blk.get("_quarters") or view.financials(blk["issuer"])
         lt = blk.get("_ltm") or state.ltm_figures(qs)  # the one LTM table; no second sum of the same flows
         if state.last_four(qs):
@@ -1332,7 +1330,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
          "y10_q8": float(p.y10[-1]), "hy_spread": float(p.index_spread[:4].mean())} for p in mac.paths.paths],
         "s_index_now": mac.s_index_now, "decision": str(decision.date()),
         # Point-in-time audit trail (scripts/walkforward.py): what each forecast source and the curve were as of.
-        "forecast_sources": fs.source_status().astype(str).to_dict("records"), "curve_date": str(curve_now.name)}
+        "forecast_sources": view.forecast_status().astype(str).to_dict("records"), "curve_date": str(curve_now.name)}
     for t, st in steps_all.items():
         dump = {"ticker": t, "name": blocks[t]["name"], "macro": macro, "steps": {k: asdict(v) for k, v in st.items()}}
         (out_dir / f"{t}.json").write_text(json.dumps(dump, indent=2, default=str))

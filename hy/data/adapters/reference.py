@@ -8,6 +8,7 @@ from typing import Sequence
 
 import pandas as pd
 
+from hy.data.adapters import LazyConnection
 from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
 from hy.data.records import AnalystInput, Classification, Issuer
@@ -34,8 +35,12 @@ def classifications(issuers: Sequence[Issuer], cfg: DataConfig) -> list[Classifi
     return out
 
 
-def forecasts(decision_time: datetime, cfg: DataConfig) -> list[ForecastRow]:
-    return fs.load_all(decision_time, cfg.root).rows()
+def forecasts(decision_time: datetime, cfg: DataConfig) -> tuple[list[ForecastRow], pd.DataFrame]:
+    """Every forecast row known at `decision_time`, and the load status per source (`fs.source_status`). With network
+    the TRACE benchmark loader gets a WRDS connection, so its window ends on the last trade day on WRDS."""
+    opts = {"trace_hy_benchmark": {"con": LazyConnection(cfg)}} if cfg.allow_network else None
+    reg = fs.load_all(decision_time, cfg.root, options=opts)
+    return reg.rows(), fs.source_status()
 
 
 def analyst_inputs(ticker: str) -> AnalystInput:

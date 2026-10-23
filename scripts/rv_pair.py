@@ -35,8 +35,6 @@ from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
-from hy.sources import schedules as sc  # noqa: E402
-from hy.sources import xbrl_instance as xi  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
 from hy.data.sources import WarehouseSource  # noqa: E402
 from hy.data.view import DataView  # noqa: E402
@@ -49,29 +47,19 @@ H_YEARS = 0.5        # alpha horizon
 HISTORY_DAYS = 180   # TRACE history for the pair-gap persistence
 
 
-def _tag(df: pd.DataFrame, local: str) -> float:
-    """Undimensioned instant value of a concept (local name, any prefix) at the balance-sheet date, in USD m."""
-    from hy.sources import schedules as sc
-
-    as_of = sc.as_of_date(df)
-    hit = df[(df["concept"].str.split(":").str[-1] == local) & (df["n_dims"] == 0) & (df["end"] == as_of)
-             & df["start"].isna()]
-    return float(hit["value"].iloc[0]) / 1e6 if len(hit) else float("nan")
-
-
-def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str, view: DataView | None = None) -> dict:
+def issuer_block(ticker: str, decision: pd.Timestamp, start: str, end: str, view: DataView | None = None) -> dict:
     """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`. Every input comes
-    through `view` (hy.data.view); `con` is unused and kept for callers until step 6."""
+    through `view` (hy.data.view)."""
     view = view or DataView(WarehouseSource(CONFIG), decision)
     issuer = view.issuer(ticker)
     inputs = view.facts(issuer).values
-    case = clock_case.build_case(inputs)
-    q = xi.load_instance(ci.sources(inputs) and inputs["cik"][0], inputs["q"][0], cache_root=RAW)
-    debt, debt_src = sc.balance_sheet_debt(q)
-    lease = np.nansum([_tag(q, "OperatingLeaseLiability"), _tag(q, "FinanceLeaseLiability")])
+    case = clock_case.build_case(inputs, view)
+    q = view.balance_sheet(issuer, inputs["q"][0])
+    debt, debt_src = q.debt, q.debt_source
+    lease = np.nansum([q.operating_lease_liability, q.finance_lease_liability])
     ebitda = inputs["ltm_ebitda"][0]
     rent = inputs["annual_lease_cost"][0] or 0.0
-    cash = _tag(q, "CashAndCashEquivalentsAtCarryingValue")
+    cash = q.cash
     m = case["metrics"]
     risk = rv.IssuerRisk(
         ticker, lev_lease_adj=state.issuer_leverage(debt, lease, ebitda, rent),  # F5 going-concern view (hy.state)
@@ -262,7 +250,7 @@ def main() -> None:
     blocks, fits = {}, {}
     for t in tickers:
         try:
-            blocks[t] = issuer_block(con, t, decision, start, args.end)
+            blocks[t] = issuer_block(t, decision, start, args.end)
         except Exception as e:  # report the failure for this name and keep going
             print(f"{t}: skipped ({type(e).__name__}: {e})")
             continue
@@ -313,7 +301,7 @@ def main() -> None:
               f"gap {al['gap_bp']:.0f} bp | half-life {al['half_life_weeks']:.1f} wk | convergence alpha "
               f"{al['alpha_convergence_bp_price']:.0f} bp of price over {H_YEARS}y")
     # Macro paths and issuer scenarios (Section 5.4): one run feeds this report and the clock write-up.
-    mac = scenarios.live_paths(con, decision, end)
+    mac = scenarios.live_paths(DataView(WarehouseSource(CONFIG), decision), decision, end)
     scen_dir = RAW / "scenarios"
     scen_dir.mkdir(parents=True, exist_ok=True)
     report["macro"] = {"phase": mac.paths.phase, "votes": mac.paths.votes, "prior": mac.paths.prior,
@@ -330,7 +318,7 @@ def main() -> None:
         try:
             inputs = blk["inputs"]
             arch = (inputs.get("archetype") or ("A4", ""))[0]
-            start_, drv, info = scenarios.issuer_start(inputs, blk["case"], decision)
+            start_, drv, info = scenarios.issuer_start(inputs, blk["case"], decision, DataView(WarehouseSource(CONFIG), decision))
             s5, sf5 = float(xs.loc[t, "s5"]), float(xs.loc[t, "fair_s5"])
             d5 = rv.modified_duration(0.04 + s5, 0.04 + s5, TENOR)
             pts = scenarios.refi_points(s5, blk["longest"], blk["recent_raise"])

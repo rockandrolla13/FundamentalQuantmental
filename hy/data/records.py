@@ -140,10 +140,13 @@ class Curve(Stamped):
 
 @dataclass(frozen=True)
 class IndexLevel(Stamped):
-    """The high yield market's spread level on one date (Section 3.6, `hy_oas`). One definition (step 5)."""
+    """The high yield market's spread level on one date (Section 3.6, `hy_oas`), as a decimal, and the distress ratio
+    (share of high yield bonds above 1,000 bp, decimal; F6 phase indicator). The one rule that turns bond quotes into
+    these two numbers is `hy.state.hy_index_level` and `hy.state.distress_ratio`."""
 
     name: str = "HY"
     spread: float = float("nan")
+    distress: float = float("nan")
 
 
 @dataclass(frozen=True)
@@ -190,6 +193,46 @@ class MarketValue(Stamped):
     issuer_ticker: str = ""
     value: float = float("nan")
     source: str = ""
+
+
+@dataclass(eq=False)
+class Ladder:
+    """One maturity schedule of a filing (methodology 4.7): bucket amounts in USD millions, the first bucket's length in
+    years (the rest are one year each, the last is "thereafter"), the stated total, and whether the buckets add up to
+    it. The field names match `hy.sources.schedules.Ladder`, so the schedule functions accept either."""
+
+    family: str
+    amounts: list[float]
+    first_length: float
+    total: float
+    reconciles: bool
+    concepts: list[str] = field(default_factory=list)
+
+
+LADDER_FAMILIES = ("operating_lease", "finance_lease", "debt", "purchase")
+
+
+@dataclass(frozen=True, eq=False)
+class BalanceSheet(Stamped):
+    """The balance-sheet values and maturity schedules of one 10-Q or 10-K (framework F5; methodology 4.3, 4.7).
+
+    `as_of` is the balance-sheet date; `available_at` is the filing's acceptance time. Amounts in USD millions; NaN
+    when the filing does not state the value. `revolver_capacity` is None when no credit-line capacity is stated.
+    `ladders` maps each of `LADDER_FAMILIES` to a `Ladder`, or None when the filing has no such schedule.
+    `lease_not_commenced` is (total USD m, shortest term years, longest term years). `customer_shares` maps a named
+    customer to its share of revenue (decimal) in the latest quarter."""
+
+    issuer_ticker: str = ""
+    accession: str = ""
+    debt: float = float("nan")
+    debt_source: str = ""
+    operating_lease_liability: float = float("nan")
+    finance_lease_liability: float = float("nan")
+    cash: float = float("nan")
+    revolver_capacity: float | None = None
+    ladders: dict[str, Ladder | None] = field(default_factory=dict)
+    lease_not_commenced: tuple[float, float, float] = (float("nan"), float("nan"), float("nan"))
+    customer_shares: dict[str, float] = field(default_factory=dict)
 
 
 # Bond observations come as a frame for volume (600k bond-months). Neutral names: no vendor field leaves an adapter.

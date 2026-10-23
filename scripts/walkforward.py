@@ -211,7 +211,7 @@ def outcomes() -> pd.DataFrame:
     def S_at(day):
         day = pd.Timestamp(day).normalize()
         if day not in bench:
-            bench[day] = scenarios._bench_level(con, day)[0]
+            bench[day] = DataView(WarehouseSource(CONFIG), day + pd.Timedelta(1, unit="D")).hy_index().spread
         return bench[day]
 
     def curve_at(day):

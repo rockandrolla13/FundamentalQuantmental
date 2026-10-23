@@ -11,7 +11,7 @@ from typing import Protocol, Sequence, runtime_checkable
 
 import pandas as pd
 
-from hy.data.records import (AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
+from hy.data.records import (AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
                              IssuerFinancials, MarketValue)
 from hy.forecasts import ForecastRow
 
@@ -30,6 +30,7 @@ class FilingSource(Protocol):
 
     def facts(self, issuer: Issuer, decision_time: datetime) -> IssuerFacts: ...
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]: ...
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet: ...
 
 
 @runtime_checkable
@@ -65,9 +66,11 @@ class ReferenceSource(Protocol):
 
 @runtime_checkable
 class ForecastSource(Protocol):
-    """Macro forecast rows with their vintage times."""
+    """Macro forecast rows with their vintage times, and a status table per forecast source (the run's audit trail:
+    columns `FORECAST_STATUS_COLUMNS`)."""
 
     def forecasts(self, decision_time: datetime) -> list[ForecastRow]: ...
+    def forecast_status(self, decision_time: datetime) -> pd.DataFrame: ...
 
 
 @runtime_checkable
@@ -76,6 +79,8 @@ class AnalystSource(Protocol):
 
     def analyst_inputs(self, ticker: str) -> AnalystInput: ...
 
+
+FORECAST_STATUS_COLUMNS = ("source", "status", "last_vintage", "last_available_at", "rows", "rows_after_decision_time")
 
 # Panel names: neutral names for the cross-sectional files the backtests and the peer step read.
 PANELS = ("bond_panel", "leverage", "gics", "ratings", "annual_ebitda", "equity_monthly")

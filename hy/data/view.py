@@ -14,7 +14,7 @@ from typing import Any, Callable, Sequence
 import pandas as pd
 
 from hy.data.pit import DataUnavailable, PointInTimeStore, guard_frame, guard_records
-from hy.data.records import (AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
+from hy.data.records import (AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
                              IssuerFinancials, MarketValue)
 from hy.forecasts import ForecastRow
 
@@ -68,6 +68,14 @@ class DataView:
                           key=lambda f: f.available_at)
         return self._get(("filings", issuer.ticker, tuple(forms)), load)
 
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
+        """Balance-sheet values and schedules of one filing; the filing must be public by the decision time."""
+        def load() -> BalanceSheet:
+            b = self.source.balance_sheet(issuer, accession)
+            guard_records([b], self.decision_time)
+            return b
+        return self._get(("balance_sheet", issuer.ticker, accession), load)
+
     # ------------------------------------------------------------ bonds and market
 
     def bonds(self, issuer: Issuer) -> list[Bond]:
@@ -106,6 +114,10 @@ class DataView:
             return [r for r in self.source.forecasts(self.decision_time)
                     if pd.Timestamp(r.available_at) <= pd.Timestamp(self.decision_time)]
         return self._get(("forecasts",), load)
+
+    def forecast_status(self) -> pd.DataFrame:
+        """Per forecast source: live or stubbed, last vintage and release, rows kept (the run's audit trail)."""
+        return self._get(("forecast_status",), lambda: self.source.forecast_status(self.decision_time))
 
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return self._get(("analyst", ticker.upper()), lambda: self.source.analyst_inputs(ticker))
