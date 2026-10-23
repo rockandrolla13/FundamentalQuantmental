@@ -149,6 +149,15 @@ def test_latest_before_is_point_in_time():
     assert cb.latest_before(recs, pd.Timestamp("2014-01-01"), "p", 6) is None
 
 
+def test_unshrunk_comparator_and_demean(rng):
+    rows = synth(rng, slope=0.0, noise=0.08)
+    cal = cb.fit_calibration(rows, rows["available_at"].max(), 3, "pred", method="unshrunk")
+    assert cal.b == 0.0 and cal.b_raw != 0.0
+    assert np.isclose(cb.apply(cal, np.array([0.1]))[0], cal.a_raw + cal.b_raw * 0.1)
+    d = cb.demean_by_date(pd.DataFrame({"date": [1, 1, 2, 2], "f": [1.0, 3.0, 10.0, 14.0]}), ["f"])
+    assert np.allclose(d["f"], [-1.0, 1.0, -2.0, 2.0])
+
+
 def test_size_bp_yr_units():
     cal = cb.Calibration("p", 6, "linear", "2020-01-31", "2020-02-01", 100, 30, 0.001, 0.5, 0.0, 0.5, 0.1, 0.1, "size")
     # 200 bp a year = 1% over 6 months -> 0.001 + 0.5 x 0.01 = 0.6% over 6 months = 120 bp a year

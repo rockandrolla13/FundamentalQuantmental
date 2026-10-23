@@ -39,6 +39,7 @@ MIN_MONTHS = 24              # fewest finished formation months before any slope
 SPREAD_BANDS = (0.0, 0.04, 0.07, 0.10)   # bucket edges on the formation spread (decimal): <400, 400-700, 700-1000 bp
 N_BINS = 10                  # isotonic bins (deciles of x)
 METHODS = ("linear", "bucket", "isotonic")
+COMPARATORS = ("unshrunk",)  # scored out of sample, never chosen: the test of the shrinkage rule
 FILE_NAME = "size_calibration.json"
 
 
@@ -342,6 +343,8 @@ def apply(cal: Calibration, x, bucket=None) -> np.ndarray:
         return out
     if cal.method == "isotonic" and cal.isotonic.get("value"):
         return apply_isotonic(cal.isotonic, x)
+    if cal.method == "unshrunk" and np.isfinite(cal.b_raw) and cal.n_months > 0:
+        return cal.a_raw + cal.b_raw * x       # comparator only: the MZ line without shrinkage
     return lin
 
 
@@ -402,6 +405,12 @@ def dm_test(e_base: pd.Series, e_alt: pd.Series, dates: pd.Series, lags: int) ->
 
     d = pd.DataFrame({"g": e_base.to_numpy() ** 2 - e_alt.to_numpy() ** 2, "date": dates.to_numpy()}).dropna()
     return hac_mean(d.groupby("date")["g"].mean(), lags)
+
+
+def demean_by_date(df: pd.DataFrame, cols: Sequence[str], date_col: str = "date") -> pd.DataFrame:
+    """Subtract each date's mean from `cols` (Section 11, cross-sectional MZ). Intuition: the market-wide move of a
+    month is common to every bond, so it says nothing about how much more one bond earns than another."""
+    return df.assign(**{c: df[c] - df.groupby(date_col)[c].transform("mean") for c in cols})
 
 
 def choose_method(oos: pd.DataFrame, h_months: int, methods: Sequence[str] = METHODS, z: float = Z_SIGNIFICANT,
