@@ -26,7 +26,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from hy.inputs import LookAheadError
+from hy.data.pit import LookAheadError, guard_frame  # noqa: F401 - LookAheadError re-exported
 
 VARIABLES = (
     "gdp_growth",      # real GDP growth, annualised quarter on quarter
@@ -160,10 +160,9 @@ class ForecastRegistry:
 
 
 def assert_no_lookahead(rows: pd.DataFrame, decision_time: datetime) -> None:
-    """Raise LookAheadError if any forecast row was not readable at `decision_time` (framework R5)."""
-    if len(rows) and (pd.to_datetime(rows["available_at"]) > pd.Timestamp(decision_time)).any():
-        late = rows.loc[pd.to_datetime(rows["available_at"]) > pd.Timestamp(decision_time), ["source", "variable"]]
-        raise LookAheadError(f"forecast rows not available at {decision_time}: {late.to_dict('records')}")
+    """Raise LookAheadError if any forecast row was not readable at `decision_time` (framework R5; delegates to
+    `hy.data.pit.guard_frame`)."""
+    guard_frame(rows, decision_time, "forecast rows")
 
 
 def widen_factor(coverage_80: float, n: int, target: float = 0.80, min_n: int = 8, bounds=(0.5, 3.0)) -> float:

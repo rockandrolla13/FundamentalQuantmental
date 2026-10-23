@@ -29,6 +29,7 @@ import pandas as pd
 from scipy import stats
 
 from hy import rv
+from hy.data.pit import LookAheadError, guard_frame  # noqa: F401 - LookAheadError re-exported
 from hy.fairspread import fit_ar1
 from hy.signals import CYCLES, passes_cycle_test, rank_ic
 
@@ -47,8 +48,7 @@ CYCLE_WINDOWS: dict[int, tuple[str, str]] = {
 }
 
 
-class LookAheadError(AssertionError):
-    """An input row became available after the decision time."""
+# One LookAheadError for the repo (hy.data.pit; review finding AR-DRY-002).
 
 
 def decision_time(month_end: pd.Timestamp) -> pd.Timestamp:
@@ -57,15 +57,8 @@ def decision_time(month_end: pd.Timestamp) -> pd.Timestamp:
 
 
 def assert_no_lookahead(df: pd.DataFrame, as_of: pd.Timestamp, what: str = "input", col: str = "available_at") -> None:
-    """Raise `LookAheadError` when any row of `df` has `col` after `as_of`. A frame without the column fails too."""
-    if df is None or len(df) == 0:
-        return
-    if col not in df:
-        raise LookAheadError(f"{what} has no {col} column; cannot prove it is point in time")
-    late = pd.to_datetime(df[col]) > pd.Timestamp(as_of)
-    if late.any():
-        first = pd.to_datetime(df.loc[late, col]).min()
-        raise LookAheadError(f"{what}: {int(late.sum())} rows available after {pd.Timestamp(as_of)} (first {first})")
+    """Raise `LookAheadError` when any row of `df` has `col` after `as_of` (delegates to `hy.data.pit.guard_frame`)."""
+    guard_frame(df, as_of, what, col)
 
 
 # ---------------------------------------------------------------- universe and benchmark

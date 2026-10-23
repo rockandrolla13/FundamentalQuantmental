@@ -17,13 +17,14 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from hy.data.pit import LookAheadError, guard_times  # noqa: F401 - LookAheadError re-exported
+
 FLAT_PRICE = 50.0      # below this a bond trades flat: no coupon accrues (hy.backtest uses the same rule)
 END_WINDOW_DAYS = 10   # the end price is the last trade inside the 10 days to t + h, else the last trade after t
 MIN_ISSUERS_IC = 5     # fewest issuers on a date for a rank IC
 
 
-class LookAheadError(AssertionError):
-    """A prediction input was available after the decision time."""
+# One LookAheadError for the repo (hy.data.pit; review finding AR-DRY-002).
 
 
 def decision_dates(first: str, data_end: str, min_months: int = 3) -> list[pd.Timestamp]:
@@ -42,12 +43,8 @@ def decision_time(quarter_end: pd.Timestamp) -> pd.Timestamp:
 
 
 def assert_pit(times: Iterable, decision: pd.Timestamp, what: str) -> None:
-    """Raise LookAheadError when any time in `times` is after `decision`; NaT and None are ignored.
-    Intuition: every input of a prediction must have been public at the decision time."""
-    ts = pd.to_datetime(pd.Series(list(times), dtype="object"), errors="coerce").dropna()
-    late = ts[ts > pd.Timestamp(decision)]
-    if len(late):
-        raise LookAheadError(f"{what}: {len(late)} value(s) after {pd.Timestamp(decision)} (first {late.min()})")
+    """Raise LookAheadError when any time in `times` is after `decision` (delegates to `hy.data.pit.guard_times`)."""
+    guard_times(times, decision, what)
 
 
 def end_quote(quotes: pd.DataFrame, cusip: str, t: pd.Timestamp, end: pd.Timestamp,
