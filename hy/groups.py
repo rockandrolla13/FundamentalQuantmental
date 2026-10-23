@@ -185,9 +185,14 @@ def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: flo
         v["contribution"] = v["group_share"] * v["alpha_bp_yr"] if v["present"] else 0.0
     net = comb - cost_bp_yr
     smap = size_map(decision_time, calibration_path)
+    sized = sized_alpha(net, smap)
+    # A fitted map that says "rank only" gives every bond about the same number (its intercept): the sample's average
+    # excess return, not a view on this bond. Show no size then, and name that level on its own.
+    rank_only = smap["record"] is not None and smap["use"] != "size"
     agree = sum(1 for v in groups.values() if v["present"] and np.sign(v["alpha_bp_yr"]) == np.sign(comb))
     return {"groups": groups, "combined_before_cost": comb, "combined_after_cost": net, "cost": cost_bp_yr,
-            "alpha_sized": sized_alpha(net, smap), "size_use": smap["use"], "size_source": smap["source"],
+            "alpha_sized": float("nan") if rank_only else sized, "size_level_bp_yr": sized if rank_only else None,
+            "size_use": smap["use"], "size_source": smap["source"],
             "anchor_before_cost": anchor_bp_yr, "anchor_after_cost": anchor_bp_yr - cost_bp_yr,
             "groups_agree": agree, "groups_n": sum(1 for v in groups.values() if v["present"])}
 

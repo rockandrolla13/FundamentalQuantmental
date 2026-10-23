@@ -886,7 +886,7 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
                  if tick else None, "s_index_bp": s_index * 1e4}, h
 
 
-def combined_view(steps_all: dict, scen: dict, xs, s_index: float) -> dict:
+def combined_view(steps_all: dict, scen: dict, xs, s_index: float, decision: pd.Timestamp | None = None) -> dict:
     """One analyst across the four groups: group alphas, verdicts, and the combined alpha set against the
     scenario-weighted alpha (methodology 7.5, 8; framework F10, F12.1; spec S14; hy.groups.combine).
 
@@ -897,7 +897,7 @@ def combined_view(steps_all: dict, scen: dict, xs, s_index: float) -> dict:
     out = {}
     for t in raw:
         cost = scen[t]["alpha"]["cost"] / h * 1e4
-        res = groups.combine(raw[t], cost, raw[t]["E1"])
+        res = groups.combine(raw[t], cost, raw[t]["E1"], decision_time=decision)  # the size calibration known then
         for g, v in res["groups"].items():
             v["verdict"] = groups.verdict(v["alpha_bp_yr"], cost, v["one_way_only"])
         rows = [{"estimate": k, "name": groups.ESTIMATES[k][1], "group": groups.ESTIMATES[k][0], "type": groups.ESTIMATES[k][2],
@@ -977,14 +977,17 @@ def step_size_calibration(t, comb: dict, slope: dict) -> Step:
         s.status = "blocked"
         return s
     b, se = slope["b"], slope["se_b"]
-    sig = bool(se and b > 2 * se)
+    # The size comes from the calibration known at the decision time (hy.calibration via hy.groups.combine; decision
+    # page 2026-10-23-size-calibration). The backtest slope stays beside it for reference.
+    calibrated = not str(c.get("size_source", "")).startswith("spec S14b v0")
     s.outputs = {"mz_b": _f(b, 3), "mz_se_b": _f(se, 3), "mz_b_pilot": _f(slope["b_pilot"], 3), "source": slope["source"],
                  "alpha_raw_after_cost": _f(c["combined_after_cost"], 0),
-                 "alpha_sized": _f(b * c["combined_after_cost"], 0),
+                 "alpha_sized": _f(c["alpha_sized"], 0), "size_source": c.get("size_source"),
+                 "size_level_bp_yr": _f(c.get("size_level_bp_yr"), 0),
                  "alpha_sized_pilot": _f(slope["b_pilot"] * c["combined_after_cost"], 0) if slope["b_pilot"] else None,
                  "anchor_sized": _f(b * c["anchor_after_cost"], 0),
-                 "slope_significant": sig, "use": "size" if sig else "rank only, minimum size",
-                 "calibrated": False, "loss_term_in_backtest": False}
+                 "slope_significant": c.get("size_use") == "size", "use": c.get("size_use", "rank only, minimum size"),
+                 "calibrated": calibrated, "loss_term_in_backtest": False}
     s.status = "partial"
     s.open_questions.append("Alpha sizes are uncalibrated: the backtest slope is far below 1 and the panel has no "
                             "default-loss term; recalibrate once the loss term is on.")
@@ -1302,7 +1305,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     for t in steps_all:
         steps_all[t]["9b"] = step_pair(t, pairs_out)
     scen_out = {t: blocks[t]["_sc_out"] for t in steps_all if "_sc_out" in blocks[t]}
-    comb = combined_view(steps_all, scen_out, xs, mac.s_index_now)
+    comb = combined_view(steps_all, scen_out, xs, mac.s_index_now, decision)
     slope = measured_slope()
     for t in steps_all:
         steps_all[t]["14"] = step_combined(t, comb)

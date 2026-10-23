@@ -240,7 +240,8 @@ def memo(d: dict) -> str:
                  ["Trading costs", "", "", bp(-cb["cost"]), ""],
                  ["\\textbf{Combined, after trading costs}", "", "", f"\\textbf{{{bp(cb['combined_after_cost'])}}}", ""],
                  ["Weighted cases and stories alone, after costs", "", "", bp(cb["anchor_after_cost"]), ""],
-                 [f"Calibrated: after-cost number x measured slope {num(sz.get('mz_b'), 3)}", "", "", bp(sz.get("alpha_sized")), ""]]
+                 [f"Sized for a position ({esc(sz.get('use') or 'rank only, minimum size')})", "", "",
+                  bp(sz.get("alpha_sized")) if sz.get("alpha_sized") is not None else "none", ""]]
         L.append(table(["Group", "bp a year", "Weight", "Adds", "Call"], rows, "lrrrl"))
         diff = cb["combined_after_cost"] - cb["anchor_after_cost"]
         L.append(f"Against the weighted cases and stories alone, the combination is {abs(diff):,.0f} bp a year "
@@ -250,15 +251,17 @@ def memo(d: dict) -> str:
                  "rest of the built methods, the credit skills and the books. The backtest alone would have put most "
                  "weight on the built methods.")
         if sz:
-            use = ("The slope is not above zero by two standard errors, so the number ranks the bond but does not size it."
-                   if not sz.get("slope_significant") else "The calibrated number sizes the position.")
-            L.append(box(f"\\textbf{{Alpha sizes are uncalibrated.}} The backtest (2008 to 2026) shows that this kind of "
-                         "estimate ranks bonds well but overstates the size of the move. Realised alpha has been about "
-                         f"{num(sz.get('mz_b'), 2)} times the predicted alpha (standard error {num(sz.get('mz_se_b'), 2)}; "
-                         f"{num(sz.get('mz_b_pilot'), 2)} since 2019). The calibrated number multiplies by that slope: "
-                         f"{bp(sz.get('alpha_sized'))} bp a year after costs ({bp(sz.get('alpha_sized_pilot'))} on the 2019 "
-                         f"slope). {use} Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss "
-                         "term yet."))
+            if sz.get("use") == "size":
+                txt = (f"The calibrated number sizes the position: {bp(sz.get('alpha_sized'))} bp a year after costs. "
+                       f"Source: {esc(sz.get('size_source'))}.")
+            else:
+                txt = (f"This number ranks the bond but does not size it. Source: {esc(sz.get('size_source'))}. ")
+                if sz.get("size_level_bp_yr") is not None:
+                    txt += (f"Fitted on past outcomes, every bond maps to about {bp(sz.get('size_level_bp_yr'))} bp a "
+                            "year: the average return of the sample against the index, not a view on this bond. ")
+            L.append(box(f"\\textbf{{Position size.}} {txt}The backtest ranks bonds well but overstates the size of "
+                         "the move; the size calibration refits that link each month from finished outcomes. Decision "
+                         "page: 2026-10-23-size-calibration."))
 
     # ------------------------------------------------------------------ G1
     L.append("\\section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}")

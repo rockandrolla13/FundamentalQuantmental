@@ -77,5 +77,5 @@ def test_warehouse_source_reads_the_cache_offline():
     assert bonds and all(isinstance(b, records.Bond) for b in bonds)
     c = w.curve(T)
     assert isinstance(c, records.Curve) and c.available_at <= T and len(c.tenors) == len(c.yields) > 5
-    with pytest.raises(DataUnavailable, match="step 5"):
-        w.hy_index(T)
+    idx = w.hy_index(T)  # one rule (hy.state.hy_index_level), public by T
+    assert isinstance(idx, records.IndexLevel) and idx.available_at <= T and 0.005 < idx.spread < 0.10

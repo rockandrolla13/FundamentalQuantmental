@@ -15,14 +15,14 @@
 The combined column is after trading costs; the five bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{Alpha sizes are uncalibrated}: in the backtest, realised alpha was about 0.08 times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
 \begin{center}\scriptsize\setlength{\tabcolsep}{2pt}\begin{tabular}{@{}rlrrrrrrrrll@{}}\toprule
 Rank & Issuer & Combined & Calibrated & G1 (40\%) & G2 clocks (20\%) & G2 rest (18\%) & G3 (5\%) & G4 (17\%) & Cases & Best alt. & Gate \\\midrule
-1 & CRWV & \textbf{+3} & +0 & +249 & -537 & +654 & -374 & +362 & +590 & NCLH & Watch \\
-2 & THC & \textbf{-56} & -4 & -15 & +318 & +32 & +0 & +321 & -236 & CRWV & Pass \\
-3 & CCL & \textbf{-126} & -10 & +68 & +153 & -73 & +0 & +16 & -218 & CRWV & Pass \\
-4 & HCA & \textbf{-155} & -12 & +52 & +343 & -123 & +0 & -269 & -382 & CRWV & Pass \\
-5 & NCLH & \textbf{-193} & -15 & -193 & +178 & +110 & -374 & +94 & -81 & CRWV & Pass \\
-6 & MGM & \textbf{-230} & -18 & +16 & -189 & +29 & +0 & -189 & -266 & CRWV & Pass \\
-7 & WYNN & \textbf{-251} & -20 & -57 & +7 & -109 & +0 & -225 & -406 & CRWV & Pass \\
-8 & ORCL & \textbf{-258} & -20 & +105 & -274 & -250 & -374 & -47 & -260 & CRWV & Pass \\
+1 & CRWV & \textbf{+3} & n/a & +249 & -537 & +654 & -374 & +362 & +590 & NCLH & Watch \\
+2 & THC & \textbf{-56} & n/a & -15 & +318 & +32 & +0 & +321 & -236 & CRWV & Pass \\
+3 & CCL & \textbf{-126} & n/a & +68 & +153 & -73 & +0 & +16 & -218 & CRWV & Pass \\
+4 & HCA & \textbf{-155} & n/a & +52 & +343 & -123 & +0 & -269 & -382 & CRWV & Pass \\
+5 & NCLH & \textbf{-193} & n/a & -193 & +178 & +110 & -374 & +94 & -81 & CRWV & Pass \\
+6 & MGM & \textbf{-230} & n/a & +16 & -189 & +29 & +0 & -189 & -266 & CRWV & Pass \\
+7 & WYNN & \textbf{-251} & n/a & -57 & +7 & -109 & +0 & -225 & -406 & CRWV & Pass \\
+8 & ORCL & \textbf{-258} & n/a & +105 & -274 & -250 & -374 & -47 & -260 & CRWV & Pass \\
 \bottomrule\end{tabular}\end{center}
 
 \section*{What each part of a memo answers}
@@ -102,10 +102,10 @@ G4. Books and peers & +362 & 17\% & +62 & \textcolor{good}{supports owning} \\
 Trading costs &  &  & -149 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{+3} &  \\
 Weighted cases and stories alone, after costs &  &  & +590 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & +0 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 587 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: +0 bp a year after costs (+1 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +249 bp a year before trading costs (costs are 149 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 1 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
@@ -397,10 +397,10 @@ G4. Books and peers & -47 & 17\% & -8 & \textcolor{bad}{against owning} \\
 Trading costs &  &  & -173 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-258} &  \\
 Weighted cases and stories alone, after costs &  &  & -260 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -20 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 2 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -20 bp a year after costs (-65 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +105 bp a year before trading costs (costs are 173 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 2 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -692,10 +692,10 @@ G4. Books and peers & -269 & 17\% & -46 & \textcolor{bad}{against owning} \\
 Trading costs &  &  & -176 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-155} &  \\
 Weighted cases and stories alone, after costs &  &  & -382 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -12 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 227 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -12 bp a year after costs (-39 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +52 bp a year before trading costs (costs are 176 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 4 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -965,10 +965,10 @@ G4. Books and peers & +321 & 17\% & +55 & \textcolor{good}{supports owning} \\
 Trading costs &  &  & -174 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-56} &  \\
 Weighted cases and stories alone, after costs &  &  & -236 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -4 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 180 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -4 bp a year after costs (-14 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -15 bp a year before trading costs (costs are 174 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 6 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -1252,10 +1252,10 @@ G4. Books and peers & +16 & 17\% & +3 & \textcolor{amber}{leans to owning} \\
 Trading costs &  &  & -174 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-126} &  \\
 Weighted cases and stories alone, after costs &  &  & -218 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -10 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 92 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -10 bp a year after costs (-32 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +68 bp a year before trading costs (costs are 174 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 3 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -1530,10 +1530,10 @@ G4. Books and peers & +94 & 17\% & +16 & \textcolor{amber}{leans to owning} \\
 Trading costs &  &  & -168 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-193} &  \\
 Weighted cases and stories alone, after costs &  &  & -81 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -15 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 112 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -15 bp a year after costs (-49 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -193 bp a year before trading costs (costs are 168 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 8 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -1809,10 +1809,10 @@ G4. Books and peers & -189 & 17\% & -32 & \textcolor{bad}{against owning} \\
 Trading costs &  &  & -172 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-230} &  \\
 Weighted cases and stories alone, after costs &  &  & -266 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -18 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 36 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -18 bp a year after costs (-58 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +16 bp a year before trading costs (costs are 172 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 5 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
@@ -2078,10 +2078,10 @@ G4. Books and peers & -225 & 17\% & -38 & \textcolor{bad}{against owning} \\
 Trading costs &  &  & -172 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-251} &  \\
 Weighted cases and stories alone, after costs &  &  & -406 &  \\
-Calibrated: after-cost number x measured slope 0.079 &  &  & -20 &  \\
+Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
 Against the weighted cases and stories alone, the combination is 154 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha sizes are uncalibrated.} The backtest (2008 to 2026) shows that this kind of estimate ranks bonds well but overstates the size of the move. Realised alpha has been about 0.08 times the predicted alpha (standard error 0.05; 0.25 since 2019). The calibrated number multiplies by that slope: -20 bp a year after costs (-63 on the 2019 slope). The slope is not above zero by two standard errors, so the number ranks the bond but does not size it. Decision page: 2026-10-22-alpha-backtest-design. The backtest has no default-loss term yet.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -57 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 7 of the issuers on this group alone. Best alternative for the same money: CRWV.}}

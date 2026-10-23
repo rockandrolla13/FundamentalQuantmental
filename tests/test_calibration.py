@@ -191,3 +191,15 @@ def test_groups_reads_latest_calibration_before_decision(tmp_path):
     assert r["size_use"] == "size" and "2026-09-30" in r["size_source"]
     r = groups.combine(EST, 30.0, 200.0, decision_time=pd.Timestamp("2019-01-01"), calibration_path=p)
     assert r["size_source"].startswith("spec S14b v0")          # nothing fitted yet at that date
+
+
+def test_rank_only_calibration_leaves_no_per_bond_size(tmp_path):
+    # A fitted slope of 0 maps every bond to the same number (the intercept). That is the sample's average excess
+    # return, not a view on the bond, so the combined output shows no size and names the level separately.
+    rec = cb.Calibration(groups.SIZE_PREDICTOR, groups.SIZE_HORIZON, "linear", "2026-08-01", "2026-08-02", 1000, 217,
+                         -0.0054, 0.0, 0.002, 0.0, 0.0, 0.0, "rank only, minimum size", evaluation={"chosen": True})
+    p = cb.save([rec], tmp_path / "c.json")
+    r = groups.combine(EST, 30.0, 200.0, decision_time=pd.Timestamp("2026-09-18"), calibration_path=p)
+    assert r["size_use"] == "rank only, minimum size"
+    assert np.isnan(r["alpha_sized"])
+    assert np.isclose(r["size_level_bp_yr"], -0.0054 * 1e4 * 12 / groups.SIZE_HORIZON)
