@@ -9,7 +9,7 @@ Each row pairs two series and states how one leads or tracks the other. Two clai
 The source shows each pair on a chart. "Advanced nM" means that the analyst shifted series 1 forward by n months, so series 1 leads. "Inverted" means that the analyst flipped the sign. The notes give no coefficients, no sample periods, and no out-of-sample tests.
 
 ## Data
-Columns: `sector`, `wt_note`, `note_date`, `series_1`, `series_2`, `relationship`. The comments are verbatim, typos included. The sheet has no sector column. I assigned the `sector` tag from the series in each row. Three rows carry two tags: two rows are Financials and Housing, one row is Energy and Consumer Discretionary.
+Columns: `sheet_row` (the row in the sheet tab), `sector`, `wt_note`, `note_date`, `series_1`, `series_2`, `relationship`. The comments are verbatim, typos included. The sheet has no sector column. I assigned the `sector` tag from the series in each row. Three rows carry two tags: two rows are Financials and Housing, one row is Energy and Consumer Discretionary.
 
 | Sector | Rows |
 |---|---|
@@ -38,6 +38,6 @@ For this project the useful rows are the candidate leads into the macro vector `
 - The rows forecast equity returns and macro series, not HY spreads or defaults.
 
 ## Decision
-Use the rows as a list of candidate leads only. Test each candidate lead on the HY panel before it enters `m_t` or a `β_sector` regression. A candidate passes when it adds out-of-sample information over `hy_oas`, `sloos_tightening`, `default_rate_fcst`, and `pmi`.
+Use the rows as a list of candidate leads only. The test plan is `docs/decisions/2026-10-24-wt-relationship-tests.md`. Test each candidate lead on the HY panel before it enters `m_t` or a `β_sector` regression. A candidate passes when it adds out-of-sample information over `hy_oas`, `sloos_tightening`, `default_rate_fcst`, and `pmi`.
 
 Section touched: methodology 3.6, 5.2
