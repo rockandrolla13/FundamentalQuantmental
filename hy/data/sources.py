@@ -15,9 +15,10 @@ import pandas as pd
 from hy.data.adapters import compustat, edgar_filings, reference, trace, treasury_curve
 from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
-from hy.data.source import PANELS
-from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
-                             IssuerFacts, IssuerFinancials, check_observations)
+from hy.data.source import FORECAST_STATUS_COLUMNS, PANELS
+from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
+                             IssuerFacts, IssuerFinancials, MarketValue, ReportedCashFlow, FilingText,
+                             check_observations)
 from hy.forecasts import ForecastRow
 
 
@@ -26,6 +27,7 @@ class WarehouseSource:
 
     def __init__(self, cfg: DataConfig) -> None:
         self.cfg = cfg
+        self._forecast_status: dict[datetime, pd.DataFrame] = {}
 
     def issuers(self, tickers: Sequence[str]) -> list[Issuer]:
         return [compustat.issuer(t, self.cfg) for t in tickers]
@@ -39,6 +41,15 @@ class WarehouseSource:
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]:
         return edgar_filings.filings(issuer, forms, self.cfg)
 
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
+        return edgar_filings.balance_sheet(issuer, accession, self.cfg)
+
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        return edgar_filings.filing_text(issuer, accession, self.cfg)
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow:
+        return edgar_filings.reported_cash_flow(issuer, period_end, decision_time, self.cfg)
+
     def bonds(self, issuer: Issuer) -> list[Bond]:
         return trace.bonds(issuer, self.cfg)
 
@@ -48,15 +59,28 @@ class WarehouseSource:
     def curve(self, on: datetime) -> Curve:
         return treasury_curve.curve(on, self.cfg)
 
+    def curves(self, start: datetime, end: datetime) -> list[Curve]:
+        return treasury_curve.curves(start, end, self.cfg)
+
     def hy_index(self, on: datetime) -> IndexLevel:
-        raise DataUnavailable("hy_index", str(pd.Timestamp(on).date()),
-                              "the live run and the backtest define it differently; one definition arrives in step 5")
+        return trace.hy_index(on, self.cfg)
+
+    def market_value(self, issuer: Issuer, decision_time: datetime) -> MarketValue:
+        return compustat.market_value(issuer, decision_time, self.cfg)
 
     def classifications(self, issuers: Sequence[Issuer]) -> list[Classification]:
         return reference.classifications(issuers, self.cfg)
 
     def forecasts(self, decision_time: datetime) -> list[ForecastRow]:
-        return reference.forecasts(decision_time, self.cfg)
+        rows, status = reference.forecasts(decision_time, self.cfg)
+        self._forecast_status[pd.Timestamp(decision_time).to_pydatetime()] = status
+        return rows
+
+    def forecast_status(self, decision_time: datetime) -> pd.DataFrame:
+        t = pd.Timestamp(decision_time).to_pydatetime()
+        if t not in self._forecast_status:
+            self.forecasts(t)
+        return self._forecast_status[t]
 
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return reference.analyst_inputs(ticker)
@@ -81,13 +105,19 @@ class FakeSource:
                  observations: pd.DataFrame | None = None, curves: Sequence[Curve] = (),
                  index_levels: Sequence[IndexLevel] = (), classifications: Sequence[Classification] = (),
                  forecasts: Sequence[ForecastRow] = (), analyst: Sequence[AnalystInput] = (),
-                 panels: dict[str, pd.DataFrame] | None = None) -> None:
+                 panels: dict[str, pd.DataFrame] | None = None, market_values: Sequence[MarketValue] = (),
+                 balance_sheets: Sequence[BalanceSheet] = (), texts: Sequence[FilingText] = (),
+                 cash_flows: Sequence[ReportedCashFlow] = ()) -> None:
         self._issuers = {i.ticker: i for i in issuers}
         self._financials, self._facts, self._filings = list(financials), list(facts), list(filings)
         self._bonds, self._curves, self._index = list(bonds), list(curves), list(index_levels)
         self._class, self._forecasts = list(classifications), list(forecasts)
         self._analyst = {a.ticker: a for a in analyst}
         self._panels = dict(panels or {})
+        self._mv = list(market_values)
+        self._sheets = {b.accession: b for b in balance_sheets}
+        self._texts = {x.accession: x for x in texts}
+        self._cash_flows = list(cash_flows)
         self._obs = check_observations(observations) if observations is not None else pd.DataFrame(columns=list(BOND_OBS_COLUMNS))
 
     def issuers(self, tickers: Sequence[str]) -> list[Issuer]:
@@ -108,6 +138,23 @@ class FakeSource:
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]:
         return [f for f in self._filings if f.issuer_ticker == issuer.ticker and f.form in forms]
 
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
+        if accession not in self._sheets:
+            raise DataUnavailable("balance_sheet", accession, "not in the fake source")
+        return self._sheets[accession]
+
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        if accession not in self._texts:
+            raise DataUnavailable("filing_text", accession, "not in the fake source")
+        return self._texts[accession]
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow:
+        hit = [c for c in self._cash_flows if c.issuer_ticker == issuer.ticker and c.as_of == period_end
+               and c.available_at <= decision_time]
+        if not hit:
+            raise DataUnavailable("reported_cash_flow", issuer.ticker, "not in the fake source")
+        return min(hit, key=lambda c: c.available_at)
+
     def bonds(self, issuer: Issuer) -> list[Bond]:
         return [b for b in self._bonds if b.issuer_ticker == issuer.ticker]
 
@@ -122,11 +169,20 @@ class FakeSource:
             raise DataUnavailable("curve", str(on), "none public by the date")
         return max(c, key=lambda x: x.as_of)
 
+    def curves(self, start: datetime, end: datetime) -> list[Curve]:
+        return sorted((x for x in self._curves if start <= x.as_of <= end), key=lambda x: x.as_of)
+
     def hy_index(self, on: datetime) -> IndexLevel:
         c = [x for x in self._index if x.available_at <= on]
         if not c:
             raise DataUnavailable("hy_index", str(on), "none public by the date")
         return max(c, key=lambda x: x.as_of)
+
+    def market_value(self, issuer: Issuer, decision_time: datetime) -> MarketValue:
+        known = [m for m in self._mv if m.issuer_ticker == issuer.ticker and m.available_at <= decision_time]
+        if not known:
+            raise DataUnavailable("market_value", issuer.ticker, "none reported by the decision time")
+        return max(known, key=lambda m: m.as_of)
 
     def classifications(self, issuers: Sequence[Issuer]) -> list[Classification]:
         names = {i.ticker for i in issuers}
@@ -134,6 +190,16 @@ class FakeSource:
 
     def forecasts(self, decision_time: datetime) -> list[ForecastRow]:
         return list(self._forecasts)
+
+    def forecast_status(self, decision_time: datetime) -> pd.DataFrame:
+        rows = []
+        for name in dict.fromkeys(r.source for r in self._forecasts):
+            mine = [r for r in self._forecasts if r.source == name]
+            kept = [r for r in mine if r.available_at <= decision_time]
+            rows.append({"source": name, "status": "fake", "last_vintage": max((r.vintage for r in kept), default=None),
+                         "last_available_at": max((r.available_at for r in kept), default=None), "rows": len(kept),
+                         "rows_after_decision_time": len(mine) - len(kept)})
+        return pd.DataFrame(rows, columns=list(FORECAST_STATUS_COLUMNS))
 
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return self._analyst.get(ticker.upper(), AnalystInput(ticker.upper()))

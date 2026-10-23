@@ -26,8 +26,9 @@ import pandas as pd
 from hy import clocks
 from hy.sources import clock_inputs as ci
 from hy.sources import schedules as sc
-from hy.sources import xbrl_instance as xi
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = CONFIG.root
@@ -43,44 +44,48 @@ def _v(inputs: dict, key: str) -> Any:
     return x[0] if isinstance(x, tuple) and len(x) == 2 and isinstance(x[1], str) else x
 
 
-def build_case(inputs: dict) -> dict:
+def build_case(inputs: dict, view: DataView | None = None) -> dict:
     """The Section 4.7 case for one issuer from `clock_inputs.derive_inputs` output.
 
-    Returns the metrics, scenarios, sensitivities, ladders, and the ClockResult under `_res`. When the filer
-    discloses no RPO, the revenue clock is skipped: `revenue_clock` says why and only obligation metrics remain.
+    The latest 10-Q and the latest 10-K come as `hy.data.records.BalanceSheet` records through `view` (default: the
+    warehouse at the inputs' availability time). Returns the metrics, scenarios, sensitivities, ladders, and the
+    ClockResult under `_res`. When the filer discloses no RPO, the revenue clock is skipped: `revenue_clock` says why
+    and only obligation metrics remain.
     """
-    cik = _v(inputs, "cik")
-    q = xi.load_instance(cik, _v(inputs, "q"), cache_root=RAW)
-    k = xi.load_instance(cik, _v(inputs, "k"), cache_root=RAW) if _v(inputs, "k") else None
-    as_of = sc.as_of_date(q)
+    if view is None:
+        view = DataView(WarehouseSource(CONFIG), pd.Timestamp(_v(inputs, "available_at")))
+    issuer = view.issuer(_v(inputs, "ticker"))
+    q = view.balance_sheet(issuer, _v(inputs, "q"))
+    k = view.balance_sheet(issuer, _v(inputs, "k")) if _v(inputs, "k") else None
+    as_of = pd.Timestamp(q.as_of)
     obligations: dict[str, list] = {}
     notes: dict[str, str] = {}
 
-    op = sc.ladder(q, "operating_lease")
+    op = q.ladders["operating_lease"]
     if op is None and k is not None:
-        op = sc.ladder(k, "operating_lease")
+        op = k.ladders["operating_lease"]
     if op is not None:
         # Thereafter: rent continues at the last stated yearly amount until the total is used up.
         tail = clocks.tail_years_run_rate(op.amounts)
         obligations["Leases in force"] = sc.to_buckets(op, tail)
         notes["lease_tail_years"] = f"{tail:.1f}"
-    fin = sc.ladder(q, "finance_lease")
+    fin = q.ladders["finance_lease"]
     if fin is not None:
         obligations.setdefault("Leases in force", [])
         obligations["Leases in force"] += sc.to_buckets(fin, clocks.tail_years_run_rate(fin.amounts))
 
-    total, lo, hi = sc.lease_not_commenced(q)
+    total, lo, hi = q.lease_not_commenced
     if not np.isnan(total):
         w0, w1 = _v(inputs, "uncommenced_window")
         obligations["Signed leases not yet started"] = clocks.uncommenced(total, w0, w1, _v(inputs, "uncommenced_term"))
         notes["uncommenced_total"] = f"{total:,.0f}"
 
-    debt = sc.ladder(q, "debt")
+    debt = q.ladders["debt"]
     shift = 0.0
     if debt is None and k is not None:
-        debt = sc.ladder(k, "debt")
-        shift = (as_of - sc.as_of_date(k)).days / 365.25  # 10-K ladder, aged to the 10-Q date
-    bs_debt, bs_src = sc.balance_sheet_debt(q)
+        debt = k.ladders["debt"]
+        shift = (as_of - pd.Timestamp(k.as_of)).days / 365.25  # 10-K ladder, aged to the 10-Q date
+    bs_debt, bs_src = q.debt, q.debt_source
     debt, notes["debt_ladder"] = sc.reconcile_debt(debt, bs_debt)
     notes["balance_sheet_debt"] = f"{bs_debt:,.0f} ({bs_src})"
     if debt is not None:
@@ -93,7 +98,7 @@ def build_case(inputs: dict) -> dict:
         else:
             notes["interest"] = "skipped: no interest rate derived or given"
 
-    pur = sc.ladder(q, "purchase")
+    pur = q.ladders["purchase"]
     if pur is not None:
         obligations["Purchase commitments"] = sc.to_buckets(pur, clocks.tail_years_run_rate(pur.amounts, 2.0))
     elif _v(inputs, "purchase"):
@@ -117,7 +122,7 @@ def build_case(inputs: dict) -> dict:
         notes["margin"] = "missing: " + ci.sources(inputs).get("ltm_ebitda", "no LTM EBITDA")
     m["ebitdar_margin"] = margin
     m["renewal_dependent_years_of_ebitda"] = m["renewal_dependent_amount"] / ebitda if ebitda else float("nan")
-    shares = sc.customer_shares(q)
+    shares = q.customer_shares
     m.update({f"cust_{k2}": v for k2, v in clocks.concentration(shares).items()})
 
     scen, sens = {}, {}

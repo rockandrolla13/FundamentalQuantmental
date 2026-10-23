@@ -14,8 +14,8 @@ from typing import Any, Callable, Sequence
 import pandas as pd
 
 from hy.data.pit import DataUnavailable, PointInTimeStore, guard_frame, guard_records
-from hy.data.records import (AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
-                             IssuerFinancials)
+from hy.data.records import (AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
+                             IssuerFinancials, MarketValue, ReportedCashFlow, FilingText)
 from hy.forecasts import ForecastRow
 
 
@@ -54,11 +54,43 @@ class DataView:
             return f
         return self._get(("facts", issuer.ticker), load)
 
+    def market_value(self, issuer: Issuer) -> MarketValue:
+        """Equity market value from the latest quarter reported by the decision time (framework F7.7)."""
+        def load() -> MarketValue:
+            m = self.source.market_value(issuer, self.decision_time)
+            guard_records([m], self.decision_time)
+            return m
+        return self._get(("market_value", issuer.ticker), load)
+
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]:
         def load() -> list[Filing]:
             return sorted((f for f in self.source.filings(issuer, forms) if f.available_at <= self.decision_time),
                           key=lambda f: f.available_at)
         return self._get(("filings", issuer.ticker, tuple(forms)), load)
+
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
+        """Balance-sheet values and schedules of one filing; the filing must be public by the decision time."""
+        def load() -> BalanceSheet:
+            b = self.source.balance_sheet(issuer, accession)
+            guard_records([b], self.decision_time)
+            return b
+        return self._get(("balance_sheet", issuer.ticker, accession), load)
+
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        """The primary document's text of one filing public by the decision time."""
+        def load() -> FilingText:
+            x = self.source.filing_text(issuer, accession)
+            guard_records([x], self.decision_time)
+            return x
+        return self._get(("filing_text", issuer.ticker, accession), load)
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime) -> ReportedCashFlow:
+        """One quarter's cash flows as first reported, from a filing public by the decision time."""
+        def load() -> ReportedCashFlow:
+            x = self.source.reported_cash_flow(issuer, period_end, self.decision_time)
+            guard_records([x], self.decision_time)
+            return x
+        return self._get(("reported_cash_flow", issuer.ticker, pd.Timestamp(period_end)), load)
 
     # ------------------------------------------------------------ bonds and market
 
@@ -79,6 +111,18 @@ class DataView:
             return c
         return self._get(("curve",), load)
 
+    def curve_history(self, start: datetime) -> pd.DataFrame:
+        """Daily Treasury curves from `start` that were public by the decision time: one row per curve date, a column
+        per tenor in years (decimal yields) and `available_at` (the format of `hy.sources.treasury.par_curve`)."""
+        def load() -> pd.DataFrame:
+            cs = [c for c in self.source.curves(start, self.decision_time) if c.available_at <= self.decision_time]
+            tenors = list(dict.fromkeys(t for c in cs for t in c.tenors))
+            out = pd.DataFrame([dict(zip(c.tenors, c.yields)) for c in cs], columns=tenors,
+                               index=pd.DatetimeIndex([pd.Timestamp(c.as_of) for c in cs]), dtype=float)
+            out["available_at"] = pd.to_datetime([pd.Timestamp(c.available_at) for c in cs])
+            return out
+        return self._get(("curve_history", pd.Timestamp(start)), load)
+
     def hy_index(self) -> IndexLevel:
         def load() -> IndexLevel:
             x = self.source.hy_index(self.decision_time)
@@ -98,6 +142,10 @@ class DataView:
             return [r for r in self.source.forecasts(self.decision_time)
                     if pd.Timestamp(r.available_at) <= pd.Timestamp(self.decision_time)]
         return self._get(("forecasts",), load)
+
+    def forecast_status(self) -> pd.DataFrame:
+        """Per forecast source: live or stubbed, last vintage and release, rows kept (the run's audit trail)."""
+        return self._get(("forecast_status",), lambda: self.source.forecast_status(self.decision_time))
 
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return self._get(("analyst", ticker.upper()), lambda: self.source.analyst_inputs(ticker))

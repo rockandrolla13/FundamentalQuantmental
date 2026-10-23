@@ -18,14 +18,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from hy import alpha, forward, macro, rv, state
+from hy import alpha, forward, macro
 from hy.sources import clock_inputs as ci
-from hy.sources import forecast_sources as fs
-from hy.sources import schedules as sc
-from hy.sources import trace_bonds as tb
-from hy.sources import treasury as tr
-from hy.sources import xbrl_instance as xi
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.pit import DataUnavailable  # noqa: E402
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402
+from hy.forecasts import ForecastRegistry  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = CONFIG.root
@@ -57,28 +56,16 @@ V0 = {  # v0 defaults (decision page); each one is a stated assumption until cal
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def _bench_level(con, end: pd.Timestamp) -> tuple[float, float, str]:
-    """TRACE HY benchmark median G-spread across buckets, and the share of bonds above 1,000 bp, at `end`."""
-    b = tb.hy_benchmark(con, end.strftime("%Y-%m-%d"), cache_root=RAW)
-    curve = tr.curve_on(end, cache_root=RAW)
-    s = tb.g_spread(b["yield"], b["maturity"], end, curve) if "yield" in b else tb.g_spread(b["yield_vw"], b["maturity"], end, curve)
-    # One index rule and one distress rule for the live run, the registry and the backtest (hy.state; data module
-    # step 5; decision page 2026-10-23-one-hy-index). The old live rule took the median of 0 < s < 2,500 bp with no
-    # price or yield filter.
-    s = np.asarray(s, dtype=float)
-    return (state.hy_index_level(s, b["price"], b["yield"]), state.distress_ratio(s, b["yield"]),
-            f"TRACE HY benchmark {end:%Y-%m-%d}")
-
-
-def phase_indicators(con, end: pd.Timestamp, registry) -> tuple[dict, pd.DataFrame]:
-    """F6 indicators with data: hy_oas and distress_ratio from TRACE snapshots (now, 3 months ago, and once a
-    year for five years), sloos_tightening from the registry. PMI, default forecast, issuance quality: none."""
+def phase_indicators(view: DataView, end: pd.Timestamp, registry) -> tuple[dict, pd.DataFrame]:
+    """F6 indicators with data: hy_oas and distress_ratio from the HY index level (now, 3 months ago, and once a
+    year for five years), sloos_tightening from the registry. PMI, default forecast, issuance quality: none.
+    Each snapshot is the level public the day after its trade date, read through the view at that earlier time."""
     rows = []
     for k, when in [("now", end), ("3m", end - pd.DateOffset(months=3))] + \
                    [(f"{y}y", end - pd.DateOffset(years=y)) for y in range(1, 6)]:
         try:
-            lvl, dist, src = _bench_level(con, pd.Timestamp(when))
-            rows.append({"snapshot": k, "date": pd.Timestamp(when).date(), "hy_spread": lvl, "distress": dist})
+            x = view.at(pd.Timestamp(when) + pd.Timedelta(1, unit="D")).hy_index()
+            rows.append({"snapshot": k, "date": pd.Timestamp(when).date(), "hy_spread": x.spread, "distress": x.distress})
         except Exception as e:  # a snapshot with no data is skipped, and the table says so
             rows.append({"snapshot": k, "date": pd.Timestamp(when).date(), "hy_spread": np.nan, "distress": np.nan,
                          "error": type(e).__name__})
@@ -109,10 +96,10 @@ class Macro:
     decision: pd.Timestamp
 
 
-def live_paths(con, decision: pd.Timestamp, trace_end: pd.Timestamp) -> Macro:
-    """Registry with every live source (TRACE benchmark through `con`), phase from data, five paths."""
-    reg = fs.load_all(decision.to_pydatetime(), RAW, options={"trace_hy_benchmark": {"con": con}})
-    ind, snaps = phase_indicators(con, trace_end, reg)
+def live_paths(view: DataView, decision: pd.Timestamp, trace_end: pd.Timestamp) -> Macro:
+    """Registry of the forecast rows known at the view's decision time, phase from data, five paths."""
+    reg = ForecastRegistry(view.forecasts())
+    ind, snaps = phase_indicators(view, trace_end, reg)
     ps = macro.build_paths(reg, decision.to_pydatetime(), phase_indicators=ind)
     return Macro(ps, reg, snaps, float(snaps.iloc[0]["hy_spread"]), decision)
 
@@ -126,15 +113,22 @@ def _nz(x, d=0.0):
     return float(x) if x is not None and x == x else d
 
 
-def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp) -> tuple[forward.IssuerStart, dict, dict]:
+def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp,
+                 view: DataView | None = None) -> tuple[forward.IssuerStart, dict, dict]:
     """IssuerStart and base drivers from the point-in-time quarters and the filing (Section 5.1 starting point).
 
     Debt lines: each debt-ladder bucket that falls due inside 8 quarters is one line with that maturity quarter;
     the rest is one line with no maturity inside the horizon. Coupon = the derived cash interest rate. All lines
     fixed (the filings do not split fixed and floating in a standard tag; stated). Revolver: undrawn capacity tag.
+    Quarters and the 10-Q balance sheet come through `view` at `decision` (default: the warehouse).
     """
     v = ci.values(inputs)
-    quarters, _ = ci.loader_quarters(v["ticker"], v.get("gvkey"), RAW, decision)
+    view = view if view is not None else DataView(WarehouseSource(CONFIG), decision)
+    issuer = view.issuer(v["ticker"])
+    try:
+        quarters = view.financials(issuer)
+    except DataUnavailable:
+        quarters = []
     q4 = ci.last_four(quarters) or sorted(quarters, key=lambda r: r.as_of)[-4:]
     last = q4[-1]
     eb = [_nz(r.ebitda_adj_company, np.nan) for r in q4]
@@ -157,7 +151,7 @@ def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp) -> tuple[forw
     g = float(np.clip(g, *V0["growth_bounds_q"]))
     rate = v.get("interest_rate") or V0["coupon_fallback"]
 
-    q = xi.load_instance(v["cik"], v["q"], cache_root=RAW)
+    q = view.balance_sheet(issuer, v["q"])
     lad = case["ladders"]["debt"]
     first = case["ladders"]["debt_first_length"] or 1.0
     lines, t_end = [], 0.0
@@ -168,15 +162,10 @@ def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp) -> tuple[forw
         if amt and i < len(lad) - 1 and 1 <= mq <= H:
             lines.append(forward.DebtLine(f"due_q{mq}", face=float(amt), coupon=rate, maturity_q=mq))
     inside = sum(l.face for l in lines)
-    total = _nz(sc.balance_sheet_debt(q)[0], sum(lad or []))
+    total = _nz(q.debt, sum(lad or []))
     if total - inside > 0:
         lines.append(forward.DebtLine("later", face=float(total - inside), coupon=rate))
-    cap = 0.0
-    for tag in ("LineOfCreditFacilityRemainingBorrowingCapacity", "LineOfCreditFacilityMaximumBorrowingCapacity"):
-        hit = q[(q["concept"].str.split(":").str[-1] == tag) & (q["n_dims"] == 0)]
-        if len(hit):
-            cap = float(hit["value"].iloc[0]) / 1e6
-            break
+    cap = q.revolver_capacity if q.revolver_capacity is not None else 0.0
     start = forward.IssuerStart(
         revenue_q0=rev, ebitda_hist=eb, interest_hist=intr, cash0=_nz(last.cash), debt_lines=tuple(lines),
         revolver_commitment=cap, inventory_days0=inv_d, receivable_days0=rec_d, payable_days0=pay_d,

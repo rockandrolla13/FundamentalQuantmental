@@ -28,10 +28,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import process  # noqa: E402
 
 from hy import walkforward as wf  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
+from hy.data.pit import DataUnavailable  # noqa: E402
 from hy.data.config import CONFIG
 from hy.data.sources import WarehouseSource  # noqa: E402
-from hy.data.view import DataView  # noqa: E402  # noqa: E402
+from hy.data.outcomes import RealisedOutcomes  # noqa: E402
+from hy.data.view import DataView  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "walkforward"
@@ -69,7 +70,7 @@ def audit(run_dir: Path, q: pd.Timestamp) -> dict:
     for t in r["tickers"]:
         d = json.loads((run_dir / f"{t}.json").read_text())
         accession = str(d["steps"]["1"]["outputs"].get("filing", "")).split(" ")[0]
-        idx = _filing_index_for(accession)
+        idx = _acceptance(t, accession)
         if idx is not None:
             acc.append(idx)
     wf.assert_pit(acc, dec, "filing acceptance")
@@ -77,26 +78,23 @@ def audit(run_dir: Path, q: pd.Timestamp) -> dict:
             "curve_date": r["macro"].get("curve_date"), "passed": True}
 
 
-_ACC = {}
+_ACC: dict = {}
 
 
-def _filing_index_for(accession: str):
-    """Acceptance time of an accession from the cached EDGAR indices (filled lazily per CIK prefix)."""
-    if not _ACC:
-        for f in (RAW / "edgar").glob("CIK*.json"):
-            try:
-                d = json.loads(f.read_text())
-            except ValueError:
-                continue
-            block = d.get("filings", {}).get("recent", d)
-            for a, t in zip(block.get("accessionNumber", []), block.get("acceptanceDateTime", [])):
-                _ACC[a] = pd.Timestamp(t).tz_convert("UTC").tz_localize(None) if pd.Timestamp(t).tzinfo else pd.Timestamp(t)
-    return _ACC.get(accession)
+def _acceptance(ticker: str, accession: str):
+    """Acceptance time of one of the issuer's accessions, from its filing list as known today (the audit looks back)."""
+    if ticker not in _ACC:
+        view = DataView(WarehouseSource(CONFIG), pd.Timestamp.now())
+        try:
+            fl = view.filings(view.issuer(ticker), ["10-Q", "10-K", "10-Q/A", "10-K/A"])
+        except DataUnavailable:
+            fl = []
+        _ACC[ticker] = {f.accession: pd.Timestamp(f.available_at) for f in fl}
+    return _ACC[ticker].get(accession)
 
 
 def run_all(refresh: bool = False) -> pd.DataFrame:
     """The process at every decision date (cached per date); then the audit. Returns the timing and audit table."""
-    con = CONFIG.connect()
     base = DataView(WarehouseSource(CONFIG), pd.Timestamp(FIRST))  # one source; process.run moves it to each date
     rows = []
     for q in dates():
@@ -105,7 +103,7 @@ def run_all(refresh: bool = False) -> pd.DataFrame:
         status = "cached"
         if refresh or not (d / "_run.json").exists():
             try:
-                process.run(TICKERS, str(q.date()), PAIRS, out_dir=d, figures=False, con=con, view=base)
+                process.run(TICKERS, str(q.date()), PAIRS, out_dir=d, figures=False, view=base)
                 status = "ran"
             except Exception as e:  # noqa: BLE001 - one failed date is recorded, the rest run
                 rows.append({"date": str(q.date()), "status": f"failed: {type(e).__name__}: {e}"[:200], "seconds": time.time() - t0})
@@ -200,32 +198,35 @@ def outcomes() -> pd.DataFrame:
     model's round trip, 20 bp of spread x duration. Annualised to bp a year. Nothing here feeds a prediction.
     """
     from hy import rv
-    from hy.sources import trace_bonds as tb
     from hy.sources import treasury as tr
-    import scenarios
 
-    con = CONFIG.connect()
+    src = WarehouseSource(CONFIG)
     pred = predictions()
     bench, curves, rows = {}, {}, []
-
-    def S_at(day):
-        day = pd.Timestamp(day).normalize()
-        if day not in bench:
-            bench[day] = scenarios._bench_level(con, day)[0]
-        return bench[day]
-
-    def curve_at(day):
-        day = pd.Timestamp(day).normalize()
-        if day not in curves:
-            curves[day] = tr.curve_on(day, cache_root=RAW)
-        return curves[day]
+    day1 = pd.Timedelta(1, unit="D")  # a trade day's quote, curve and index level are public the next day
 
     for q, g in pred.groupby("date"):
         cus = sorted({c for cs in g["bonds"] for c in cs})
         if not cus:
             continue
+        # Future data on purpose: the realised path after the decision, never a model input (hy.data.outcomes).
+        out = RealisedOutcomes(src, wf.decision_time(q))
+
+        def S_at(day):
+            day = pd.Timestamp(day).normalize()
+            if day not in bench:
+                bench[day] = out.hy_index(day + day1).spread
+            return bench[day]
+
+        def curve_at(day):
+            day = pd.Timestamp(day).normalize()
+            if day not in curves:
+                curves[day] = out.curve(day + day1).as_row()
+            return curves[day]
+
         last = min(q + pd.DateOffset(months=max(HORIZONS)), pd.Timestamp(TRACE_END))
-        quotes = tb.bond_quotes(con, cus, str((q + pd.Timedelta(1, unit="D")).date()), str(last.date()), cache_root=RAW)
+        quotes = out.observations(cus, last + day1).rename(
+            columns={"date": "trade_date", "price": "price_vw", "yield": "yield_vw"})
         run = RUNS / str(q.date())
         S0 = json.loads((run / "_run.json").read_text())["macro"]["s_index_now"]
         c0 = curve_at(q)
@@ -304,11 +305,16 @@ def scores(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _events(con) -> dict:
-    """Credit events per issuer from cached EDGAR 8-K item codes, and results dates (item 2.02). Display only."""
-    ids = cp.lookup_issuers(con, TICKERS)
+def _events() -> dict:
+    """Credit events per issuer from cached EDGAR 8-K item codes, and results dates (item 2.02). Display only: the
+    8-K item codes are not a data-contract kind, so this report reads the warehouse's EDGAR files directly."""
+    view = DataView(WarehouseSource(CONFIG), pd.Timestamp.now())
     out = {}
-    for t, cik in zip(ids["tic"], ids["cik"]):
+    for t in TICKERS:
+        try:
+            cik = view.issuer(t).cik
+        except DataUnavailable:
+            continue
         f = RAW / "edgar" / f"CIK{str(cik).zfill(10)}.json"
         if not f.exists():
             continue
@@ -633,8 +639,7 @@ def report() -> None:
         wide = wide.merge(outc[outc["h"] == h][["date", "ticker", "realised_net_bp_yr"]].rename(
             columns={"realised_net_bp_yr": f"real_{h}"}), on=["date", "ticker"], how="left")
     wide.to_parquet(OUT / "timeline.parquet", index=False)
-    con = CONFIG.connect()
-    ev = _events(con)
+    ev = _events()
     FIG.mkdir(parents=True, exist_ok=True)
     for t, d in wide.groupby("ticker"):
         timeline_figure(t, d, ev.get(t, {}), FIG / f"wf_{t}.png")

@@ -33,7 +33,6 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-import clock_case  # noqa: E402
 import rv_pair  # noqa: E402
 import scenarios  # noqa: E402
 
@@ -41,10 +40,6 @@ from hy import alpha as hal  # noqa: E402
 from hy import events as hev  # noqa: E402
 from hy import books, fairspread, forward, groups, peers, recovery, rv, skills, state  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
-from hy.sources import edgar  # noqa: E402
-from hy.sources import forecast_sources as fs  # noqa: E402
-from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG
 from hy.data.pit import DataUnavailable  # noqa: E402
@@ -99,8 +94,8 @@ def _f(x, nd=2):
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def step_inputs(con, t, decision, start, end, view: DataView) -> tuple[Step, dict]:
-    blk = rv_pair.issuer_block(con, t, decision, start, end, view=view)
+def step_inputs(t, decision, start, end, view: DataView) -> tuple[Step, dict]:
+    blk = rv_pair.issuer_block(t, decision, start, end, view=view)
     inputs = blk["inputs"]
     s = Step("1 Inputs", "Methodology 3; framework R5")
     s.outputs = {"filing": blk["filing"], "bonds_priced": int(len(blk["bonds"])), "curve_basis": blk["basis"],
@@ -113,11 +108,14 @@ def step_inputs(con, t, decision, start, end, view: DataView) -> tuple[Step, dic
     return s, blk
 
 
-def business_text(inputs: dict) -> tuple[str, str]:
+def business_text(inputs: dict, view: DataView, issuer) -> tuple[str, str]:
     """First two sentences of the 10-K business section, skipping the table of contents."""
     v = ci.values(inputs)
     acc = v.get("k") or v.get("q")
-    txt = ci.filing_text(v["cik"], acc, RAW)
+    try:
+        txt = view.filing_text(issuer, acc).text
+    except DataUnavailable as e:
+        return "", f"no filing text ({e.reason})"
     for m in re.finditer(r"Item\s*1\.?\s*Business\.?", txt, re.I):
         body = re.sub(r"\s+", " ", txt[m.end(): m.end() + 3000])
         if "Item 1A" in body[:400] or re.search(r"\b\d{1,3} Item", body[:200]):
@@ -128,7 +126,7 @@ def business_text(inputs: dict) -> tuple[str, str]:
     return "", "not found"
 
 
-def step_frame(blk) -> Step:
+def step_frame(blk, view: DataView) -> Step:
     inputs, case = blk["inputs"], blk["case"]
     s = Step("2 Frame the business", "Framework F2")
     arch = (inputs.get("archetype") or (None, ""))[0]
@@ -136,7 +134,7 @@ def step_frame(blk) -> Step:
         s.status = "blocked"
         s.open_questions.append("Assign the archetype (framework F2) in data/analyst_inputs/<ticker>.yaml.")
         return s
-    sells, src = business_text(inputs)
+    sells, src = business_text(inputs, view, blk["issuer"])
     v = ci.values(inputs)
     rev, eb = v.get("ltm_revenue"), v.get("ltm_ebitda")
     rent = v.get("annual_lease_cost") or 0.0
@@ -194,42 +192,37 @@ def _n(x) -> float:
     return float(x) if x is not None and x == x else float("nan")
 
 
-def fill_cash_flow_gaps(quarters, cik, decision, n: int = 9) -> tuple[list, list]:
-    """Fill NaN cash flows in the last `n` quarters from the first filing of each quarter (hy.sources.xbrl
-    `cash_flow_from_filing`; methodology 3.2). Compustat de-cumulates year-to-date cash flows within one snapshot;
-    when the predecessor quarter is missing there, the quarter comes back NaN (CCL Aug-2025, WYNN Jun-2026 on
-    2026-09-18). Only filings accepted on or before `decision` are read. Returns the quarters and the filled list.
+def fill_cash_flow_gaps(quarters, view: DataView, issuer, n: int = 9) -> tuple[list, list]:
+    """Fill NaN cash flows in the last `n` quarters from the first filing of each quarter (`view.reported_cash_flow`;
+    methodology 3.2). Compustat de-cumulates year-to-date cash flows within one snapshot; when the predecessor quarter
+    is missing there, the quarter comes back NaN (CCL Aug-2025, WYNN Jun-2026 on 2026-09-18). Only filings public by
+    the view's decision time are read. Returns the quarters and the filled list.
     Intuition: a missing quarter must not shrink the LTM to three quarters, nor blank the runway.
     """
     from dataclasses import replace as _replace
 
-    from hy.sources import xbrl
     q = sorted(quarters, key=lambda r: r.as_of)
     gaps = [i for i in range(max(0, len(q) - n), len(q))
             if q[i].operating_cash_flow != q[i].operating_cash_flow or q[i].capex_total != q[i].capex_total]
-    if not gaps or not cik:
-        return q, []
-    try:
-        facts = xbrl.company_facts(cik, cache_root=RAW)
-        idx = edgar.filing_index(cik, cache_root=RAW)
-    except Exception:  # noqa: BLE001 - without EDGAR the gap stays NaN and the LTM stays NaN
+    if not gaps or not issuer.cik:
         return q, []
     filled = []
     for i in gaps:
-        cf = xbrl.cash_flow_from_filing(facts, idx, cik, pd.Timestamp(q[i].as_of), decision)
-        if not cf:
+        try:
+            cf = view.reported_cash_flow(issuer, q[i].as_of)
+        except DataUnavailable:  # without the filing the gap stays NaN and the LTM stays NaN
             continue
         upd = {}
         for fld, attr in (("operating_cash_flow", "operating_cash_flow"), ("capex", "capex_total")):
-            if getattr(q[i], attr) != getattr(q[i], attr) and cf[fld] == cf[fld]:
-                upd[attr] = cf[fld]
-        if q[i].cash_interest != q[i].cash_interest and cf["interest_paid"] == cf["interest_paid"]:
-            upd["cash_interest"] = cf["interest_paid"]
-        if q[i].cash_taxes != q[i].cash_taxes and cf["taxes_paid"] == cf["taxes_paid"]:
-            upd["cash_taxes"] = cf["taxes_paid"]
+            if getattr(q[i], attr) != getattr(q[i], attr) and getattr(cf, fld) == getattr(cf, fld):
+                upd[attr] = getattr(cf, fld)
+        if q[i].cash_interest != q[i].cash_interest and cf.interest_paid == cf.interest_paid:
+            upd["cash_interest"] = cf.interest_paid
+        if q[i].cash_taxes != q[i].cash_taxes and cf.taxes_paid == cf.taxes_paid:
+            upd["cash_taxes"] = cf.taxes_paid
         if upd:
             q[i] = _replace(q[i], **upd)
-            filled.append(f"{q[i].as_of:%Y-%m-%d} from {cf['accession']}: {', '.join(upd)}")
+            filled.append(f"{q[i].as_of:%Y-%m-%d} from {cf.accession}: {', '.join(upd)}")
     return q, filled
 
 
@@ -250,7 +243,7 @@ def step_normalise(blk, decision, view: DataView) -> Step:
         quarters = view.financials(blk["issuer"])
     except DataUnavailable:
         quarters = []
-    quarters, filled = fill_cash_flow_gaps(quarters, v.get("cik"), decision)
+    quarters, filled = fill_cash_flow_gaps(quarters, view, blk["issuer"])
     blk["_quarters"] = quarters
     ltm = blk["_ltm"] = ltm_figures(quarters)
     flags, notes = _eq_tests(quarters)
@@ -440,7 +433,7 @@ def step_liquidity(blk, sc_out, start_info, start_, mac=None, s5=None) -> Step:
     return s
 
 
-def covenant_block(blk, liq: dict, ltm: dict) -> dict:
+def covenant_block(blk, liq: dict, ltm: dict, view: DataView) -> dict:
     """G3 covenant-compliance: levels parsed from the 10-Q, then the 10-K, debt note; headroom on our ratio.
 
     Headroom (methodology 4.6): leverage H = 1 - Lev / Lev_max, with net leverage when the covenant is a net test;
@@ -454,8 +447,8 @@ def covenant_block(blk, liq: dict, ltm: dict) -> dict:
         if not acc:
             continue
         try:
-            txt = ci.filing_text(v["cik"], acc, RAW)
-        except Exception:  # noqa: BLE001 - a missing text leaves the covenant an open question
+            txt = view.filing_text(blk["issuer"], acc).text
+        except DataUnavailable:  # a missing text leaves the covenant an open question
             continue
         for c in skills.parse_covenants(txt):
             if c["kind"] not in found:
@@ -531,7 +524,7 @@ def book_block(blk, ltm: dict, mcap: float, archetype: str, top_customer) -> dic
 
 
 def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), archetype: str = "A4",
-                      top_customer=None) -> Step:
+                      top_customer=None, view: DataView | None = None) -> Step:
     s = Step("5 Capital structure", "Framework F5; methodology 4.3")
     r = blk["risk"]
     bonds = blk["bonds"]
@@ -558,7 +551,8 @@ def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), 
                           "after_capex_cov": k["after_capex_cov"], "fcf_to_debt": k["fcf_to_debt"],
                           "ffo_to_debt": bb["sp"]["ratios"]["ffo_to_debt"], "focf_to_debt": bb["sp"]["ratios"]["focf_to_debt"],
                           "kricheff": k, "sp": bb["sp"]})
-        s.outputs.update(covenant_block(blk, liq or {}, ltm))
+        if view is not None:  # the covenant levels come from the filing text
+            s.outputs.update(covenant_block(blk, liq or {}, ltm, view))
     s.sources = {"debt": r.extra["debt_source"], "bonds": "TRACE via WRDS, last 10 days",
                  "ratios": "Kricheff ch. 10; S&P ch. 5 and 10", "covenants": "10-Q then 10-K text (covenant-compliance skill)"}
     s.status = "partial"
@@ -620,21 +614,19 @@ def step_cases(sc_out) -> Step:
     return s
 
 
-def market_value(con, gvkey: str, decision: pd.Timestamp) -> tuple[float, str]:
-    """Equity value from Compustat: price x shares of the latest quarter reported on or before `decision` (F7.7)."""
-    df = con.raw_sql(f"select datadate, rdq, prccq, cshoq from comp.fundq where gvkey = '{gvkey}' "
-                     f"and rdq <= '{decision.date()}' and prccq is not null order by datadate desc limit 1")
-    if df.empty:
-        return float("nan"), "no Compustat price"
-    r = df.iloc[0]
-    return float(r["prccq"] * r["cshoq"]), f"Compustat fundq {r['datadate']} (reported {r['rdq']})"
+def market_value(view: DataView, issuer) -> tuple[float, str]:
+    """Equity value: price x shares of the latest quarter reported by the decision time (F7.7), through the view."""
+    try:
+        m = view.market_value(issuer)
+    except DataUnavailable as e:
+        return float("nan"), f"no equity price ({e.reason})"
+    return m.value, m.source
 
 
-def step_valuation(con, blk, decision, mcap_src: tuple | None = None) -> Step:
+def step_valuation(blk, mcap_src: tuple) -> Step:
     s = Step("8 Valuation", "Framework F7")
     r = blk["risk"]
-    v = ci.values(blk["inputs"])
-    mcap, src = mcap_src if mcap_src else market_value(con, v["gvkey"], decision)
+    mcap, src = mcap_src
     tev = mcap + r.extra["debt"] - (r.extra["cash"] if r.extra["cash"] == r.extra["cash"] else 0.0)
     eb = r.extra["ebitda_ltm"]
     s.outputs = {"market_cap_bn": _f(mcap / 1e3, 1), "market_tev_bn": _f(tev / 1e3, 1),
@@ -1211,8 +1203,7 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, con=None,
-        view: DataView | None = None):
+def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, view: DataView | None = None):
     """Run every step for every issuer as known at end_str + 1 day; write <out_dir>/<ticker>.json and _run.json.
 
     `out_dir` defaults to data/raw/process (the memo's input). The walk-forward (scripts/walkforward.py) passes its own
@@ -1223,13 +1214,12 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     decision = end + pd.Timedelta(1, unit="D")
     start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
     view = view.at(decision) if view is not None else DataView(WarehouseSource(CONFIG), decision)
-    con = con or CONFIG.connect()
-    mac = scenarios.live_paths(con, decision, end)
+    mac = scenarios.live_paths(view, decision, end)
     curve_now = view.curve().as_row()  # the latest Treasury curve public at the decision time
     steps_all, blocks, fits = {}, {}, {}
     for t in tickers:
         try:
-            s1, blk = step_inputs(con, t, decision, start, end_str, view)
+            s1, blk = step_inputs(t, decision, start, end_str, view)
         except Exception as e:
             print(f"{t}: inputs failed ({type(e).__name__}: {e})")
             continue
@@ -1253,13 +1243,13 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     xs["resid_log"] = np.log(xs["s5"] / xs["fair_s5"])
     for t, blk in blocks.items():
         st = steps_all[t]
-        st["2"] = step_frame(blk)
+        st["2"] = step_frame(blk, view)
         st["3"] = step_normalise(blk, decision, view)
         if t not in xs.index:
             print(f"{t}: no spread; steps 7 to 11 blocked")
             continue
         arch = st["2"].outputs.get("archetype") or "A4"
-        start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision)
+        start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision, view)
         qs = blk.get("_quarters") or view.financials(blk["issuer"])
         lt = blk.get("_ltm") or state.ltm_figures(qs)  # the one LTM table; no second sum of the same flows
         if state.last_four(qs):
@@ -1279,13 +1269,13 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         if figures:
             scenarios.scenario_figure(blk["name"], t, sc_out, FIG / f"scenarios_{t}.png")
         blk["_sc_out"] = sc_out
-        mcap, mcap_src = market_value(con, ci.values(blk["inputs"])["gvkey"], decision)
+        mcap, mcap_src = market_value(view, blk["issuer"])
         st["4"] = step_liquidity(blk, sc_out, info, start_, mac, s5)
-        st["5"] = step_capstructure(blk, st["4"].outputs, mcap, arch, blk["case"]["metrics"].get("cust_top1"))
+        st["5"] = step_capstructure(blk, st["4"].outputs, mcap, arch, blk["case"]["metrics"].get("cust_top1"), view)
         st["2"].outputs["business_risk"] = st["5"].outputs.get("sp", {}).get("business_risk_score")
         st["6"] = step_clocks(blk)
         st["7"] = step_cases(sc_out)
-        st["8"] = step_valuation(con, blk, decision, (mcap, mcap_src))
+        st["8"] = step_valuation(blk, (mcap, mcap_src))
         st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"))
         st["10"] = step_alpha(sc_out, ref)
         st["11"] = step_gate(t, st, xs, sc_out, ref)
@@ -1295,8 +1285,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         print(f"{t}: " + " | ".join(f"{k}:{v.status[0]}" for k, v in st.items()))
     add_peers(steps_all, ptab)
     # Pair step (methodology 7.4, 7.5): spread per unit of risk, gap half-life, and the pair under each path.
-    curves = pd.concat([tr.par_curve(y, cache_root=RAW) for y in sorted({start[:4], str(end.year)})]).sort_index()
-    curves = curves[~curves.index.duplicated()]
+    curves = view.curve_history(pd.Timestamp(f"{start[:4]}-01-01"))  # daily curves from the start year, public by now
     resid = xs["resid_log"].to_dict()
     pairs_out = []
     for a, b in pairs or []:
@@ -1334,7 +1323,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
          "y10_q8": float(p.y10[-1]), "hy_spread": float(p.index_spread[:4].mean())} for p in mac.paths.paths],
         "s_index_now": mac.s_index_now, "decision": str(decision.date()),
         # Point-in-time audit trail (scripts/walkforward.py): what each forecast source and the curve were as of.
-        "forecast_sources": fs.source_status().astype(str).to_dict("records"), "curve_date": str(curve_now.name)}
+        "forecast_sources": view.forecast_status().astype(str).to_dict("records"), "curve_date": str(curve_now.name)}
     for t, st in steps_all.items():
         dump = {"ticker": t, "name": blocks[t]["name"], "macro": macro, "steps": {k: asdict(v) for k, v in st.items()}}
         (out_dir / f"{t}.json").write_text(json.dumps(dump, indent=2, default=str))
