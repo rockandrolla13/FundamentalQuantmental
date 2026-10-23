@@ -1,0 +1,327 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs,tabularx,longtable,xcolor,enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black}
+\setlist{itemsep=1pt,topsep=2pt}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+% One block per data kind: fields, time stamps, users, and the effect of a gap.
+\newcommand{\kind}[5]{%
+\subsection{#1}
+\noindent\begin{tabularx}{\linewidth}{@{}p{2.6cm}L@{}}
+\toprule
+Fields & #2\\\midrule
+Time stamps & #3\\\midrule
+Used by & #4\\\midrule
+When missing & #5\\\bottomrule
+\end{tabularx}}
+
+\title{Data contract of the HY Analyst}
+\author{FundamentalQuantmental}
+\date{23 October 2026}
+
+\begin{document}
+\sloppy
+\maketitle
+
+\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+\textbf{What this is.} The checklist of every kind of data that the HY Analyst reads. Use it when you connect a new
+data source on another machine.
+
+\smallskip
+\textbf{One connector.} The repo holds the method. The data plugs in through one class that implements the
+protocols in \code{hy/data/source.py}.
+
+\smallskip
+\textbf{One rule.} Every input reaches the analyst through \code{DataView(source, decision\_time)}. The view returns
+only what was public at the decision time.}}
+
+\section{Rules for every kind}
+\begin{enumerate}
+\item Every input reaches the analyst through one \code{DataView} (\code{hy/data/view.py}).
+\item Every record carries \code{as\_of} and \code{available\_at}.
+  \begin{itemize}
+  \item \code{as\_of} is the date or period that the value describes.
+  \item \code{available\_at} is the first moment the market could read the value.
+  \item \code{available\_at} is never before \code{as\_of}. The record class rejects such a record.
+  \end{itemize}
+\item The view filters by \code{available\_at}. It also checks what the source returns. A record public after the
+  decision time raises \code{LookAheadError}.
+\item A source that cannot supply an item raises \code{DataUnavailable(kind, key, reason)} (\code{hy/data/pit.py}).
+  The analyst turns most of these into an open question in the memo. Section~\ref{sec:kinds} states what each gap does.
+\item Units:
+  \begin{itemize}
+  \item Rates, yields, spreads and shares are decimals. 0.065 means 6.5\%. 0.0350 means 350 bp.
+  \item Amounts are in USD millions.
+  \item Tenors, terms and maturities are in years.
+  \item Times are naive UTC \code{datetime} values. A filing's time is its EDGAR acceptance time.
+  \end{itemize}
+\item Bond observations and the panels are pandas frames, because of their size. Each frame has an
+  \code{available\_at} column. All other kinds are frozen dataclasses in \code{hy/data/records.py}.
+\end{enumerate}
+
+\section{The kinds at a glance}
+\noindent\begin{tabularx}{\linewidth}{@{}lLllc@{}}
+\toprule
+No. & Kind & Source method & View method & Required\\\midrule
+3.1 & Issuer identity & \code{issuers} & \code{issuer} & yes\\
+3.2 & Quarterly financials & \code{financials} & \code{financials} & yes\\
+3.3 & Filing facts & \code{facts} & \code{facts} & yes\\
+3.4 & Filing list & \code{filings} & \code{filings} & no\\
+3.5 & Balance sheet and schedules & \code{balance\_sheet} & \code{balance\_sheet} & yes\\
+3.6 & Filing text & \code{filing\_text} & \code{filing\_text} & no\\
+3.7 & First-reported cash flows & \code{reported\_cash\_flow} & \code{reported\_cash\_flow} & no\\
+3.8 & Equity market value & \code{market\_value} & \code{market\_value} & no\\
+3.9 & Bond terms & \code{bonds} & \code{bonds} & yes\\
+3.10 & Bond observations & \code{observations} & \code{observations} & yes\\
+3.11 & Treasury curve & \code{curve}, \code{curves} & \code{curve}, \code{curve\_history} & yes\\
+3.12 & HY index level & \code{hy\_index} & \code{hy\_index} & yes\\
+3.13 & Macro forecasts & \code{forecasts}, \code{forecast\_status} & same & no\\
+3.14 & Peer panels & \code{panel} & \code{panel} & no\\
+3.15 & Classifications, analyst inputs & \code{classifications}, \code{analyst\_inputs} & same & no\\
+\bottomrule
+\end{tabularx}
+
+\medskip\noindent ``Required'' means that the run cannot form a view of the issuer without it. Section~\ref{sec:kinds}
+gives the exact effect of each gap.
+
+\section{The kinds}\label{sec:kinds}
+
+\kind{Issuer identity (\code{Issuer})}
+{\code{ticker}, \code{gvkey} (the key of the financials, or None), \code{cik} (the key of the filings, or None),
+\code{name}.}
+{None. Identity is static reference data.}
+{Every step. The process calls \code{view.issuer(ticker)} first.}
+{\code{DataUnavailable}. Step 1 fails, the run prints the reason, and the issuer drops out of the run.}
+
+\kind{Quarterly financials (\code{IssuerFinancials})}
+{Key: the issuer's \code{gvkey}. One record per quarter and per version. USD millions, flows for the quarter,
+balances at the quarter end.
+\begin{itemize}
+\item Income: \code{revenue}, \code{cogs}, \code{ebitda\_reported}, \code{ebitda\_adj\_company}, \code{ebitda\_covenant},
+  \code{depreciation}, \code{rent\_expense}.
+\item Nonrecurring items: tuple of \code{NonRecurringItem(name, amount, recurs, cash)}.
+\item Cash flows: \code{operating\_cash\_flow}, \code{capex\_total}, \code{capex\_maintenance}, \code{cash\_interest},
+  \code{cash\_taxes}.
+\item Working capital: \code{inventory}, \code{receivables}, \code{payables}.
+\item Liquidity: \code{cash}, \code{revolver\_commitment}, \code{revolver\_drawn}, \code{borrowing\_base} (infinity when
+  none), \code{letters\_of\_credit}.
+\item Debt: \code{debt\_current}, \code{debt\_long\_term}, \code{maturity\_schedule} (five yearly amounts),
+  \code{pension\_underfunded}, \code{guarantees\_weak}. \code{source} is provenance text.
+\end{itemize}}
+{\code{as\_of} is the quarter end. \code{available\_at} is the first moment that version of the quarter was public.
+A restatement is a new version. The view returns every quarter in its latest version public at the decision time.}
+{Framework F3 normalisation (step 3: LTM table, earnings-quality tests, margin trend, FCF). F4 liquidity and the
+scenario start point (methodology 5.1). F5 coverage. G3 monitoring (step 12).}
+{Step 3 runs with no quarters, so the LTM figures are empty and the memo lists open questions. The scenario start
+point needs at least one quarter. With none, the run stops with an error. This is a known gap.}
+
+\subsection{Filing facts (\code{IssuerFacts})}
+\noindent Fields: \code{issuer\_ticker} and \code{values}, a dict of \code{name: (value, source text)}. The source text
+travels to the memo. Time stamps: \code{as\_of} and \code{available\_at} are the 10-Q acceptance time. Used by: step 1
+inputs, F2 framing, methodology 4.7 clocks, F5, the scenario engine. When missing: \code{DataUnavailable} stops step 1
+and the issuer drops out of the run. A missing single value is None with a source text that says why, and the memo
+shows it as an open question. The names that the analyst reads:
+
+\medskip
+\noindent\begin{tabularx}{\linewidth}{@{}p{5.2cm}p{3.2cm}L@{}}
+\toprule
+Name & Unit & Meaning\\\midrule
+\code{ticker}, \code{name}, \code{cik}, \code{gvkey} & text & identity\\
+\code{q}, \code{k} & text & accession of the latest 10-Q and 10-K (\code{k} may be None)\\
+\code{q\_acceptance}, \code{k\_acceptance} & time & their acceptance times\\
+\code{balance\_sheet\_date} & date & the 10-Q balance-sheet date\\
+\code{ltm\_ebitda}, \code{ltm\_revenue} & USD m & last-twelve-months totals\\
+\code{run\_rate\_revenue} & USD m a year & latest quarter x 4\\
+\code{interest\_rate} & decimal & cash interest / debt\\
+\code{annual\_lease\_cost} & USD m a year & operating lease cost\\
+\code{lease\_wavg\_term} & years & check only\\
+\code{uncommenced\_window}, \code{uncommenced\_term} & years & signed leases not yet started\\
+\code{debt\_tail\_years} & years & length of the ``thereafter'' debt bucket\\
+\code{rpo\_total} & USD m & remaining performance obligation\\
+\code{rpo\_windows} & (start, length, share) & timing of the RPO, years and decimal\\
+\code{rpo\_tail\_years} & years & length of the RPO remainder\\
+\code{purchase} & (USD m, years) & purchase commitments without a ladder\\
+\code{archetype} & A1 to A7 & framework F2 archetype, from the analyst\\
+\code{rating}, \code{recourse}, \code{scenario\_extra\_lease} & text or None & analyst judgement\\
+\code{available\_at} & time & the latest release among the inputs\\
+\bottomrule
+\end{tabularx}
+
+\kind{Filing list (\code{Filing})}
+{\code{issuer\_ticker}, \code{form} (for example ``10-Q''), \code{accession}.}
+{\code{as\_of} and \code{available\_at} are the acceptance time.}
+{Framework F11 events (step 12 estimates the next results date from the filing cadence). The walk-forward audit.}
+{An empty list. Step 12 then has no results-date event.}
+
+\kind{Balance sheet and schedules (\code{BalanceSheet}, \code{Ladder})}
+{One record per filing (the 10-Q and the 10-K of the facts). USD millions, NaN when the filing does not state it.
+\begin{itemize}
+\item \code{debt}, \code{debt\_source}: total financial debt and the tag or rule that gave it.
+\item \code{operating\_lease\_liability}, \code{finance\_lease\_liability}, \code{cash}.
+\item \code{revolver\_capacity}: unused or maximum credit-line capacity. None when the filing states none.
+\item \code{ladders}: \code{operating\_lease}, \code{finance\_lease}, \code{debt}, \code{purchase}, each a \code{Ladder} or
+  None. \code{Ladder.amounts} are bucket amounts (the last is ``thereafter''). \code{first\_length} is the first
+  bucket's length in years. The other buckets are one year. \code{total} and \code{reconciles} check the sum.
+\item \code{lease\_not\_commenced}: (total USD m, shortest term years, longest term years).
+\item \code{customer\_shares}: named customer to share of revenue, decimal.
+\end{itemize}}
+{\code{as\_of} is the balance-sheet date. \code{available\_at} is the acceptance time.}
+{Methodology 4.7 clocks (obligation ladders). F5 leverage (debt, leases, cash). The F4 funding gap and the scenario
+engine (debt lines, revolver).}
+{\code{DataUnavailable} for the 10-Q stops step 1 for the issuer. A missing ladder is None. Then the debt ladder comes
+from the balance-sheet total spread over ten years, and the memo states that assumption.}
+
+\kind{Filing text (\code{FilingText})}
+{\code{issuer\_ticker}, \code{accession}, \code{text} (plain text of the primary document).}
+{\code{as\_of} and \code{available\_at} are the acceptance time.}
+{F2 ``what it sells'' (the first two sentences of Item 1). F5 covenant levels (step 5).}
+{The business line is empty, and the memo says ``no filing text''. The covenant table stays open.}
+
+\kind{First-reported cash flows (\code{ReportedCashFlow})}
+{USD millions for the quarter: \code{operating\_cash\_flow}, \code{capex}, \code{interest\_paid}, \code{taxes\_paid},
+and the \code{accession} that stated them.}
+{\code{as\_of} is the quarter end. \code{available\_at} is the acceptance time of the first filing that reported the
+quarter.}
+{Step 3 only. It fills a quarter whose cash flows the financials leave blank (methodology 3.2).}
+{The quarter stays blank, and the LTM uses the rule in \code{hy.state.ltm\_total}.}
+
+\kind{Equity market value (\code{MarketValue})}
+{\code{issuer\_ticker}, \code{value} (price x shares, USD millions), \code{source}.}
+{\code{as\_of} is the quarter end of the price. \code{available\_at} is the report date.}
+{F7.7 valuation (step 8: market TEV, debt / market TEV). Kricheff and S\&P ratios (step 5). Estimate E9.}
+{The market value is NaN with the reason. Those ratios are then NaN.}
+
+\kind{Bond terms (\code{Bond})}
+{\code{cusip}, \code{issuer\_ticker}, \code{coupon} (decimal), \code{maturity} (date), \code{seniority}, \code{fixed},
+\code{convertible}, \code{grade} (``H'' for high yield). The domain, not the source, keeps the fixed, non-convertible,
+senior unsecured or secured bonds.}
+{None. Terms are static between issue and redemption.}
+{Step 1 bond curve. The F5 capital structure table. F4 refinancing (coupons of bonds due inside 27 months).}
+{An empty list. Step 1 is partial with an open question. Steps 4 to 15 do not run for the issuer, because it has no
+spread.}
+
+\kind{Bond observations (frame, \code{BOND\_OBS\_COLUMNS})}
+{In this order: \code{cusip}, \code{date} (trade day), \code{price} (per 100 face, volume-weighted), \code{yield}
+(decimal, volume-weighted), \code{n\_trades}, \code{par\_volume} (USD), \code{available\_at}.}
+{\code{date} is the trade day. \code{available\_at} is when the day's trades became public (TRACE: the next day). The
+view asks for the 180 days before the decision and keeps rows public by then.}
+{Step 1 latest snapshot (10 days), G-spreads and the issuer curve, the 5-year spread, the pair gap history
+(methodology 7.5), the recent-issue point of F4.}
+{An empty frame works like 3.9. A source error stops step 1 for the issuer.}
+
+\kind{Treasury par curve (\code{Curve})}
+{\code{tenors} (years) and \code{yields} (decimal par yields), one value per tenor. NaN marks a tenor with no quote.
+Two reads: \code{curve(on)} gives the latest curve public at \code{on}. \code{curves(start, end)} gives every daily
+curve in the range, which the view returns as a frame (\code{curve\_history}).}
+{\code{as\_of} is the curve date. \code{available\_at} is when it was published (US Treasury: the next day).}
+{G-spreads, cash and Treasury returns (step 15), and the pair gap history (step 9b).}
+{The run needs the current curve and stops without it. An empty history leaves the pair gap persistence as NaN.}
+
+\kind{HY index level (\code{IndexLevel})}
+{\code{spread}: the market's high yield spread level, decimal. \code{distress}: the share of high yield bonds wider
+than 1,000 bp, decimal. \code{name} says how the level was made. The one index rule is
+\code{hy.state.hy\_index\_level} and the one distress rule is \code{hy.state.distress\_ratio}. The TRACE adapter
+applies both to its benchmark bonds. Another source may supply an index OAS directly, for example ICE BofA H0A0.}
+{\code{as\_of} is the market date. \code{available\_at} is when it was public.}
+{The F6 phase vote (now, 3 months ago, and once a year for 5 years). The fair spread fallback (methodology 7.2). DTS
+hedges (steps 9 and 15). Estimate E0. The macro paths.}
+{A missing past snapshot is NaN in the phase table, and the vote uses the others. The current level is required.}
+
+\kind{Macro forecasts (\code{ForecastRow}) and their status}
+{\code{source}, \code{variable}, \code{horizon\_q} (quarters ahead, 0 to 8), \code{vintage}, \code{available\_at},
+\code{point}, \code{q10}, \code{q50}, \code{q90}, \code{method}. Variables: \code{gdp\_growth}, \code{cpi},
+\code{unemployment}, \code{policy\_rate}, \code{y2}, \code{y10}, \code{sloos\_tightening}, \code{hy\_spread},
+\code{distress\_ratio}, all decimals. \code{forecast\_status} returns one row per forecast source: \code{source},
+\code{status}, \code{last\_vintage}, \code{last\_available\_at}, \code{rows}, \code{rows\_after\_decision\_time}. The run
+writes it to \code{\_run.json} as its audit trail.}
+{\code{vintage} is the forecast date. \code{available\_at} is its release.}
+{Methodology 5.4 macro paths (\code{hy.macro.build\_paths}). The F6 phase vote (SLOOS). The scenario engine.}
+{A source with no rows is ``stubbed''. The path builder then uses its fallback order and logs a stated assumption.}
+
+\subsection{Peer panels (frames)}
+\noindent Every panel has an \code{available\_at} column. The view drops rows that were not public at the decision
+time.
+
+\medskip
+\noindent\begin{tabularx}{\linewidth}{@{}lLp{3.6cm}@{}}
+\toprule
+Panel & Columns and units & Used by\\\midrule
+\code{bond\_panel} & \code{date} (month end), \code{cusip}, \code{gvkey}, \code{years}, \code{g\_spread} (decimal),
+\code{available\_at}. The backtest also reads \code{price}, \code{yield}, \code{coupon}, \code{maturity}, \code{mod\_dur},
+\code{tsy\_yield}, \code{bid\_ask\_pts}, \code{n\_trades}, \code{par\_volume} & step 9 peers, ESP and E13 (7.2, 7.4), and the
+backtests\\
+\code{leverage} & \code{date}, \code{gvkey}, \code{leverage} (x), \code{ltm\_ebitda}, \code{debt} (USD m),
+\code{available\_at} & peer cells and the implied rating class\\
+\code{gics} & \code{gvkey}, \code{gsector} (two digits), \code{indfrom}, \code{indthru}, \code{available\_at} & the peer
+sector\\
+\code{ratings} & \code{gvkey}, \code{datadate}, \code{splticrm} (S\&P letter), \code{available\_at} & the actual rating
+class\\
+\code{annual\_ebitda} & \code{gvkey}, \code{datadate}, \code{fyear}, \code{oibdp}, \code{debt} (USD m),
+\code{available\_at} & SPiDER, E15\\
+\code{equity\_monthly} & \code{gvkey}, \code{datadate} (month end), \code{ret} (monthly total return, decimal),
+\code{available\_at} & OneScore, E16\\
+\bottomrule
+\end{tabularx}
+
+\medskip\noindent When missing: without \code{bond\_panel}, \code{leverage}, \code{gics} or \code{ratings}, step 9 has
+no peer cell. The fair spread then falls back to the HY index, and the memo says so. Without \code{annual\_ebitda},
+SPiDER (E15) is NaN. Without \code{equity\_monthly}, OneScore (E16) is NaN, and ESP carries its weight.
+
+\subsection{Classifications and analyst inputs}
+\noindent \code{Classification} gives the GICS sector and rating class per issuer, valid from \code{as\_of}.
+\code{AnalystInput} is the analyst's YAML per issuer. These are part of the protocols, but the process does not read
+them through the view today. The facts adapter applies the analyst YAML, and the peer step reads the \code{gics} and
+\code{ratings} panels.
+
+\subsection{Realised outcomes (not a new kind)}
+\noindent The walk-forward scores each prediction against what happened next.
+\code{hy.data.outcomes.RealisedOutcomes(source, decision\_time)} reads bond observations, curves and the HY index public
+after the decision. It uses the same source methods as above. It refuses a time before the decision, and no step that
+forms a prediction imports it. A test checks this.
+
+\section{How to plug in a new source}
+\begin{enumerate}
+\item Write one class, for example \code{MySource}, that implements every protocol in \code{hy/data/source.py}:
+  \code{IssuerSource}, \code{FilingSource}, \code{BondSource}, \code{MarketSource}, \code{EquitySource},
+  \code{ReferenceSource}, \code{ForecastSource}, \code{AnalystSource} and \code{PanelSource}.
+  \begin{itemize}
+  \item Return the record types of \code{hy/data/records.py} with the units of section 1.
+  \item Stamp every record with \code{as\_of} and \code{available\_at}. Never stamp a value earlier than its real
+    release.
+  \item Raise \code{DataUnavailable} for an item that you do not have. Do not return a zero for a missing amount.
+  \item Keep vendor field names inside your class. \code{FakeSource} in \code{hy/data/sources.py} is a short model to
+    copy.
+  \end{itemize}
+\item Pass it to the view: \code{DataView(MySource(...), decision\_time)}.
+\item Run the process: \code{process.run(tickers, end, pairs, view=DataView(MySource(...), decision))}. A run at
+  \code{end} decides at \code{end} plus one day.
+\item Check the connector:
+  \begin{itemize}
+  \item Run \code{tests/test\_pipeline\_fake\_source.py}. It shows the shape of every kind and runs the whole analyst
+    on made-up data with the network blocked.
+  \item Run the suite: \code{python3 -m pytest -q}.
+  \item Take a golden snapshot on the new machine (\code{scripts/golden\_check.py snapshot}), then run \code{check}
+    after each change. The numbers will differ from this machine's numbers because the data differs. They must not
+    move between your own runs.
+  \end{itemize}
+\item Set \code{HY\_DATA\_ROOT} for the derived files that stay as files: the backtest summaries
+  (\code{summary\_full.json}, \code{results\_h*.parquet}, \code{peer\_signals\_*.parquet}) and the run outputs. Without
+  them, step 14b uses the v0 slope of spec S14b.
+\end{enumerate}
+
+\section{What stays outside the contract}
+\begin{itemize}
+\item \code{scripts/backtest\_alpha.py} and \code{scripts/backtest\_clocks.py} build the warehouse panels from TRACE,
+  Compustat and SEC data. They are panel builders for this warehouse. Another machine supplies the panels through
+  \code{panel()} instead.
+\item The pilot subsets (\code{panel\_pilot}, \code{leverage\_pilot}) are warehouse files that
+  \code{hy.data.history.backtest\_panel} reads by tag.
+\item \code{scripts/rv\_pair.py} keeps a WRDS query for the benchmark band of its figure. The report is display only.
+\item \code{scripts/walkforward.py} reads 8-K item codes from the EDGAR cache for its event marks. They are display
+  only.
+\end{itemize}
+
+\end{document}
