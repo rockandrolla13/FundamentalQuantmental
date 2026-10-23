@@ -15,6 +15,7 @@ import pandas as pd
 from hy.data.adapters import compustat, edgar_filings, reference, trace, treasury_curve
 from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
+from hy.data.source import PANELS
 from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
                              IssuerFacts, IssuerFinancials, check_observations)
 from hy.forecasts import ForecastRow
@@ -60,6 +61,17 @@ class WarehouseSource:
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return reference.analyst_inputs(ticker)
 
+    # The cached panel files keep their historical names; the neutral names map onto them here only.
+    PANEL_FILES = {"bond_panel": "panel_full", "leverage": "leverage_full", "gics": "gics_history",
+                   "ratings": "sp_ratings", "annual_ebitda": "annual_ebitda", "equity_monthly": "equity_monthly"}
+
+    def panel(self, name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
+        f = self.cfg.path("backtest", f"{self.PANEL_FILES.get(name, name)}.parquet")
+        if name not in PANELS or not f.exists():
+            raise DataUnavailable("panel", name, "unknown panel" if name not in PANELS else f"no cached file {f.name}")
+        cols = None if columns is None else list(dict.fromkeys([*columns, "available_at"]))
+        return pd.read_parquet(f, columns=cols)
+
 
 class FakeSource:
     """Every data kind from memory. Anything not given raises DataUnavailable, as a real gap would."""
@@ -68,12 +80,14 @@ class FakeSource:
                  facts: Sequence[IssuerFacts] = (), filings: Sequence[Filing] = (), bonds: Sequence[Bond] = (),
                  observations: pd.DataFrame | None = None, curves: Sequence[Curve] = (),
                  index_levels: Sequence[IndexLevel] = (), classifications: Sequence[Classification] = (),
-                 forecasts: Sequence[ForecastRow] = (), analyst: Sequence[AnalystInput] = ()) -> None:
+                 forecasts: Sequence[ForecastRow] = (), analyst: Sequence[AnalystInput] = (),
+                 panels: dict[str, pd.DataFrame] | None = None) -> None:
         self._issuers = {i.ticker: i for i in issuers}
         self._financials, self._facts, self._filings = list(financials), list(facts), list(filings)
         self._bonds, self._curves, self._index = list(bonds), list(curves), list(index_levels)
         self._class, self._forecasts = list(classifications), list(forecasts)
         self._analyst = {a.ticker: a for a in analyst}
+        self._panels = dict(panels or {})
         self._obs = check_observations(observations) if observations is not None else pd.DataFrame(columns=list(BOND_OBS_COLUMNS))
 
     def issuers(self, tickers: Sequence[str]) -> list[Issuer]:
@@ -123,3 +137,9 @@ class FakeSource:
 
     def analyst_inputs(self, ticker: str) -> AnalystInput:
         return self._analyst.get(ticker.upper(), AnalystInput(ticker.upper()))
+
+    def panel(self, name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
+        if name not in self._panels:
+            raise DataUnavailable("panel", name, "not in the fake source")
+        p = self._panels[name]
+        return p if columns is None else p[list(dict.fromkeys([*columns, "available_at"]))]

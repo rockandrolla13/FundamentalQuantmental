@@ -38,6 +38,8 @@ from hy.sources import treasury as tr  # noqa: E402
 from hy.sources import schedules as sc  # noqa: E402
 from hy.sources import xbrl_instance as xi  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "rv"
@@ -57,9 +59,12 @@ def _tag(df: pd.DataFrame, local: str) -> float:
     return float(hit["value"].iloc[0]) / 1e6 if len(hit) else float("nan")
 
 
-def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str) -> dict:
-    """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`."""
-    inputs = ci.derive_inputs(ticker, RAW, as_of=decision)
+def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str, view: DataView | None = None) -> dict:
+    """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`. Every input comes
+    through `view` (hy.data.view); `con` is unused and kept for callers until step 6."""
+    view = view or DataView(WarehouseSource(CONFIG), decision)
+    issuer = view.issuer(ticker)
+    inputs = view.facts(issuer).values
     case = clock_case.build_case(inputs)
     q = xi.load_instance(ci.sources(inputs) and inputs["cik"][0], inputs["q"][0], cache_root=RAW)
     debt, debt_src = sc.balance_sheet_debt(q)
@@ -77,15 +82,18 @@ def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str)
         extra={"debt": debt, "debt_source": debt_src, "ebitda_source": inputs["ltm_ebitda"][1], "lease_debt": lease, "ebitda_ltm": ebitda, "rent": rent, "cash": cash,
                "net_lev": (debt - cash) / ebitda if ebitda else float("nan")})
 
-    master = tb.bond_master(con, [ticker], cache_root=RAW)
-    m_ok = master[(~master["is_convertible"]) & master["fixed"] & master["seniority"].isin(["senior_unsecured", "secured"])]
-    quotes = tb.bond_quotes(con, m_ok["cusip"].tolist(), start, end, cache_root=RAW)
+    ok = [b for b in view.bonds(issuer) if not b.convertible and b.fixed and b.seniority in ("senior_unsecured", "secured")]
+    m_ok = pd.DataFrame([{"cusip": b.cusip, "coupon": b.coupon, "maturity": pd.Timestamp(b.maturity), "seniority": b.seniority,
+                          "grade": b.grade} for b in ok], columns=["cusip", "coupon", "maturity", "seniority", "grade"])
+    obs = view.observations(ok, pd.Timestamp(start))
+    # tb.latest_snapshot still reads the TRACE names; it moves to the domain with neutral names in step 7.
+    quotes = obs.rename(columns={"date": "trade_date", "price": "price_vw", "yield": "yield_vw"}).drop(columns="available_at")
     snap = tb.latest_snapshot(quotes) if len(quotes) else pd.DataFrame()
     bonds = pd.DataFrame()
     basis = "none"
     if len(snap):
         bonds = snap.merge(m_ok[["cusip", "coupon", "maturity", "seniority", "grade"]], on="cusip")
-        curve = tr.curve_on(pd.Timestamp(end), cache_root=RAW)
+        curve = view.curve().as_row()
         bonds["maturity_years"] = (pd.to_datetime(bonds["maturity"]) - pd.Timestamp(end)).dt.days / 365.25
         bonds = bonds[bonds["maturity_years"].between(1.0, 15.0) & (bonds["price"] >= 80)].copy()
         bonds["g_spread"] = tb.g_spread(bonds["yield"], bonds["maturity"], pd.Timestamp(end), curve)
@@ -100,7 +108,7 @@ def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str)
     longest = bonds.sort_values("maturity_years").iloc[-1][["g_spread", "price"]].to_dict() if len(bonds) else None
     return {"inputs": inputs, "recent_raise": recent, "longest": longest,
             "basis": basis, "ticker": ticker, "name": case["name"], "case": case, "risk": risk, "bonds": bonds, "quotes": quotes,
-            "filing": f"{inputs['q'][0]} ({case['as_of']})", "revenue_clock": case["revenue_clock"]}
+            "filing": f"{inputs['q'][0]} ({case['as_of']})", "revenue_clock": case["revenue_clock"], "issuer": issuer}
 
 
 def daily_tenor_spread(block: dict, fit: tuple[float, float], year_curves: pd.DataFrame) -> pd.Series:

@@ -37,6 +37,8 @@ sys.path.insert(0, str(ROOT))
 
 from hy import backtest as bt  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402
 
 OUT = CONFIG.path("backtest")
 HORIZONS = (3, 6, 12)
@@ -129,7 +131,7 @@ def main() -> None:
                     help="flat round-trip cost in bp of price for every bond; default: the TRACE bid-ask proxy")
     a = ap.parse_args()
     tag = ("all" if a.keep_distressed else "ex_distressed") + (f"_cost{a.cost_bp:g}" if a.cost_bp is not None else "")
-    panel = pd.read_parquet(OUT / "panel_full.parquet")
+    panel = DataView(WarehouseSource(CONFIG), pd.Timestamp.now()).panel("bond_panel")  # the whole history; the replay guards each month
     as_of = pd.to_datetime(panel["available_at"]).max()
     bench = bt.benchmark_spread(panel, as_of)
     dur = panel[["date", "cusip", "mod_dur"]]

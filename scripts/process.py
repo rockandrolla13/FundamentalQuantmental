@@ -46,7 +46,10 @@ from hy.sources import edgar  # noqa: E402
 from hy.sources import forecast_sources as fs  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
-from hy.data.config import CONFIG  # noqa: E402
+from hy.data.config import CONFIG
+from hy.data.pit import DataUnavailable  # noqa: E402
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "process"
@@ -96,8 +99,8 @@ def _f(x, nd=2):
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def step_inputs(con, t, decision, start, end) -> tuple[Step, dict]:
-    blk = rv_pair.issuer_block(con, t, decision, start, end)
+def step_inputs(con, t, decision, start, end, view: DataView) -> tuple[Step, dict]:
+    blk = rv_pair.issuer_block(con, t, decision, start, end, view=view)
     inputs = blk["inputs"]
     s = Step("1 Inputs", "Methodology 3; framework R5")
     s.outputs = {"filing": blk["filing"], "bonds_priced": int(len(blk["bonds"])), "curve_basis": blk["basis"],
@@ -289,10 +292,13 @@ def ltm_ready(ltm: dict) -> bool:
     return x is not None and x == x
 
 
-def step_normalise(blk, decision) -> Step:
+def step_normalise(blk, decision, view: DataView) -> Step:
     s = Step("3 Normalise earnings", "Framework F3; methodology 4.1")
     v = ci.values(blk["inputs"])
-    quarters, _ = ci.loader_quarters(v["ticker"], v.get("gvkey"), RAW, decision)
+    try:
+        quarters = view.financials(blk["issuer"])
+    except DataUnavailable:
+        quarters = []
     quarters, filled = fill_cash_flow_gaps(quarters, v.get("cik"), decision)
     blk["_quarters"] = quarters
     ltm = blk["_ltm"] = ltm_figures(quarters)
@@ -717,17 +723,24 @@ GICS_SECTORS = {"10": "Energy", "15": "Materials", "20": "Industrials", "25": "C
                 "50": "Communication Services", "55": "Utilities", "60": "Real Estate"}
 
 
-def peer_table(blocks: dict, xs, decision: pd.Timestamp) -> pd.DataFrame | None:
+def peer_table(blocks: dict, xs, decision: pd.Timestamp, view: DataView) -> pd.DataFrame | None:
     """Peers for the run's issuers: ESP, spread per turn, SPiDER and OneScore by sector, by rating, and by both
     (hy.peers; decision pages 2026-10-22-esp-peer-groups, 2026-10-23-peer-fair-spread). Peers are the TRACE high yield
     panel's bonds in the latest month at or before `decision`. Each issuer enters as its 5-year point with the panel's
     own leverage (Compustat debt / LTM EBITDA, point in time), so it joins the cell by the same rule as its peers.
     Returns None when the panel files are missing; the fair spread then falls back to the HY index."""
-    bt_dir = RAW / "backtest"
-    need = ["panel_full.parquet", "leverage_full.parquet", "gics_history.parquet", "sp_ratings.parquet"]
-    if not all((bt_dir / f).exists() for f in need):
+    try:
+        lev = view.panel("leverage")
+        panel = view.panel("bond_panel", ["date", "gvkey", "years", "g_spread"])
+        gics, ratings = view.panel("gics"), view.panel("ratings")
+    except DataUnavailable:
         return None
-    lev = pd.read_parquet(bt_dir / "leverage_full.parquet")
+
+    def optional(name: str) -> pd.DataFrame | None:
+        try:
+            return view.panel(name)
+        except DataUnavailable:
+            return None
     lev["gvkey"] = lev["gvkey"].astype(str)
     known = lev[(lev["date"] <= decision) & (lev["available_at"] <= decision)].sort_values("date")
     last = known.groupby("gvkey").tail(1).set_index("gvkey")
@@ -743,14 +756,8 @@ def peer_table(blocks: dict, xs, decision: pd.Timestamp) -> pd.DataFrame | None:
                      "debt": float(r["debt"]) if r is not None else np.nan})
     if not rows:
         return None
-    return peers.live_peers(pd.DataFrame(rows),
-                            pd.read_parquet(bt_dir / "panel_full.parquet", columns=["date", "gvkey", "years", "g_spread"]),
-                            lev, pd.read_parquet(bt_dir / "gics_history.parquet"),
-                            pd.read_parquet(bt_dir / "sp_ratings.parquet"), decision,
-                            annual=pd.read_parquet(bt_dir / "annual_ebitda.parquet")
-                            if (bt_dir / "annual_ebitda.parquet").exists() else None,
-                            equity=pd.read_parquet(bt_dir / "equity_monthly.parquet")
-                            if (bt_dir / "equity_monthly.parquet").exists() else None)
+    return peers.live_peers(pd.DataFrame(rows), panel, lev, gics, ratings, decision,
+                            annual=optional("annual_ebitda"), equity=optional("equity_monthly"))
 
 
 def add_peers(steps_all: dict, res: pd.DataFrame | None) -> None:
@@ -1130,14 +1137,12 @@ def step_gate(t, steps: dict, xs, sc_out, ref: dict | None = None) -> Step:
     return s
 
 
-def step_events(blk, decision, st: dict | None = None, sc_out=None) -> Step:
+def step_events(blk, decision, view: DataView, st: dict | None = None, sc_out=None) -> Step:
     s = Step("12 Events in the next 90 days", "Framework F11")
-    v = ci.values(blk["inputs"])
-    idx = edgar.filing_index(v["cik"], cache_root=RAW)
-    per = idx[idx["form"].isin(["10-Q", "10-K"]) & (idx["acceptance"] <= decision)].sort_values("acceptance")
+    per = view.filings(blk["issuer"], ["10-Q", "10-K"])
     ev = []
     if len(per):
-        nxt = per["acceptance"].iloc[-1] + pd.Timedelta(91, unit="D")
+        nxt = pd.Timestamp(per[-1].available_at) + pd.Timedelta(91, unit="D")
         ev.append({"event": "Next quarterly results (estimated from filing cadence)", "date": str(nxt.date()),
                    "confirmed": False})
     lad = blk["case"]["ladders"]["debt"]
@@ -1258,7 +1263,8 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, con=None):
+def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, con=None,
+        view: DataView | None = None):
     """Run every step for every issuer as known at end_str + 1 day; write <out_dir>/<ticker>.json and _run.json.
 
     `out_dir` defaults to data/raw/process (the memo's input). The walk-forward (scripts/walkforward.py) passes its own
@@ -1268,13 +1274,14 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     end = pd.Timestamp(end_str)
     decision = end + pd.Timedelta(1, unit="D")
     start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
+    view = view.at(decision) if view is not None else DataView(WarehouseSource(CONFIG), decision)
     con = con or CONFIG.connect()
     mac = scenarios.live_paths(con, decision, end)
-    curve_now = tr.curve_on(end, cache_root=RAW)  # Treasury par curve as of the last TRACE date (no look-ahead)
+    curve_now = view.curve().as_row()  # the latest Treasury curve public at the decision time
     steps_all, blocks, fits = {}, {}, {}
     for t in tickers:
         try:
-            s1, blk = step_inputs(con, t, decision, start, end_str)
+            s1, blk = step_inputs(con, t, decision, start, end_str, view)
         except Exception as e:
             print(f"{t}: inputs failed ({type(e).__name__}: {e})")
             continue
@@ -1287,7 +1294,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     xs = pd.DataFrame({t: {"s5": rv.curve_at(fits[t], TENOR), "lev": blocks[t]["risk"].lev_lease_adj} for t in blocks}).T
     xs = xs.astype(float).dropna()
     xs = xs[xs["s5"] > 0]
-    ptab = peer_table(blocks, xs, decision)
+    ptab = peer_table(blocks, xs, decision, view)
     fair = {t: fairspread.peer_fair_spread(float(xs.loc[t, "s5"]),
                                    ptab.loc[t, "esp_sr"] if ptab is not None and t in ptab.index else None,
                                    ptab.loc[t, "esp_sd_sr"] if ptab is not None and t in ptab.index else None,
@@ -1299,13 +1306,13 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     for t, blk in blocks.items():
         st = steps_all[t]
         st["2"] = step_frame(blk)
-        st["3"] = step_normalise(blk, decision)
+        st["3"] = step_normalise(blk, decision, view)
         if t not in xs.index:
             print(f"{t}: no spread; steps 7 to 11 blocked")
             continue
         arch = st["2"].outputs.get("archetype") or "A4"
         start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision)
-        qs = blk.get("_quarters") or ci.loader_quarters(t, ci.values(blk["inputs"]).get("gvkey"), RAW, decision)[0]
+        qs = blk.get("_quarters") or view.financials(blk["issuer"])
         q4 = ci.last_four(qs)
         if q4:
             blk["_fcf_ltm"] = sum((r.operating_cash_flow - r.capex_total) for r in q4)
@@ -1337,7 +1344,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"))
         st["10"] = step_alpha(sc_out, ref)
         st["11"] = step_gate(t, st, xs, sc_out, ref)
-        st["12"] = step_events(blk, decision, st, sc_out)
+        st["12"] = step_events(blk, decision, view, st, sc_out)
         st["13"] = step_metrics(st, sc_out)
         st["15"] = step_decision(t, ref, sc_out, mac, xs, curve_now, decision, st["12"].outputs.get("events", []))
         print(f"{t}: " + " | ".join(f"{k}:{v.status[0]}" for k, v in st.items()))

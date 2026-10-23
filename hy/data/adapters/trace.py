@@ -27,11 +27,15 @@ def bonds(iss: Issuer, cfg: DataConfig) -> list[Bond]:
 
 
 def observations(bs: Sequence[Bond], start: datetime, end: datetime, cfg: DataConfig) -> pd.DataFrame:
+    """Daily observations of `bs` that were public by `end`."""
     if not bs:
         return pd.DataFrame(columns=list(BOND_OBS_COLUMNS))
+    # Trades public by `end` are those traded up to `end` less the TRACE lag; asking for exactly that range keeps the
+    # request, and so the cache key, the same as the process has always used.
+    last_trade = pd.Timestamp(end).normalize() - pd.Timedelta(TRACE_LAG_DAYS, unit="D")
     try:
         q = tb.bond_quotes(LazyConnection(cfg), [b.cusip for b in bs], str(pd.Timestamp(start).date()),
-                           str(pd.Timestamp(end).date()), cache_root=cfg.root)
+                           str(last_trade.date()), cache_root=cfg.root)
     except Exception as exc:  # noqa: BLE001
         raise DataUnavailable("observations", ",".join(b.cusip for b in bs)[:60], f"{type(exc).__name__}: {exc}") from exc
     out = pd.DataFrame({"cusip": q["cusip"], "date": pd.to_datetime(q["trade_date"]), "price": q["price_vw"],

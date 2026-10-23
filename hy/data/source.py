@@ -68,3 +68,15 @@ class AnalystSource(Protocol):
     """The analyst's YAML inputs."""
 
     def analyst_inputs(self, ticker: str) -> AnalystInput: ...
+
+
+# Panel names: neutral names for the cross-sectional files the backtests and the peer step read.
+PANELS = ("bond_panel", "leverage", "gics", "ratings", "annual_ebitda", "equity_monthly")
+
+
+@runtime_checkable
+class PanelSource(Protocol):
+    """Cross-sectional history (every bond-month, every issuer's leverage, sector, rating, EBITDA, stock return).
+    Each frame carries `available_at`; the view filters it."""
+
+    def panel(self, name: str, columns: Sequence[str] | None = None) -> pd.DataFrame: ...

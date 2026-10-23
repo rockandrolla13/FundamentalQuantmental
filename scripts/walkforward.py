@@ -29,7 +29,9 @@ import process  # noqa: E402
 
 from hy import walkforward as wf  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
-from hy.data.config import CONFIG  # noqa: E402
+from hy.data.config import CONFIG
+from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.view import DataView  # noqa: E402  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "walkforward"
@@ -95,6 +97,7 @@ def _filing_index_for(accession: str):
 def run_all(refresh: bool = False) -> pd.DataFrame:
     """The process at every decision date (cached per date); then the audit. Returns the timing and audit table."""
     con = CONFIG.connect()
+    base = DataView(WarehouseSource(CONFIG), pd.Timestamp(FIRST))  # one source; process.run moves it to each date
     rows = []
     for q in dates():
         d = RUNS / str(q.date())
@@ -102,7 +105,7 @@ def run_all(refresh: bool = False) -> pd.DataFrame:
         status = "cached"
         if refresh or not (d / "_run.json").exists():
             try:
-                process.run(TICKERS, str(q.date()), PAIRS, out_dir=d, figures=False, con=con)
+                process.run(TICKERS, str(q.date()), PAIRS, out_dir=d, figures=False, con=con, view=base)
                 status = "ran"
             except Exception as e:  # noqa: BLE001 - one failed date is recorded, the rest run
                 rows.append({"date": str(q.date()), "status": f"failed: {type(e).__name__}: {e}"[:200], "seconds": time.time() - t0})

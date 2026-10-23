@@ -14,7 +14,7 @@ from hy.data.pit import DataUnavailable
 
 T = datetime(2026, 9, 18)
 PROTOCOLS = (source.IssuerSource, source.FilingSource, source.BondSource, source.MarketSource,
-             source.ReferenceSource, source.ForecastSource, source.AnalystSource)
+             source.ReferenceSource, source.ForecastSource, source.AnalystSource, source.PanelSource)
 
 
 def _fake() -> sources.FakeSource:
