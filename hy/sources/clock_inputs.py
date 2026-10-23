@@ -29,6 +29,7 @@ from hy.sources import edgar
 from hy.sources import schedules as sc
 from hy.sources import xbrl_instance as xi
 from hy.data.config import CONFIG
+from hy import state
 
 Pair = tuple[Any, str]
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -417,12 +418,8 @@ def _finite(x: float) -> bool:
     return x is not None and not (isinstance(x, float) and math.isnan(x))
 
 
-def last_four(quarters: Sequence[Any]) -> list[Any]:
-    """The last four quarters if they are consecutive (first to last within 290 days); else []."""
-    q = sorted(quarters, key=lambda r: r.as_of)[-4:]
-    if len(q) < 4 or (q[-1].as_of - q[0].as_of).days > 290:
-        return []
-    return q
+# The LTM window and the LTM sum live in hy.state (data module step 5b).
+last_four = state.last_four
 
 
 def interest_rate(quarters: Sequence[Any], bounds: tuple[float, float] = RATE_BOUNDS) -> Pair:
@@ -459,14 +456,13 @@ def ltm(quarters: Sequence[Any]) -> dict[str, Pair]:
 
     def total(field: str, label: str) -> Pair:
         vals = [getattr(r, field) for r in q]
-        if not all(_finite(v) for v in vals):
-            gaps = [f"{r.as_of:%b-%Y}" for r, v in zip(q, vals) if not _finite(v)]
-            ok = [v for v in vals if _finite(v)]
-            if len(ok) == 3:  # one quarter lost to the XBRL definition check: annualise the other three, and say so
-                return float(sum(ok) * 4 / 3), (f"loader LTM {span} {label}, {srcs}; fallback: 3 of 4 quarters x 4/3 "
-                                                f"({', '.join(gaps)} missing)")
+        value = state.ltm_total(vals, allow_three=True)
+        gaps = [f"{r.as_of:%b-%Y}" for r, v in zip(q, vals) if not _finite(v)]
+        if value != value:
             return None, f"loader LTM {span} {label} missing for {', '.join(gaps)}"
-        return float(sum(vals)), f"loader LTM {span} {label}, {srcs}"
+        if gaps:  # one quarter lost to the XBRL definition check: the other three annualised, and the source says so
+            return value, f"loader LTM {span} {label}, {srcs}; fallback: 3 of 4 quarters x 4/3 ({', '.join(gaps)} missing)"
+        return value, f"loader LTM {span} {label}, {srcs}"
 
     rr = q[-1].revenue
     return {

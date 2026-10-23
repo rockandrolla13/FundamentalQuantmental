@@ -39,7 +39,7 @@ import scenarios  # noqa: E402
 
 from hy import alpha as hal  # noqa: E402
 from hy import events as hev  # noqa: E402
-from hy import books, fairspread, forward, groups, peers, recovery, rv, skills  # noqa: E402
+from hy import books, fairspread, forward, groups, peers, recovery, rv, skills, state  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import edgar  # noqa: E402
@@ -233,57 +233,8 @@ def fill_cash_flow_gaps(quarters, cik, decision, n: int = 9) -> tuple[list, list
     return q, filled
 
 
-def ltm_figures(quarters) -> dict:
-    """LTM flows and quarterly series from point-in-time quarters (methodology 3.2, 4.1, 4.2; quarterly-package-extraction).
-
-    All quarters were available at the decision time (ci.loader_quarters filters on available_at). LTM = the last
-    four consecutive quarters. dWC = (receivables + inventory - payables) now less four quarters earlier; NaN parts
-    count as 0 with a flag. Intuition: one table of the numbers every group reads, so no group re-derives them.
-    """
-    q = sorted(quarters, key=lambda r: r.as_of)
-    q4 = ci.last_four(q)
-    out = {"quarters": len(q), "years_of_history": round(len(q) / 4, 1)}
-    if not q4:
-        return out
-
-    def ssum(attr):
-        vals = [_n(getattr(r, attr)) for r in q4]
-        return float(sum(vals)) if all(v == v for v in vals) else float("nan")  # a missing quarter blanks the LTM
-
-    def wc(r):
-        return np.nansum([_n(r.receivables), _n(r.inventory)]) - np.nan_to_num(_n(r.payables))
-    def esum(attr):
-        """Earnings fields: with one quarter missing, 3 quarters x 4/3, the input layer's stated fallback
-        (clock_inputs.ltm), so every group reads the same EBITDA; cash flows stay strict."""
-        vals = [_n(getattr(r, attr)) for r in q4]
-        ok = [v for v in vals if v == v]
-        if len(ok) == 4:
-            return float(sum(ok))
-        if len(ok) == 3:
-            out.setdefault("ltm_scaled", []).append(attr)
-            return float(sum(ok)) * 4.0 / 3.0
-        return float("nan")
-    dwc = float(wc(q[-1]) - wc(q[-5])) if len(q) >= 5 else 0.0
-    eb_adj = esum("ebitda_adj_company")
-    out.update({
-        "revenue": esum("revenue"), "ebitda_rep": esum("ebitda_reported"), "ebitda_adj": eb_adj,
-        "addback": float(sum(i.amount for r in q4 for i in r.nonrecurring_items)),  # = -special items (a charge adds back)
-        "cfo": ssum("operating_cash_flow"), "capex": ssum("capex_total"), "cash_interest": ssum("cash_interest"),
-        "cash_taxes": ssum("cash_taxes"), "depreciation": ssum("depreciation"), "delta_wc": dwc,
-        "delta_wc_flag": len(q) < 5, "cash": _n(q4[-1].cash),
-        "maint_capex": float(sum(min(_n(r.capex_total), _n(r.depreciation)) if r.depreciation == r.depreciation
-                                 else _n(r.capex_total) for r in q4)),
-        "revenue_q": [_n(r.revenue) for r in q[-12:]], "ebitda_q": [_n(r.ebitda_adj_company) for r in q[-12:]],
-        "ebitda_rep_q": [_n(r.ebitda_reported) for r in q[-12:]],
-        "addback_q": [float(sum(i.amount for i in r.nonrecurring_items)) for r in q[-12:]],
-        "cfo_q": [_n(r.operating_cash_flow) for r in q[-12:]], "capex_q": [_n(r.capex_total) for r in q[-12:]],
-        "cogs_last": _n(q4[-1].cogs), "revenue_last": _n(q4[-1].revenue), "ebitda_last": _n(q4[-1].ebitda_adj_company),
-    })
-    out["fcf"] = out["cfo"] - out["capex"]
-    out["margin_q"] = [e / r if r and r == r and e == e else float("nan") for e, r in zip(out["ebitda_q"], out["revenue_q"])]
-    out["conversion_q"] = [(c - k) / e if e and e == e and c == c and k == k else float("nan")
-                           for c, k, e in zip(out["cfo_q"], out["capex_q"], out["ebitda_q"])]
-    return out
+# ltm_figures lives in hy.state (data module step 5b); this name stays for callers.
+ltm_figures = state.ltm_figures
 
 
 def ltm_ready(ltm: dict) -> bool:

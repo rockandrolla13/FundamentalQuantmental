@@ -625,3 +625,81 @@ def distress_ratio(spread, yld) -> float:
     s, y = np.asarray(spread, dtype=float), np.asarray(yld, dtype=float)
     pos = y > 0
     return float((s[pos] > DISTRESS_SPREAD).mean()) if pos.any() else float("nan")
+
+
+# ---------------------------------------------------------------- one LTM rule (data module step 5b)
+
+
+def _n(x) -> float:
+    """None and NaN read as NaN; a number reads as itself."""
+    return float(x) if x is not None and x == x else float("nan")
+
+
+def last_four(quarters: Sequence) -> list:
+    """The last four quarters if they are consecutive (first to last within 290 days); else [] (Section 4.2)."""
+    q = sorted(quarters, key=lambda r: r.as_of)[-4:]
+    if len(q) < 4 or (q[-1].as_of - q[0].as_of).days > 290:
+        return []
+    return q
+
+
+def ltm_total(values: Sequence, allow_three: bool = True) -> float:
+    """Sum of four quarterly values (Section 4.1). With `allow_three`, one missing quarter is replaced by scaling the
+    other three by 4/3 (earnings fields; the input layer's stated fallback); without it a missing quarter blanks the
+    LTM (cash flows). Intuition: an LTM is a year of flow; three quarters of an earnings line estimate it, three
+    quarters of a cash line do not."""
+    vals = [_n(v) for v in values]
+    ok = [v for v in vals if v == v]
+    if len(ok) == len(vals):
+        return float(sum(ok))
+    if allow_three and len(vals) == 4 and len(ok) == 3:
+        return float(sum(ok)) * 4.0 / 3.0
+    return float("nan")
+
+
+def ltm_figures(quarters: Sequence) -> dict:
+    """LTM flows and quarterly series from point-in-time quarters (methodology 3.2, 4.1, 4.2; quarterly-package-extraction).
+
+    All quarters were available at the decision time (hy.data.view.DataView.financials filters on available_at). LTM = the last
+    four consecutive quarters. dWC = (receivables + inventory - payables) now less four quarters earlier; NaN parts
+    count as 0 with a flag. Intuition: one table of the numbers every group reads, so no group re-derives them.
+    """
+    q = sorted(quarters, key=lambda r: r.as_of)
+    q4 = last_four(q)
+    out = {"quarters": len(q), "years_of_history": round(len(q) / 4, 1)}
+    if not q4:
+        return out
+
+    def ssum(attr):  # cash flows: a missing quarter blanks the LTM
+        return ltm_total([getattr(r, attr) for r in q4], allow_three=False)
+
+    def wc(r):
+        return np.nansum([_n(r.receivables), _n(r.inventory)]) - np.nan_to_num(_n(r.payables))
+    def esum(attr):  # earnings fields: one missing quarter is scaled from the other three (ltm_total)
+        vals = [getattr(r, attr) for r in q4]
+        if sum(1 for v in vals if _n(v) == _n(v)) == 3:
+            out.setdefault("ltm_scaled", []).append(attr)
+        return ltm_total(vals, allow_three=True)
+    dwc = float(wc(q[-1]) - wc(q[-5])) if len(q) >= 5 else 0.0
+    eb_adj = esum("ebitda_adj_company")
+    out.update({
+        "revenue": esum("revenue"), "ebitda_rep": esum("ebitda_reported"), "ebitda_adj": eb_adj,
+        "addback": float(sum(i.amount for r in q4 for i in r.nonrecurring_items)),  # = -special items (a charge adds back)
+        "cfo": ssum("operating_cash_flow"), "capex": ssum("capex_total"), "cash_interest": ssum("cash_interest"),
+        "cash_taxes": ssum("cash_taxes"), "depreciation": ssum("depreciation"), "delta_wc": dwc,
+        "delta_wc_flag": len(q) < 5, "cash": _n(q4[-1].cash),
+        "maint_capex": float(sum(min(_n(r.capex_total), _n(r.depreciation)) if r.depreciation == r.depreciation
+                                 else _n(r.capex_total) for r in q4)),
+        "revenue_q": [_n(r.revenue) for r in q[-12:]], "ebitda_q": [_n(r.ebitda_adj_company) for r in q[-12:]],
+        "ebitda_rep_q": [_n(r.ebitda_reported) for r in q[-12:]],
+        "addback_q": [float(sum(i.amount for i in r.nonrecurring_items)) for r in q[-12:]],
+        "cfo_q": [_n(r.operating_cash_flow) for r in q[-12:]], "capex_q": [_n(r.capex_total) for r in q[-12:]],
+        "cogs_last": _n(q4[-1].cogs), "revenue_last": _n(q4[-1].revenue), "ebitda_last": _n(q4[-1].ebitda_adj_company),
+    })
+    out["fcf"] = out["cfo"] - out["capex"]
+    out["margin_q"] = [e / r if r and r == r and e == e else float("nan") for e, r in zip(out["ebitda_q"], out["revenue_q"])]
+    out["conversion_q"] = [(c - k) / e if e and e == e and c == c and k == k else float("nan")
+                           for c, k, e in zip(out["cfo_q"], out["capex_q"], out["ebitda_q"])]
+    return out
+
+

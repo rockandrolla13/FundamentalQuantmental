@@ -254,3 +254,36 @@ def test_distress_ratio_counts_every_positive_yield_bond():
     spread = np.array([0.03, 0.12, 0.30, 0.05])
     yld = np.array([0.07, 0.16, 0.34, -0.01])   # the last has no positive yield: out of the count
     assert st.distress_ratio(spread, yld) == pytest.approx(2 / 3)  # 1,200 bp and 3,000 bp are both distressed
+
+
+# --------------------------------------------------------------------------- one LTM rule (data module step 5b)
+
+
+def test_last_four_needs_consecutive_quarters():
+    from types import SimpleNamespace as Q
+    from hy import state as st
+    qs = [Q(as_of=datetime(2025, m, 28)) for m in (3, 6, 9, 12)]
+    assert len(st.last_four(qs)) == 4
+    shifted = [Q(as_of=datetime(2024, 12, 31))] + qs[:3]   # Dec-2024 to Sep-2025: 271 days, within 290
+    assert len(st.last_four(shifted)) == 4
+    broken = [Q(as_of=datetime(2024, 9, 30))] + qs[1:]  # first to last 365 days: not consecutive
+    assert st.last_four(broken) == []
+
+
+def test_ltm_total_sums_four_and_scales_three():
+    from hy import state as st
+    assert st.ltm_total([1.0, 2.0, 3.0, 4.0]) == pytest.approx(10.0)
+    assert st.ltm_total([1.0, 2.0, float("nan"), 3.0]) == pytest.approx(6.0 * 4 / 3)   # earnings: 3 of 4 x 4/3
+    assert np.isnan(st.ltm_total([1.0, 2.0, float("nan"), 3.0], allow_three=False))  # cash flows: strict
+    assert np.isnan(st.ltm_total([1.0, float("nan"), float("nan"), 3.0]))
+    assert np.isnan(st.ltm_total([None, 1.0, 2.0, 3.0], allow_three=False))
+
+
+def test_one_ltm_home():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import process
+    from hy import state as st
+    from hy.sources import clock_inputs as ci
+    assert process.ltm_figures is st.ltm_figures and ci.last_four is st.last_four
