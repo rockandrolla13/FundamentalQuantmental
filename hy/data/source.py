@@ -12,7 +12,7 @@ from typing import Protocol, Sequence, runtime_checkable
 import pandas as pd
 
 from hy.data.records import (AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
-                             IssuerFinancials)
+                             IssuerFinancials, MarketValue)
 from hy.forecasts import ForecastRow
 
 
@@ -47,6 +47,13 @@ class MarketSource(Protocol):
 
     def curve(self, on: datetime) -> Curve: ...
     def hy_index(self, on: datetime) -> IndexLevel: ...
+
+
+@runtime_checkable
+class EquitySource(Protocol):
+    """The issuer's equity market value, as reported by a decision time (framework F7.7)."""
+
+    def market_value(self, issuer: Issuer, decision_time: datetime) -> MarketValue: ...
 
 
 @runtime_checkable

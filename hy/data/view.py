@@ -15,7 +15,7 @@ import pandas as pd
 
 from hy.data.pit import DataUnavailable, PointInTimeStore, guard_frame, guard_records
 from hy.data.records import (AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer, IssuerFacts,
-                             IssuerFinancials)
+                             IssuerFinancials, MarketValue)
 from hy.forecasts import ForecastRow
 
 
@@ -53,6 +53,14 @@ class DataView:
             guard_records([f], self.decision_time)
             return f
         return self._get(("facts", issuer.ticker), load)
+
+    def market_value(self, issuer: Issuer) -> MarketValue:
+        """Equity market value from the latest quarter reported by the decision time (framework F7.7)."""
+        def load() -> MarketValue:
+            m = self.source.market_value(issuer, self.decision_time)
+            guard_records([m], self.decision_time)
+            return m
+        return self._get(("market_value", issuer.ticker), load)
 
     def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]:
         def load() -> list[Filing]:

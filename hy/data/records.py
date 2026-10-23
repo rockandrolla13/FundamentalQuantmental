@@ -182,6 +182,16 @@ class AnalystInput:
     values: dict[str, dict] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class MarketValue(Stamped):
+    """Equity market value of one issuer (framework F7.7): price x shares of the latest quarter reported by the decision
+    time, in USD millions. `as_of` is the quarter end; `available_at` is the report date."""
+
+    issuer_ticker: str = ""
+    value: float = float("nan")
+    source: str = ""
+
+
 # Bond observations come as a frame for volume (600k bond-months). Neutral names: no vendor field leaves an adapter.
 BOND_OBS_COLUMNS = ("cusip", "date", "price", "yield", "n_trades", "par_volume", "available_at")
 

@@ -620,21 +620,19 @@ def step_cases(sc_out) -> Step:
     return s
 
 
-def market_value(con, gvkey: str, decision: pd.Timestamp) -> tuple[float, str]:
-    """Equity value from Compustat: price x shares of the latest quarter reported on or before `decision` (F7.7)."""
-    df = con.raw_sql(f"select datadate, rdq, prccq, cshoq from comp.fundq where gvkey = '{gvkey}' "
-                     f"and rdq <= '{decision.date()}' and prccq is not null order by datadate desc limit 1")
-    if df.empty:
-        return float("nan"), "no Compustat price"
-    r = df.iloc[0]
-    return float(r["prccq"] * r["cshoq"]), f"Compustat fundq {r['datadate']} (reported {r['rdq']})"
+def market_value(view: DataView, issuer) -> tuple[float, str]:
+    """Equity value: price x shares of the latest quarter reported by the decision time (F7.7), through the view."""
+    try:
+        m = view.market_value(issuer)
+    except DataUnavailable as e:
+        return float("nan"), f"no equity price ({e.reason})"
+    return m.value, m.source
 
 
-def step_valuation(con, blk, decision, mcap_src: tuple | None = None) -> Step:
+def step_valuation(blk, mcap_src: tuple) -> Step:
     s = Step("8 Valuation", "Framework F7")
     r = blk["risk"]
-    v = ci.values(blk["inputs"])
-    mcap, src = mcap_src if mcap_src else market_value(con, v["gvkey"], decision)
+    mcap, src = mcap_src
     tev = mcap + r.extra["debt"] - (r.extra["cash"] if r.extra["cash"] == r.extra["cash"] else 0.0)
     eb = r.extra["ebitda_ltm"]
     s.outputs = {"market_cap_bn": _f(mcap / 1e3, 1), "market_tev_bn": _f(tev / 1e3, 1),
@@ -1279,13 +1277,13 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         if figures:
             scenarios.scenario_figure(blk["name"], t, sc_out, FIG / f"scenarios_{t}.png")
         blk["_sc_out"] = sc_out
-        mcap, mcap_src = market_value(con, ci.values(blk["inputs"])["gvkey"], decision)
+        mcap, mcap_src = market_value(view, blk["issuer"])
         st["4"] = step_liquidity(blk, sc_out, info, start_, mac, s5)
         st["5"] = step_capstructure(blk, st["4"].outputs, mcap, arch, blk["case"]["metrics"].get("cust_top1"))
         st["2"].outputs["business_risk"] = st["5"].outputs.get("sp", {}).get("business_risk_score")
         st["6"] = step_clocks(blk)
         st["7"] = step_cases(sc_out)
-        st["8"] = step_valuation(con, blk, decision, (mcap, mcap_src))
+        st["8"] = step_valuation(blk, (mcap, mcap_src))
         st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"))
         st["10"] = step_alpha(sc_out, ref)
         st["11"] = step_gate(t, st, xs, sc_out, ref)

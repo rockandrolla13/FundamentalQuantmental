@@ -17,7 +17,7 @@ from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
 from hy.data.source import PANELS
 from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
-                             IssuerFacts, IssuerFinancials, check_observations)
+                             IssuerFacts, IssuerFinancials, MarketValue, check_observations)
 from hy.forecasts import ForecastRow
 
 
@@ -52,6 +52,9 @@ class WarehouseSource:
         raise DataUnavailable("hy_index", str(pd.Timestamp(on).date()),
                               "the live run and the backtest define it differently; one definition arrives in step 5")
 
+    def market_value(self, issuer: Issuer, decision_time: datetime) -> MarketValue:
+        return compustat.market_value(issuer, decision_time, self.cfg)
+
     def classifications(self, issuers: Sequence[Issuer]) -> list[Classification]:
         return reference.classifications(issuers, self.cfg)
 
@@ -81,13 +84,14 @@ class FakeSource:
                  observations: pd.DataFrame | None = None, curves: Sequence[Curve] = (),
                  index_levels: Sequence[IndexLevel] = (), classifications: Sequence[Classification] = (),
                  forecasts: Sequence[ForecastRow] = (), analyst: Sequence[AnalystInput] = (),
-                 panels: dict[str, pd.DataFrame] | None = None) -> None:
+                 panels: dict[str, pd.DataFrame] | None = None, market_values: Sequence[MarketValue] = ()) -> None:
         self._issuers = {i.ticker: i for i in issuers}
         self._financials, self._facts, self._filings = list(financials), list(facts), list(filings)
         self._bonds, self._curves, self._index = list(bonds), list(curves), list(index_levels)
         self._class, self._forecasts = list(classifications), list(forecasts)
         self._analyst = {a.ticker: a for a in analyst}
         self._panels = dict(panels or {})
+        self._mv = list(market_values)
         self._obs = check_observations(observations) if observations is not None else pd.DataFrame(columns=list(BOND_OBS_COLUMNS))
 
     def issuers(self, tickers: Sequence[str]) -> list[Issuer]:
@@ -127,6 +131,12 @@ class FakeSource:
         if not c:
             raise DataUnavailable("hy_index", str(on), "none public by the date")
         return max(c, key=lambda x: x.as_of)
+
+    def market_value(self, issuer: Issuer, decision_time: datetime) -> MarketValue:
+        known = [m for m in self._mv if m.issuer_ticker == issuer.ticker and m.available_at <= decision_time]
+        if not known:
+            raise DataUnavailable("market_value", issuer.ticker, "none reported by the decision time")
+        return max(known, key=lambda m: m.as_of)
 
     def classifications(self, issuers: Sequence[Issuer]) -> list[Classification]:
         names = {i.ticker for i in issuers}
