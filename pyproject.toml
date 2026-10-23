@@ -3,13 +3,16 @@ name = "hy"
 version = "0.1.0"
 description = "HY Analyst: high yield bond mispricing from fundamentals, forward estimates, and macro forecasts"
 requires-python = ">=3.12"
-dependencies = ["numpy>=1.26", "scipy>=1.11", "pandas>=2.1", "scikit-learn>=1.4"]
+dependencies = ["numpy>=1.26", "scipy>=1.11", "pandas>=2.1", "scikit-learn>=1.4", "pyarrow>=14",
+                "pyyaml>=6", "matplotlib>=3.8", "openpyxl>=3.1", "lxml>=5"]
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+wrds = ["wrds>=3.1"]          # only for the local WRDS adapters
+reports = ["pypdf>=4"]        # scripts/split_memos.py
 
-[tool.setuptools]
-packages = ["hy"]
+[tool.setuptools.packages.find]
+include = ["hy*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
