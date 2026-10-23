@@ -21,8 +21,9 @@ from typing import Any, Sequence
 import pandas as pd
 
 from hy.sources.compustat_pit import _in_list
+from hy.data.config import CONFIG
 
-CACHE = Path(__file__).resolve().parents[2] / "data/raw/backtest"
+CACHE = CONFIG.path("backtest")
 
 
 def _chunks(xs: Sequence[str], n: int = 500):

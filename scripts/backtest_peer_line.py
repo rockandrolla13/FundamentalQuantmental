@@ -36,8 +36,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from hy import backtest as bt  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-OUT = ROOT / "data" / "raw" / "backtest"
+OUT = CONFIG.path("backtest")
 HORIZONS = (3, 6, 12)
 
 

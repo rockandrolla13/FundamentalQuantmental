@@ -38,8 +38,9 @@ from hy import backtest as bt  # noqa: E402
 from hy.sources import clock_facts as cf  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_panel as tp  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 OUT = RAW / "backtest"
 FIG = ROOT / "docs" / "writeup" / "figures"
 START = pd.Timestamp("2018-01-31")
@@ -66,7 +67,7 @@ def cik_map(gvkeys: list[str]) -> dict[str, str]:
     if p.exists():
         c = pd.read_parquet(p)
     else:
-        c = cp.connect().raw_sql("select gvkey, cik from comp.company where cik is not null")
+        c = CONFIG.connect().raw_sql("select gvkey, cik from comp.company where cik is not null")
         p.parent.mkdir(parents=True, exist_ok=True)
         c.to_parquet(p, index=False)
     c = c[c["gvkey"].isin(gvkeys)].dropna()

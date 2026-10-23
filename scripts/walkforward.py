@@ -29,8 +29,9 @@ import process  # noqa: E402
 
 from hy import walkforward as wf  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 OUT = RAW / "walkforward"
 RUNS = OUT / "runs"
 NEW = ["HTZ", "CLF", "FYBR", "RIG", "CHTR", "AAL", "OPI"]
@@ -93,7 +94,7 @@ def _filing_index_for(accession: str):
 
 def run_all(refresh: bool = False) -> pd.DataFrame:
     """The process at every decision date (cached per date); then the audit. Returns the timing and audit table."""
-    con = cp.connect()
+    con = CONFIG.connect()
     rows = []
     for q in dates():
         d = RUNS / str(q.date())
@@ -200,7 +201,7 @@ def outcomes() -> pd.DataFrame:
     from hy.sources import treasury as tr
     import scenarios
 
-    con = cp.connect()
+    con = CONFIG.connect()
     pred = predictions()
     bench, curves, rows = {}, {}, []
 
@@ -629,7 +630,7 @@ def report() -> None:
         wide = wide.merge(outc[outc["h"] == h][["date", "ticker", "realised_net_bp_yr"]].rename(
             columns={"realised_net_bp_yr": f"real_{h}"}), on=["date", "ticker"], how="left")
     wide.to_parquet(OUT / "timeline.parquet", index=False)
-    con = cp.connect()
+    con = CONFIG.connect()
     ev = _events(con)
     FIG.mkdir(parents=True, exist_ok=True)
     for t, d in wide.groupby("ticker"):

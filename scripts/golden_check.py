@@ -21,12 +21,15 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from hy.data.config import CONFIG  # noqa: E402
+
 sys.path.insert(0, str(ROOT / "scripts"))
-GOLDEN = ROOT / "data" / "raw" / "golden"
+GOLDEN = CONFIG.path("golden")
 TICKERS = ["CRWV", "ORCL", "HCA", "THC", "CCL", "NCLH", "MGM", "WYNN"]
 PAIRS = [("CRWV", "ORCL"), ("HCA", "THC"), ("CCL", "NCLH"), ("MGM", "WYNN")]
 END = "2026-09-17"
-BACKTEST_JSON = ROOT / "data" / "raw" / "backtest" / "summary_peer_line_ex_distressed_cost15.json"
+BACKTEST_JSON = CONFIG.path("backtest", "summary_peer_line_ex_distressed_cost15.json")
 
 
 def run_outputs(out: Path) -> None:

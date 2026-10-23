@@ -28,6 +28,7 @@ from hy import clocks
 from hy.sources import edgar
 from hy.sources import schedules as sc
 from hy.sources import xbrl_instance as xi
+from hy.data.config import CONFIG
 
 Pair = tuple[Any, str]
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -490,7 +491,7 @@ def lookup_issuer(ticker: str, cache_root: Path, fetch: edgar.Fetch = edgar.fetc
     try:
         from hy.sources import compustat_pit as cp
 
-        ids = cp.lookup_issuers(cp.connect(), [t])
+        ids = cp.lookup_issuers(CONFIG.connect(), [t])
         ids = ids[ids["cik"].notna()]
         if len(ids):
             r = ids.iloc[0]
@@ -529,7 +530,7 @@ def run_loader(tickers: Sequence[str], raw: Path, start: str = "2015-01-01", end
     from hy.sources import financials, xbrl
 
     end = end or str(pd.Timestamp.today().date())
-    con = cp.connect()
+    con = CONFIG.connect()
     ids = cp.lookup_issuers(con, list(tickers))
     if ids.empty:
         raise LookupError(f"no Compustat issuer for {tickers}")

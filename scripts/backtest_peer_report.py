@@ -25,8 +25,9 @@ import pandas as pd  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from hy import backtest as bt  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-OUT = ROOT / "data" / "raw" / "backtest"
+OUT = CONFIG.path("backtest")
 FIG = ROOT / "docs" / "writeup" / "figures"
 BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
 INK, MUTED, GRID, SHADE, SURF = "#0b0b0b", "#52514e", "#e4e3df", "#efeeea", "#fcfcfb"

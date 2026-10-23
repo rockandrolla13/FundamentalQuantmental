@@ -46,8 +46,9 @@ from hy.sources import edgar  # noqa: E402
 from hy.sources import forecast_sources as fs  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 OUT = RAW / "process"
 FIG = ROOT / "docs" / "writeup" / "figures"
 TENOR = 5.0
@@ -1267,7 +1268,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     end = pd.Timestamp(end_str)
     decision = end + pd.Timedelta(1, unit="D")
     start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
-    con = con or cp.connect()
+    con = con or CONFIG.connect()
     mac = scenarios.live_paths(con, decision, end)
     curve_now = tr.curve_on(end, cache_root=RAW)  # Treasury par curve as of the last TRACE date (no look-ahead)
     steps_all, blocks, fits = {}, {}, {}

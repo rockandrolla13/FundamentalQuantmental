@@ -37,8 +37,9 @@ from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.sources import schedules as sc  # noqa: E402
 from hy.sources import xbrl_instance as xi  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 OUT = RAW / "rv"
 FIG = ROOT / "docs" / "writeup" / "figures"
 TENOR = 5.0          # reference tenor for the cross-section and the pair gap
@@ -244,7 +245,7 @@ def main() -> None:
     pairs = [tuple(p.upper().split(":")) for p in args.pairs]
     tickers = list(dict.fromkeys(t for p in pairs for t in p))
 
-    con = cp.connect()
+    con = CONFIG.connect()
     curves = pd.concat([tr.par_curve(y, cache_root=RAW) for y in sorted({start[:4], str(end.year)})]).sort_index()
     curves = curves[~curves.index.duplicated()]
     bench = tb.hy_benchmark(con, args.end, cache_root=RAW)

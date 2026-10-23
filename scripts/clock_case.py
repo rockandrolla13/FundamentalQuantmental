@@ -27,9 +27,10 @@ from hy import clocks
 from hy.sources import clock_inputs as ci
 from hy.sources import schedules as sc
 from hy.sources import xbrl_instance as xi
+from hy.data.config import CONFIG  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 FIG = ROOT / "docs" / "writeup" / "figures"
 OUT = RAW / "clocks"
 OVERRIDES = ROOT / "data" / "analyst_inputs"

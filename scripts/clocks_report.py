@@ -10,11 +10,15 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "raw" / "clocks"
-SCEN = ROOT / "data" / "raw" / "scenarios"
-RVJ = ROOT / "data" / "raw" / "rv" / "rv_pairs.json"
+sys.path.insert(0, str(ROOT))
+from hy.data.config import CONFIG  # noqa: E402
+
+RAW = CONFIG.path("clocks")
+SCEN = CONFIG.path("scenarios")
+RVJ = CONFIG.path("rv", "rv_pairs.json")
 OUT = ROOT / "docs" / "writeup" / "clocks_all.tex"
 
 

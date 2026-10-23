@@ -38,10 +38,11 @@ import numpy as np
 import pandas as pd
 
 from hy.forecasts import FALLBACK_ORDER, ForecastRegistry, ForecastRow
+from hy.data.config import CONFIG
 
 log = logging.getLogger(__name__)
 
-DEFAULT_CACHE_ROOT = Path(__file__).resolve().parents[2] / "data" / "raw"
+DEFAULT_CACHE_ROOT = CONFIG.root
 END_OF_DAY = pd.Timedelta(1, unit="D")  # release date d is readable from d + 1 day, 00:00
 NAN = float("nan")
 

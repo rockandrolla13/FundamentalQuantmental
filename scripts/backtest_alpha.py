@@ -35,8 +35,9 @@ from hy import backtest as bt  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_panel as tp  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = ROOT / "data" / "raw"
+RAW = CONFIG.root
 OUT = RAW / "backtest"
 FIG = ROOT / "docs" / "writeup" / "figures"
 FUND_START, FUND_END = "2006-06-01", "2026-09-30"   # one window for every run, so the per-issuer cache is reused
@@ -67,7 +68,7 @@ def build_inputs(months: list[pd.Timestamp], workers: int) -> tuple[pd.DataFrame
     timing["trace_months_pulled"] = len(pulled)
     curve_for = curve_lookup(range(months[0].year - 1, months[-1].year + 1))
     panel = tp.build_panel(months, RAW, curve_for)
-    con = cp.connect()
+    con = CONFIG.connect()
     t0 = time.time()
     sec = tp.security_table(con, RAW)
     links = tp.link_issuers(panel[["cusip6", "ticker"]], sec)

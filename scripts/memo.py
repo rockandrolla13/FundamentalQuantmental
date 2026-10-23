@@ -14,9 +14,13 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-PROC = ROOT / "data" / "raw" / "process"
+sys.path.insert(0, str(ROOT))
+from hy.data.config import CONFIG  # noqa: E402
+
+PROC = CONFIG.path("process")
 FIGS = ROOT / "docs" / "writeup" / "figures"
 OUT = ROOT / "docs" / "writeup" / "issuer_memos.tex"
 

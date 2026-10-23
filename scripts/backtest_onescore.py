@@ -29,8 +29,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from hy import backtest as bt  # noqa: E402
 from hy import peers  # noqa: E402
 from backtest_peers import results_h12  # noqa: E402
+from hy.data.config import CONFIG  # noqa: E402
 
-OUT = ROOT / "data" / "raw" / "backtest"
+OUT = CONFIG.path("backtest")
 SIGNALS = {
     "widest": "Buy the widest (spread level)",
     "esp_sr": "ESP, sector x rating (bond level)",

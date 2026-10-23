@@ -16,8 +16,9 @@ import pandas as pd
 
 from hy.sources import compustat_pit as cp
 from hy.sources import edgar, financials, xbrl
+from hy.data.config import CONFIG  # noqa: E402
 
-RAW = Path(__file__).resolve().parents[1] / "data" / "raw"
+RAW = CONFIG.root
 
 
 def main() -> None:
@@ -28,7 +29,7 @@ def main() -> None:
     ap.add_argument("--refresh", action="store_true", help="ignore cached WRDS and SEC pulls; use after new filings")
     args = ap.parse_args()
 
-    con = cp.connect()
+    con = CONFIG.connect()
     ids = cp.lookup_issuers(con, args.tickers)
     if ids.empty:
         raise SystemExit(f"no Compustat issuer for {args.tickers}")
