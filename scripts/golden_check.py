@@ -38,7 +38,8 @@ def run_outputs(out: Path) -> None:
 
     process.run(TICKERS, END, PAIRS, out_dir=out / "process", figures=False)
     subprocess.run([sys.executable, str(ROOT / "scripts" / "backtest_peer_line.py"), "--cost-bp", "15"], check=True,
-                   cwd=ROOT, env={"PYTHONPATH": f"{ROOT}", "PATH": "/usr/bin:/bin", "HOME": str(Path.home())}, capture_output=True)
+                   cwd=ROOT, env={"PYTHONPATH": f"{ROOT}", "PATH": "/usr/bin:/bin", "HOME": str(Path.home()),
+                                 "HY_DATA_ROOT": str(CONFIG.root)}, capture_output=True)
     shutil.copy(BACKTEST_JSON, out / BACKTEST_JSON.name)
 
 
