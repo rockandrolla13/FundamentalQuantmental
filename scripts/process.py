@@ -259,14 +259,8 @@ def step_normalise(blk, decision, view: DataView) -> Step:
     qs = sorted(quarters, key=lambda r: r.as_of)[-8:]
     mg = np.array([r.ebitda_adj_company / r.revenue if r.revenue and r.ebitda_adj_company == r.ebitda_adj_company
                    else np.nan for r in qs])
-    ok = ~np.isnan(mg)
-    trend = None
-    if ok.sum() >= 6:
-        x = np.arange(len(mg))[ok]
-        b, a = np.polyfit(x, mg[ok], 1)
-        res = mg[ok] - (a + b * x)
-        se = np.sqrt((res ** 2).sum() / (len(x) - 2) / ((x - x.mean()) ** 2).sum())
-        trend = float(b / se) if se > 0 else None  # F8 margin_trend: slope over its standard error
+    trend = state.margin_trend(mg, window=8, min_points=6)  # F8 margin_trend: the one fit (hy.state)
+    trend = trend if np.isfinite(trend) else None
     fcf = ltm.get("fcf", np.nan)  # reported FCF, CFO - capex, from the one LTM table (hy.state.ltm_figures)
     eb = v.get("ltm_ebitda")
     debt = blk["risk"].extra["debt"]
@@ -510,9 +504,13 @@ def book_block(blk, ltm: dict, mcap: float, archetype: str, top_customer) -> dic
     r = blk["risk"].extra
     debt, lease = r["debt"], r["lease_debt"]
     eb = ltm.get("ebitda_adj", np.nan)
+    cash = ltm["cash"] if ltm.get("cash") is not None and ltm["cash"] == ltm["cash"] else 0.0
     kr = books.kricheff_ratios(eb, ltm.get("capex", np.nan), ltm.get("maint_capex", np.nan), ltm.get("cash_interest", np.nan),
-                               debt, ltm["cash"] if ltm.get("cash") is not None and ltm["cash"] == ltm["cash"] else 0.0,
-                               ltm.get("fcf", np.nan), mcap)
+                               debt, cash, ltm.get("fcf", np.nan), mcap)
+    # Issuer leverage, lease-adjusted (hy.state; decision page 2026-10-23-leverage-per-use). Kricheff's own debt
+    # already counts capital leases (ch. 10, p. 50); the trap guard and spread per turn read these two values.
+    kr["lev_gross"] = state.issuer_leverage(debt, lease, eb, r.get("rent"))
+    kr["lev_net"] = state.issuer_net_leverage(debt, lease, cash, eb, r.get("rent"))  # same cash as the ratio set
     adj = books.sp_adjusted(debt, lease, eb, ltm.get("cash_interest", np.nan))
     ffo = ltm.get("cfo", np.nan) + ltm.get("delta_wc", 0.0)
     rat = books.sp_ratios(adj["debt_adj"], mcap, ffo, ltm.get("fcf", np.nan), adj["ebitda_adj"], adj["interest_adj"],

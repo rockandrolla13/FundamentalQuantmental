@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import clock_case  # noqa: E402
 import scenarios  # noqa: E402
 
-from hy import rv  # noqa: E402
+from hy import rv, state  # noqa: E402
 from hy.fairspread import fit_ar1, half_life  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import compustat_pit as cp  # noqa: E402
@@ -74,7 +74,7 @@ def issuer_block(con, ticker: str, decision: pd.Timestamp, start: str, end: str,
     cash = _tag(q, "CashAndCashEquivalentsAtCarryingValue")
     m = case["metrics"]
     risk = rv.IssuerRisk(
-        ticker, lev_lease_adj=(debt + lease) / (ebitda + rent) if ebitda else float("nan"),  # F5 going-concern view
+        ticker, lev_lease_adj=state.issuer_leverage(debt, lease, ebitda, rent),  # F5 going-concern view (hy.state)
         breakeven_margin=m.get("breakeven_margin", float("nan")),
         renewal_dependent_ebitda_years=m.get("renewal_dependent_years_of_ebitda", float("nan")),
         duration_gap=m.get("duration_gap", float("nan")),

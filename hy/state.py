@@ -101,20 +101,22 @@ def margin_peer_gap(issuer_margin: float, peer_margins: Sequence[float]) -> floa
     return issuer_margin - float(np.median(np.asarray(peer_margins, dtype=float)))
 
 
-def margin_trend(margins: Sequence[float], window: int = 8) -> float:
+def margin_trend(margins: Sequence[float], window: int = 8, min_points: int = 3) -> float:
     """Margin trend t-statistic (Section 4.1): OLS slope of margin on time over `window` quarters / SE(slope).
 
     slope = sum (t - tbar)(m - mbar) / sum (t - tbar)^2;
     SE = sqrt( sum e^2 / (n - 2) / sum (t - tbar)^2 ).
 
     Intuition: the sign gives the direction of the operating trend, the size gives its strength.
-    Return nan with fewer than 3 points; return +-inf for a perfect nonzero line.
+    A missing quarter (nan) drops out and keeps its place on the time axis.
+    Return nan with fewer than `min_points` (at least 3) points; return +-inf for a perfect nonzero line.
     """
     m = np.asarray(margins, dtype=float)[-window:]
+    t = np.arange(m.size, dtype=float)[~np.isnan(m)]
+    m = m[~np.isnan(m)]
     n = m.size
-    if n < 3:
+    if n < max(min_points, 3):
         return float("nan")
-    t = np.arange(n, dtype=float)
     tc = t - t.mean()
     sxx = float(tc @ tc)
     slope = float(tc @ (m - m.mean())) / sxx
@@ -703,3 +705,29 @@ def ltm_figures(quarters: Sequence) -> dict:
     return out
 
 
+# ---------------------------------------------------------------- leverage: one per use (data module step 5b;
+# decision page 2026-10-23-leverage-per-use)
+#
+# Issuer leverage: lease-adjusted, from the issuer's own filings. Every issuer-level use reads it: the Kricheff ratios,
+# the E13 trap guard, spread per turn, the pair and the gate.
+# Peer leverage: the Compustat panel's `leverage` column (hy.sources.trace_panel), used only to place issuers in peer
+# cells, because every peer must come from the same source. Compustat counts some lease liabilities as debt (MGM's
+# VICI leases), so the two differ by design and must never be mixed.
+
+
+def issuer_leverage(debt: float, leases: float, ebitda: float, rent: float) -> float:
+    """Issuer leverage (Section 4.3 lease adjustment; framework F5 going-concern view):
+    (debt + lease liabilities) / (EBITDA + rent). Missing leases or rent count as zero, which gives debt / EBITDA.
+    NaN without an EBITDA. Intuition: a lease is debt the issuer pays as rent; count both, or count neither."""
+    lease = 0.0 if leases is None or leases != leases else float(leases)
+    r = 0.0 if rent is None or rent != rent else float(rent)
+    if not ebitda or ebitda != ebitda:
+        return float("nan")
+    return (float(debt) + lease) / (float(ebitda) + r)
+
+
+def issuer_net_leverage(debt: float, leases: float, cash: float, ebitda: float, rent: float) -> float:
+    """Issuer leverage net of cash: (debt + lease liabilities - cash) / (EBITDA + rent)."""
+    c = 0.0 if cash is None or cash != cash else float(cash)
+    lev = issuer_leverage(debt, leases, ebitda, rent)
+    return lev - c / (float(ebitda) + (0.0 if rent is None or rent != rent else float(rent))) if lev == lev else lev

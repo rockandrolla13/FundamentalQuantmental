@@ -295,3 +295,42 @@ def test_one_bridge_fcf():
     from hy import state as st
     k = books.kricheff_bridge(1000.0, 300.0, 200.0, 50.0, 20.0, cfo=740.0)
     assert k["fcf"] == pytest.approx(st.fcf(1000.0, 0.0, 300.0, 200.0, 50.0, 20.0)) == pytest.approx(430.0)
+
+
+# --------------------------------------------------------------------------- leverage: one per use (step 5b)
+
+
+def test_issuer_leverage_is_lease_adjusted():
+    from hy import state as st
+    # MGM, 18 Sep 2026: filed debt 6,068, lease liabilities 24,090; (6,068 + 24,090) / (EBITDA + rent).
+    assert st.issuer_leverage(6068.0, 24090.0, 2407.0, 2321.0) == pytest.approx(30158.0 / 4728.0)
+    assert st.issuer_leverage(100.0, 0.0, 50.0, 0.0) == pytest.approx(2.0)          # no leases: debt / EBITDA
+    assert np.isnan(st.issuer_leverage(100.0, 0.0, 0.0, 0.0))                         # no EBITDA: undefined
+    assert st.issuer_net_leverage(100.0, 20.0, 30.0, 50.0, 10.0) == pytest.approx(90.0 / 60.0)
+
+
+def test_issuer_analysis_uses_issuer_leverage(monkeypatch):
+    import sys
+    from pathlib import Path
+    from types import SimpleNamespace
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import process
+    from hy import state as st
+    monkeypatch.setattr(st, "issuer_leverage", lambda *a: 7.77)
+    monkeypatch.setattr(st, "issuer_net_leverage", lambda *a: 6.66)
+    blk = {"risk": SimpleNamespace(extra={"debt": 100.0, "lease_debt": 10.0, "rent": 1.0, "cash": 5.0})}
+    ltm = {"ebitda_adj": 50.0, "capex": 5.0, "maint_capex": 4.0, "cash_interest": 6.0, "cash": 5.0, "fcf": 9.0,
+           "cfo": 14.0, "delta_wc": 0.0, "revenue": 200.0, "revenue_q": []}
+    k = process.book_block(blk, ltm, 300.0, "A4", None)["kricheff"]
+    assert k["lev_gross"] == 7.77 and k["lev_net"] == 6.66
+
+
+def test_margin_trend_gaps():
+    # A missing quarter drops out and keeps its time position; the fit equals OLS on the kept points.
+    m = np.array([0.10, 0.11, np.nan, 0.12, 0.14, 0.13, np.nan, 0.16])
+    x = np.flatnonzero(~np.isnan(m)).astype(float)
+    b, a = np.polyfit(x, m[x.astype(int)], 1)
+    res = m[x.astype(int)] - (a + b * x)
+    se = np.sqrt((res ** 2).sum() / (x.size - 2) / ((x - x.mean()) ** 2).sum())
+    assert st.margin_trend(m, min_points=6) == pytest.approx(b / se)
+    assert math.isnan(st.margin_trend(m, min_points=7))
