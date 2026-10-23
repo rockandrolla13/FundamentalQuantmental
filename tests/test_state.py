@@ -287,3 +287,11 @@ def test_one_ltm_home():
     from hy import state as st
     from hy.sources import clock_inputs as ci
     assert process.ltm_figures is st.ltm_figures and ci.last_four is st.last_four
+
+
+def test_one_bridge_fcf():
+    # Kricheff's FCF is the Section 4.2 bridge with no cash non-recurring charge: one formula, one home.
+    from hy import books
+    from hy import state as st
+    k = books.kricheff_bridge(1000.0, 300.0, 200.0, 50.0, 20.0, cfo=740.0)
+    assert k["fcf"] == pytest.approx(st.fcf(1000.0, 0.0, 300.0, 200.0, 50.0, 20.0)) == pytest.approx(430.0)

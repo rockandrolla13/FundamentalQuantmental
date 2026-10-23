@@ -15,6 +15,8 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from hy import state
+
 # S&P ch. 10 (Tables 10-8 to 10-12): 2002 CreditStats medians by rating class, with the score at the class midpoint
 # (Table 10-1: very low risk 1-2 = AA, low 3-4 = A, moderate 5-6 = BBB, high 7-8 = BB, very high 9-10 = B).
 SP_MEDIANS_2002 = {  # class: (score, debt/capital %, FFO/debt %, FOCF/debt %, EBITDA interest cover x)
@@ -55,7 +57,7 @@ def kricheff_bridge(ebitda_adj: float, capex: float, cash_interest: float, cash_
     dividends subtracts a regular dividend when one is given. Unleveraged FCF = EBITDA - capex.
     Intuition: start from the earnings lenders lend against, then take out every cash bill before debt repayment.
     """
-    fcf = ebitda_adj - capex - cash_interest - cash_taxes - delta_wc
+    fcf = state.fcf(ebitda_adj, 0.0, capex, cash_interest, cash_taxes, delta_wc)  # the one bridge (hy.state)
     return {"ebitda_adj": ebitda_adj, "capex": capex, "cash_interest": cash_interest, "cash_taxes": cash_taxes,
             "delta_wc": delta_wc, "fcf": fcf, "unleveraged_fcf": ebitda_adj - capex, "cfo": cfo,
             "cfo_gap": (fcf + capex) - cfo if cfo == cfo else float("nan"),

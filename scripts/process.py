@@ -267,8 +267,7 @@ def step_normalise(blk, decision, view: DataView) -> Step:
         res = mg[ok] - (a + b * x)
         se = np.sqrt((res ** 2).sum() / (len(x) - 2) / ((x - x.mean()) ** 2).sum())
         trend = float(b / se) if se > 0 else None  # F8 margin_trend: slope over its standard error
-    fcf = sum((r.operating_cash_flow - r.capex_total) for r in q4
-              if r.operating_cash_flow == r.operating_cash_flow and r.capex_total == r.capex_total) if q4 else np.nan
+    fcf = ltm.get("fcf", np.nan)  # reported FCF, CFO - capex, from the one LTM table (hy.state.ltm_figures)
     eb = v.get("ltm_ebitda")
     debt = blk["risk"].extra["debt"]
     s.outputs = {"ebitda_ltm_m": _f(eb, 0), "special_items_ltm_m": _f(spi, 0), "margin_ltm": _f(eb / v["ltm_revenue"], 3)
@@ -1264,13 +1263,10 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         arch = st["2"].outputs.get("archetype") or "A4"
         start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision)
         qs = blk.get("_quarters") or view.financials(blk["issuer"])
-        q4 = ci.last_four(qs)
-        if q4:
-            blk["_fcf_ltm"] = sum((r.operating_cash_flow - r.capex_total) for r in q4)
-            blk["_interest_ltm"] = sum(r.cash_interest for r in q4)
-            blk["_capex_ltm"] = sum(r.capex_total for r in q4)
-            blk["_maint_capex_ltm"] = sum(min(r.capex_total, r.depreciation) if r.depreciation == r.depreciation
-                                          else r.capex_total for r in q4)
+        lt = blk.get("_ltm") or state.ltm_figures(qs)  # the one LTM table; no second sum of the same flows
+        if state.last_four(qs):
+            blk["_fcf_ltm"], blk["_interest_ltm"] = lt["fcf"], lt["cash_interest"]
+            blk["_capex_ltm"], blk["_maint_capex_ltm"] = lt["capex"], lt["maint_capex"]
         s5, sf5 = float(xs.loc[t, "s5"]), float(xs.loc[t, "fair_s5"])
         pts = scenarios.refi_points(s5, blk["longest"], blk["recent_raise"])
         ref = reference_bond(blk["bonds"])
