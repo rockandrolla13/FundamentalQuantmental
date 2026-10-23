@@ -30,6 +30,7 @@ from hy import backtest as bt  # noqa: E402
 from hy import peers  # noqa: E402
 from backtest_peers import results_h12  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.history import history_view  # noqa: E402
 
 OUT = CONFIG.path("backtest")
 SIGNALS = {
@@ -48,7 +49,7 @@ def log(msg: str) -> None:
 
 def build(tag: str) -> pd.DataFrame:
     sig = pd.read_parquet(OUT / f"peer_signals_{tag}.parquet", columns=["date", "cusip", "gvkey", "sector", "esp_sr", "widest"])
-    eq = pd.read_parquet(OUT / "equity_monthly.parquet")
+    eq = history_view().panel("equity_monthly")
     rows = []
     for t, b in sig.groupby("date"):
         emc = peers.equity_momentum(eq, t, bt.decision_time(t))

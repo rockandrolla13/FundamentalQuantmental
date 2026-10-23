@@ -26,8 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from hy import backtest as bt  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
-from hy.data.view import DataView  # noqa: E402
+from hy.data.history import history_view  # noqa: E402
 
 OUT = CONFIG.path("backtest")
 FIG = ROOT / "docs" / "writeup" / "figures"
@@ -51,7 +50,7 @@ def shade_cycles(ax) -> None:
 
 def fig_anatomy() -> Path:
     """Two real bonds, June 2023, 6 months: the forecast and the realised return built term by term."""
-    panel = DataView(WarehouseSource(CONFIG), pd.Timestamp.now()).panel("bond_panel")  # the whole history; the replay guards each month
+    panel = history_view().panel("bond_panel")  # the whole history; the replay guards each month
     bench = bt.benchmark_spread(panel, pd.to_datetime(panel["available_at"]).max())
     res = pd.read_parquet(OUT / "results_h6_full.parquet")
     sig = pd.read_parquet(OUT / "peer_signals_full.parquet", columns=["date", "cusip", "esp_sr"])

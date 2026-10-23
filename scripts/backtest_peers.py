@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT))
 from hy import backtest as bt  # noqa: E402
 from hy import peers  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.history import backtest_panel, history_view  # noqa: E402
 
 OUT = CONFIG.path("backtest")
 SIGNALS = {
@@ -59,12 +60,11 @@ def log(msg: str) -> None:
 
 
 def build_signals(tag: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    panel = pd.read_parquet(OUT / f"panel_{tag}.parquet", columns=["date", "cusip", "years"])
-    lev = pd.read_parquet(OUT / f"leverage_{tag}.parquet", columns=["date", "gvkey", "leverage", "ltm_ebitda", "debt"])
+    view = history_view()  # raw panels through the data module; derived replay results stay files under CONFIG
+    panel = backtest_panel("bond_panel", tag, ["date", "cusip", "years"], view)
+    lev = backtest_panel("leverage", tag, ["date", "gvkey", "leverage", "ltm_ebitda", "debt"], view)
     res = pd.read_parquet(OUT / f"results_h6_{tag}.parquet", columns=["date", "cusip", "gvkey", "g_spread"])
-    gics = pd.read_parquet(OUT / "gics_history.parquet")
-    rat = pd.read_parquet(OUT / "sp_ratings.parquet")
-    ann = pd.read_parquet(OUT / "annual_ebitda.parquet")
+    gics, rat, ann = view.panel("gics"), view.panel("ratings"), view.panel("annual_ebitda")
     lev["gvkey"] = lev["gvkey"].astype(str)
     lev["ebitda_pos"] = (lev["ltm_ebitda"].astype(float) > 0).astype(bool)
     base = res.merge(panel, on=["date", "cusip"], how="left").merge(lev.drop(columns="ltm_ebitda"),
@@ -109,7 +109,7 @@ def results_h12(tag: str) -> pd.DataFrame:
     path = OUT / f"results_h12_{tag}.parquet"
     if path.exists():
         return pd.read_parquet(path)
-    panel = pd.read_parquet(OUT / f"panel_{tag}.parquet")
+    panel = backtest_panel("bond_panel", tag)
     as_of = pd.to_datetime(panel["available_at"]).max()
     real = bt.realised_excess_return(panel, 12, as_of=as_of)
     cost = panel[["date", "cusip"]].assign(cost_rt=bt.round_trip_cost(panel))
