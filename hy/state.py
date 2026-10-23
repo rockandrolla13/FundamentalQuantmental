@@ -25,6 +25,12 @@ from hy.inputs import IssuerFinancials, NonRecurringItem, Tranche, assert_point_
 
 DAYS_PER_YEAR = 365.0
 LEASE_MULTIPLE = 8.0  # Section 4.3, pp. 267-268
+
+# The high yield index rule (Section 3.6, `hy_oas` proxy; data module step 5). One home for the constants: the live
+# TRACE benchmark (hy.sources.trace_bonds, hy.sources.forecast_sources) and the backtest (hy.backtest) both use it.
+# The universe (grade H, fixed coupon, not convertible, min_years to max_years left) is built where the bonds are
+# loaded; tests/test_state.py keeps those defaults equal to these.
+HY_INDEX_RULE = {"min_price": 80.0, "max_yield": 0.25, "min_years": 1.0, "max_years": 15.0}
 COVENANT_CUSHION_RANGE = (0.15, 0.30)  # Section 4.6, p. 356
 
 
@@ -598,3 +604,24 @@ def issuer_state(
         "lev_covenant": lev_cov,
         "H_t": covenant_headroom(lev_cov, covenant_max) if covenant_max is not None else nan,
     }
+
+
+def hy_index_level(spread, price, yld) -> float:
+    """High yield index spread (Section 3.6): the median spread of the universe's core bonds, those with price >=
+    HY_INDEX_RULE["min_price"] and 0 < yield <= HY_INDEX_RULE["max_yield"]. NaN when no bond qualifies.
+    Intuition: the level a typical performing high yield bond pays; the price and yield bounds keep distressed bonds
+    and print errors out of the middle."""
+    s, p, y = (np.asarray(x, dtype=float) for x in (spread, price, yld))
+    core = (p >= HY_INDEX_RULE["min_price"]) & (y > 0) & (y <= HY_INDEX_RULE["max_yield"])
+    return float(np.median(s[core])) if core.any() else float("nan")
+
+
+DISTRESS_SPREAD = 0.10  # 1,000 bp: the market's distressed cut (hy.backtest.DISTRESSED_SPREAD uses the same level)
+
+
+def distress_ratio(spread, yld) -> float:
+    """Share of the universe's bonds with a positive yield whose spread exceeds DISTRESS_SPREAD (Section 3.6). No price
+    filter and no cap: distressed bonds are the numerator. Intuition: how much of the market trades on recovery."""
+    s, y = np.asarray(spread, dtype=float), np.asarray(yld, dtype=float)
+    pos = y > 0
+    return float((s[pos] > DISTRESS_SPREAD).mean()) if pos.any() else float("nan")

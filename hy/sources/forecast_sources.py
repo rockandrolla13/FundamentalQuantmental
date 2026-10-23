@@ -642,10 +642,13 @@ def trace_hy_rows(bonds: pd.DataFrame, curve_row: pd.Series, min_price: float = 
     avail = max(x for x in stamps if pd.notna(x))
     rows = []
     if len(core):
+        from hy import state  # the one index rule (data module step 5)
         rows.append(ForecastRow("trace_hy_benchmark", "hy_spread", 0, _ts(vint), _ts(avail),
-                                float(core["g_spread"].median()), method="market_implied"))
+                                state.hy_index_level(core["g_spread"], core["price"], core["yield"]),
+                                method="market_implied"))
+    from hy import state  # the one distress rule (data module step 5)
     rows.append(ForecastRow("trace_hy_benchmark", "distress_ratio", 0, _ts(vint), _ts(avail),
-                            float((d["g_spread"] > DISTRESS_SPREAD).mean()), method="market_implied"))
+                            state.distress_ratio(d["g_spread"], d["yield"]), method="market_implied"))
     return rows
 
 

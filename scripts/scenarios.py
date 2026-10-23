@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from hy import alpha, forward, macro, rv
+from hy import alpha, forward, macro, rv, state
 from hy.sources import clock_inputs as ci
 from hy.sources import forecast_sources as fs
 from hy.sources import schedules as sc
@@ -62,9 +62,12 @@ def _bench_level(con, end: pd.Timestamp) -> tuple[float, float, str]:
     b = tb.hy_benchmark(con, end.strftime("%Y-%m-%d"), cache_root=RAW)
     curve = tr.curve_on(end, cache_root=RAW)
     s = tb.g_spread(b["yield"], b["maturity"], end, curve) if "yield" in b else tb.g_spread(b["yield_vw"], b["maturity"], end, curve)
-    s = pd.Series(np.asarray(s, dtype=float))
-    s = s[(s > 0) & (s < 0.25)]
-    return float(s.median()), float((s > 0.10).mean()), f"TRACE HY benchmark {end:%Y-%m-%d}"
+    # One index rule and one distress rule for the live run, the registry and the backtest (hy.state; data module
+    # step 5; decision page 2026-10-23-one-hy-index). The old live rule took the median of 0 < s < 2,500 bp with no
+    # price or yield filter.
+    s = np.asarray(s, dtype=float)
+    return (state.hy_index_level(s, b["price"], b["yield"]), state.distress_ratio(s, b["yield"]),
+            f"TRACE HY benchmark {end:%Y-%m-%d}")
 
 
 def phase_indicators(con, end: pd.Timestamp, registry) -> tuple[dict, pd.DataFrame]:

@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from hy import rv
+from hy import rv, state
 from hy.data.pit import LookAheadError, guard_frame  # noqa: F401 - LookAheadError re-exported
 from hy.fairspread import fit_ar1
 from hy.signals import CYCLES, passes_cycle_test, rank_ic
@@ -81,8 +81,10 @@ def benchmark_spread(panel: pd.DataFrame, as_of: pd.Timestamp) -> pd.Series:
     """High yield benchmark per month end: median G-spread of eligible bonds with price >= 80, 1 to 15 years, yield
     <= 25% (the `trace_bonds.benchmark_by_bucket` filters, one bucket). Section 3.6 `hy_oas` proxy."""
     assert_no_lookahead(panel, as_of, "panel")
-    p = panel[eligible(panel) & (panel["price"] >= 80) & (panel["years"] <= 15) & (panel["yield"] <= 0.25)]
-    return p.groupby("date")["g_spread"].median().rename("bench_spread")
+    r = state.HY_INDEX_RULE
+    p = panel[eligible(panel) & panel["years"].between(r["min_years"], r["max_years"])]
+    return p.groupby("date").apply(lambda g: state.hy_index_level(g["g_spread"], g["price"], g["yield"]),
+                                   include_groups=False).rename("bench_spread")
 
 
 def round_trip_cost(panel: pd.DataFrame) -> pd.Series:

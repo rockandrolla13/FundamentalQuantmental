@@ -224,3 +224,33 @@ def test_issuer_state_fields():
 def test_issuer_state_blocks_look_ahead():
     with pytest.raises(LookAheadError):
         st.issuer_state(_fin(), STRUCT, decision_time=datetime(2025, 4, 15))
+
+
+# --------------------------------------------------------------------------- one HY index rule (data module step 5)
+
+
+def test_hy_index_level_is_the_median_of_the_core_bonds():
+    from hy import state as st
+    spread = np.array([0.02, 0.03, 0.04, 0.50, 0.05])
+    price = np.array([100.0, 99.0, 95.0, 40.0, 79.0])   # the 40 and the 79 fail the price floor
+    yld = np.array([0.06, 0.07, 0.08, 0.60, 0.09])
+    assert st.hy_index_level(spread, price, yld) == pytest.approx(0.03)
+    assert np.isnan(st.hy_index_level(np.array([0.5]), np.array([40.0]), np.array([0.6])))
+
+
+def test_every_hy_index_user_shares_the_rule_constants():
+    import inspect
+    from hy import state as st
+    from hy.sources import trace_bonds as tb
+    r = st.HY_INDEX_RULE
+    sig = inspect.signature(tb.hy_benchmark).parameters
+    assert sig["min_years"].default == r["min_years"] and sig["max_years"].default == r["max_years"]
+    sig = inspect.signature(tb.benchmark_by_bucket).parameters
+    assert sig["min_price"].default == r["min_price"] and sig["max_yield"].default == r["max_yield"]
+
+
+def test_distress_ratio_counts_every_positive_yield_bond():
+    from hy import state as st
+    spread = np.array([0.03, 0.12, 0.30, 0.05])
+    yld = np.array([0.07, 0.16, 0.34, -0.01])   # the last has no positive yield: out of the count
+    assert st.distress_ratio(spread, yld) == pytest.approx(2 / 3)  # 1,200 bp and 3,000 bp are both distressed
