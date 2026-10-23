@@ -244,3 +244,19 @@ def test_every_step_runs_on_made_up_data(offline):
         assert {r["source"] for r in dump["macro"]["forecast_sources"]} >= {"spf", "ust_forward"}
     run = json.loads((out / "_run.json").read_text())
     assert run["tickers"] == list(ISSUERS) and run["macro"]["s_index_now"] == pytest.approx(0.035 - 0.0002 * 68 % 0.01)
+
+
+def test_an_issuer_without_financials_is_blocked_not_fatal(offline):
+    # One issuer has no quarters at all (a new filer, or a gap in the work machine's data). The run must finish for
+    # the others and mark that issuer's later steps as blocked with the reason, not stop with an IndexError.
+    world = fake_world()
+    gone = ISSUERS["BBB"][0]
+    world._financials = [r for r in world._financials if r.key != gone]
+    steps = process.run(list(ISSUERS), END, [("AAA", "BBB")], out_dir=offline / "process", figures=False,
+                        view=DataView(world, DECISION))
+    assert set(steps) == set(ISSUERS)
+    assert steps["AAA"]["15"].outputs                        # the others still run to the end
+    b = steps["BBB"]
+    blocked = [k for k, s in b.items() if s.status == "blocked"]
+    assert blocked, "the issuer without financials must show blocked steps"
+    assert any("financial" in q.lower() for k in blocked for q in b[k].open_questions)

@@ -63,7 +63,7 @@ This page lists every kind of data that the HY Analyst reads. Use it as the chec
 - Time stamps: `as_of` is the quarter end. `available_at` is the first moment that version of the quarter was public.
 - Rule: the view returns every quarter in its latest version public at the decision time (`PointInTimeStore.as_known`).
 - Used by: framework F3 normalisation (step 3: LTM table, earnings-quality tests, margin trend, FCF), F4 liquidity and the scenario start point (methodology 5.1), F5 coverage, G3 monitoring (step 12).
-- When missing: step 3 runs with no quarters, so the LTM figures are empty and the memo lists open questions. The scenario start point (`scenarios.issuer_start`) needs at least one quarter. With none, the run stops with an error. This is a known gap.
+- When missing: step 3 runs with no quarters, so the LTM figures are empty and the memo lists open questions. The scenario start point (`scenarios.issuer_start`) needs at least one quarter. With none, it raises `DataUnavailable`, and the process marks steps 4 to 15 of that issuer as blocked with the reason. The run continues for the other issuers (test: `tests/test_pipeline_fake_source.py`).
 
 ### 3.3 Filing facts (`IssuerFacts`)
 

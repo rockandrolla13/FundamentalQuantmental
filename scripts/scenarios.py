@@ -129,6 +129,8 @@ def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp,
         quarters = view.financials(issuer)
     except DataUnavailable:
         quarters = []
+    if not quarters:  # the cases start from the latest quarter; with none known, the issuer cannot be projected
+        raise DataUnavailable("financials", v["ticker"], "no quarterly financials known at the decision time")
     q4 = ci.last_four(quarters) or sorted(quarters, key=lambda r: r.as_of)[-4:]
     last = q4[-1]
     eb = [_nz(r.ebitda_adj_company, np.nan) for r in q4]

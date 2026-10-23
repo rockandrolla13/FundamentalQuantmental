@@ -116,7 +116,7 @@ A restatement is a new version. The view returns every quarter in its latest ver
 {Framework F3 normalisation (step 3: LTM table, earnings-quality tests, margin trend, FCF). F4 liquidity and the
 scenario start point (methodology 5.1). F5 coverage. G3 monitoring (step 12).}
 {Step 3 runs with no quarters, so the LTM figures are empty and the memo lists open questions. The scenario start
-point needs at least one quarter. With none, the run stops with an error. This is a known gap.}
+point needs at least one quarter. With none, it raises \code{DataUnavailable}, and the process marks steps 4 to 15 of that issuer as blocked with the reason. The run continues for the other issuers.}
 
 \subsection{Filing facts (\code{IssuerFacts})}
 \noindent Fields: \code{issuer\_ticker} and \code{values}, a dict of \code{name: (value, source text)}. The source text

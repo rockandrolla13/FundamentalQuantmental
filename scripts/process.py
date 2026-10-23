@@ -77,6 +77,12 @@ class Step:
     groups: list = field(default_factory=list)  # method groups the step serves (G1 to G4)
 
 
+# Steps that need the issuer's cases (and so its quarterly financials); without them each is marked blocked.
+BLOCKED_WITHOUT_CASES = {"4": "Liquidity", "5": "Capital structure", "6": "Two clocks", "7": "Cases", "8": "Valuation",
+                         "9": "Relative value", "10": "Expected alpha", "11": "Gate", "12": "Events",
+                         "13": "Health panel", "15": "Decision against cash"}
+
+
 STEP_GROUPS = {  # research/combined_framework_spec.md, `groups` per step
     "1": ["G1", "G2", "G3"], "2": ["G1", "G3", "G4"], "3": ["G1", "G3", "G4"], "4": ["G1", "G2", "G3", "G4"],
     "5": ["G1", "G3", "G4"], "6": ["G2", "G4"], "7": ["G1", "G2", "G3", "G4"], "8": ["G1", "G3", "G4"],
@@ -1252,7 +1258,15 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
             print(f"{t}: no spread; steps 7 to 11 blocked")
             continue
         arch = st["2"].outputs.get("archetype") or "A4"
-        start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision, view)
+        try:
+            start_, drv, info = scenarios.issuer_start(blk["inputs"], blk["case"], decision, view)
+        except DataUnavailable as e:  # one issuer's gap must not stop the run (data contract: missing financials)
+            for k, name in BLOCKED_WITHOUT_CASES.items():
+                st[k] = Step(f"{k} {name}", "Data contract", status="blocked", groups=STEP_GROUPS.get(k, []),
+                             open_questions=[f"{e}: the cases, liquidity, valuation and the decision need quarterly "
+                                             "financials. Supply them through the data source."])
+            print(f"{t}: {e}; steps 4 to 15 blocked")
+            continue
         qs = blk.get("_quarters") or view.financials(blk["issuer"])
         lt = blk.get("_ltm") or state.ltm_figures(qs)  # the one LTM table; no second sum of the same flows
         if state.last_four(qs):
