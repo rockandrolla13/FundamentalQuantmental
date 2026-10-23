@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from hy import alpha, forward, macro, rv, state
+from hy import alpha, forward, macro
 from hy.sources import clock_inputs as ci
 from hy.data.config import CONFIG  # noqa: E402
 from hy.data.pit import DataUnavailable  # noqa: E402

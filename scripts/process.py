@@ -33,7 +33,6 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-import clock_case  # noqa: E402
 import rv_pair  # noqa: E402
 import scenarios  # noqa: E402
 
@@ -41,8 +40,6 @@ from hy import alpha as hal  # noqa: E402
 from hy import events as hev  # noqa: E402
 from hy import books, fairspread, forward, groups, peers, recovery, rv, skills, state  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
-from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG
 from hy.data.pit import DataUnavailable  # noqa: E402
@@ -1206,8 +1203,7 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
 # ---------------------------------------------------------------------------------------------------------------
 
 
-def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, con=None,
-        view: DataView | None = None):
+def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = True, view: DataView | None = None):
     """Run every step for every issuer as known at end_str + 1 day; write <out_dir>/<ticker>.json and _run.json.
 
     `out_dir` defaults to data/raw/process (the memo's input). The walk-forward (scripts/walkforward.py) passes its own

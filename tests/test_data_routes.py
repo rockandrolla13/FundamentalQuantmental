@@ -167,3 +167,29 @@ def test_the_curve_history_stops_at_the_decision_time():
     h = DataView(sources.FakeSource(issuers=[ISS], curves=cs), T).curve_history(datetime(2026, 1, 1))
     assert list(h.index) == [pd.Timestamp("2026-09-16"), pd.Timestamp("2026-09-17")]  # the 18th is public on the 19th
     assert list(h.columns) == [2.0, 10.0, "available_at"] and h.loc["2026-09-17", 10.0] == 0.045
+
+
+# ------------------------------------------------------------------ realised outcomes (Section 11): future data on purpose
+
+
+def _obs(days):
+    return pd.DataFrame({"cusip": ["X"] * len(days), "date": [datetime(2026, 9, d) for d in days],
+                         "price": [90.0 + d for d in days], "yield": [0.08] * len(days), "n_trades": [3] * len(days),
+                         "par_volume": [1e6] * len(days), "available_at": [datetime(2026, 9, d + 1) for d in days]})
+
+
+def test_realised_outcomes_read_after_the_decision_and_refuse_before_it():
+    from hy.data.outcomes import RealisedOutcomes  # noqa: PLC0415
+
+    out = RealisedOutcomes(sources.FakeSource(issuers=[ISS], observations=_obs([16, 17, 18, 25])), T)
+    got = out.observations(["X"], datetime(2026, 9, 30))
+    assert got["date"].tolist() == [pd.Timestamp("2026-09-18"), pd.Timestamp("2026-09-25")]
+    with pytest.raises(ValueError):
+        out.curve(datetime(2026, 9, 1))
+
+
+def test_the_pipeline_cannot_reach_realised_outcomes():
+    root = Path(__file__).resolve().parents[1]
+    for f in ("scripts/process.py", "scripts/scenarios.py", "scripts/rv_pair.py", "scripts/clock_case.py",
+              "hy/data/view.py", "hy/data/sources.py"):
+        assert "outcomes" not in (root / f).read_text().replace("open_questions", ""), f

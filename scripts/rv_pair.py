@@ -31,8 +31,6 @@ import scenarios  # noqa: E402
 
 from hy import rv, state  # noqa: E402
 from hy.fairspread import fit_ar1, half_life  # noqa: E402
-from hy.sources import clock_inputs as ci  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
