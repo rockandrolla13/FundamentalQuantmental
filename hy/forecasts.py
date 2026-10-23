@@ -83,6 +83,10 @@ class ForecastRegistry:
             rows = [rows]
         self._rows.extend(rows)
 
+    def rows(self) -> list[ForecastRow]:
+        """Every row, every vintage (for a data source; a view filters them by decision time)."""
+        return list(self._rows)
+
     def frame(self) -> pd.DataFrame:
         """Every row, every vintage, for audit and error accounting. Not for decisions."""
         return pd.DataFrame([asdict(r) for r in self._rows], columns=COLUMNS)

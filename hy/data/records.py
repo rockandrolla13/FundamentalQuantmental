@@ -93,3 +93,101 @@ class Event(Stamped):
     event_date: datetime | None = None
     date_confirmed: bool = False
     params: dict[str, Any] = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------- records added by the data module (step 3)
+
+
+@dataclass(frozen=True)
+class Issuer:
+    """One company and its identifiers. Static reference data, so not stamped."""
+
+    ticker: str
+    gvkey: str | None = None
+    cik: str | None = None
+    name: str = ""
+
+
+@dataclass(frozen=True)
+class Bond:
+    """One bond's terms (Section 3.1). Static between issue and redemption."""
+
+    cusip: str
+    issuer_ticker: str
+    coupon: float
+    maturity: datetime
+    seniority: str
+    fixed: bool
+    convertible: bool
+    grade: str = ""
+
+
+@dataclass(frozen=True, eq=False)
+class Curve(Stamped):
+    """The Treasury par curve on one date (Section 3.6). Tenors in years, yields as decimals."""
+
+    tenors: tuple[float, ...] = ()
+    yields: tuple[float, ...] = ()
+
+    def as_row(self) -> "pd.Series":
+        """The curve in the row format of `hy.sources.treasury.interpolate` (tenor index, `available_at`)."""
+        import pandas as pd  # noqa: PLC0415 - records stay importable without pandas work
+
+        s = pd.Series(list(self.yields) + [pd.Timestamp(self.available_at)], index=list(self.tenors) + ["available_at"],
+                      name=pd.Timestamp(self.as_of))
+        return s
+
+
+@dataclass(frozen=True)
+class IndexLevel(Stamped):
+    """The high yield market's spread level on one date (Section 3.6, `hy_oas`). One definition (step 5)."""
+
+    name: str = "HY"
+    spread: float = float("nan")
+
+
+@dataclass(frozen=True)
+class Classification(Stamped):
+    """An issuer's GICS sector and rating class, valid from `as_of` (Section 3.2, peers)."""
+
+    issuer_ticker: str = ""
+    sector: str = ""
+    rating_class: str | None = None
+    rating_source: str = ""
+
+
+@dataclass(frozen=True)
+class Filing(Stamped):
+    """One SEC filing; `available_at` is the EDGAR acceptance time (UTC)."""
+
+    issuer_ticker: str = ""
+    form: str = ""
+    accession: str = ""
+
+
+@dataclass(frozen=True, eq=False)
+class IssuerFacts(Stamped):
+    """The filing-derived inputs of one issuer as (value, source) pairs, as known at a decision time
+    (`hy.sources.clock_inputs.derive_inputs`). Kept as pairs so every value keeps its source."""
+
+    issuer_ticker: str = ""
+    values: dict[str, tuple[Any, str]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, eq=False)
+class AnalystInput:
+    """The analyst's YAML for one issuer: {key: {"value", "source", "fallback"}}. Not stamped: it is a judgement."""
+
+    ticker: str
+    values: dict[str, dict] = field(default_factory=dict)
+
+
+# Bond observations come as a frame for volume (600k bond-months). Neutral names: no vendor field leaves an adapter.
+BOND_OBS_COLUMNS = ("cusip", "date", "price", "yield", "n_trades", "par_volume", "available_at")
+
+
+def check_observations(df: "pd.DataFrame") -> "pd.DataFrame":
+    """Raise ValueError unless `df` has exactly the BOND_OBS_COLUMNS, in order; return it."""
+    if tuple(df.columns) != BOND_OBS_COLUMNS:
+        raise ValueError(f"bond observation columns {tuple(df.columns)} != {BOND_OBS_COLUMNS}")
+    return df

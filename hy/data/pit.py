@@ -42,6 +42,10 @@ class PointInTimeStore(Generic[R]):
     def add(self, record: R) -> None:
         self._records.append(record)
 
+    def records(self) -> list[R]:
+        """Every version of every record, in insertion order (for a source that hands the store to a view)."""
+        return list(self._records)
+
     def view(self, decision_time: datetime) -> dict[str, R]:
         """Latest period per key, in its latest available version, as the market saw it at `decision_time`.
 
