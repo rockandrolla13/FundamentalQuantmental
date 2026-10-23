@@ -14,9 +14,13 @@ Decision page: docs/decisions/2026-10-22-four-group-combination.md.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Mapping
 
 import numpy as np
+import pandas as pd
+
+from hy import calibration
 
 # research/combined_framework_spec.md, S14 `estimates`: id -> (group, name, type, v0 weight).
 ESTIMATES = {
@@ -70,6 +74,41 @@ def effective_weights() -> dict[str, float]:
 
 
 SIZED_V0 = (0.0, 0.08)  # spec S14b: alpha_sized = a + b alpha_net, pooled Mincer-Zarnowitz; v0 a = 0, b = 0.08
+# The fitted map the memo reads (decision page 2026-10-23-size-calibration): the carry-kept peer forecast, whose hedge
+# (beta = 1, carry kept) matches E0 and the combined alpha, at the process horizon h = 6 months (scenarios V0 0.5 y).
+SIZE_PREDICTOR = "peer_carry_net"
+SIZE_HORIZON = 6
+
+
+def size_map(decision_time: pd.Timestamp | None, path: Path | None = None,
+             predictor: str = SIZE_PREDICTOR, horizon_months: int = SIZE_HORIZON) -> dict[str, Any]:
+    """The S14b size map in force at `decision_time` (methodology 7.5 size calibration; hy.calibration).
+
+    Reads the calibration file (`hy.calibration.default_path()`, written by scripts/calibrate_sizes.py) and takes the
+    latest record of the chosen method with available_at <= decision_time. Falls back to `SIZED_V0` (a = 0, b = 0.08)
+    when the decision time is None, the file does not exist, or no record is available yet at that time.
+    Intuition: size with the map the desk had on the day, else with the v0 slope.
+    """
+    rec = None
+    if decision_time is not None:
+        rec = calibration.latest_before(calibration.load(path or calibration.default_path()), decision_time,
+                                        predictor, horizon_months)
+    if rec is None:
+        a, b = SIZED_V0
+        return {"record": None, "a": a, "b": b, "use": "rank only, minimum size",
+                "source": "spec S14b v0 (a = 0, b = 0.08); no calibration available at the decision time"}
+    return {"record": rec, "a": rec.a * 1e4 * 12.0 / rec.horizon_months, "b": rec.b, "use": rec.use,
+            "source": f"{rec.method} size map fitted {rec.fit_date} on {rec.n_months} months, {rec.predictor}, "
+                      f"h = {rec.horizon_months} months (decision page 2026-10-23-size-calibration)"}
+
+
+def sized_alpha(alpha_net_bp_yr: float, smap: Mapping[str, Any]) -> float:
+    """Spec S14b: alpha_sized = m(alpha_net), m the size map (`size_map`); with no record, a + b alpha_net (v0).
+    Intuition: the raw number ranks; this number is the part of it that past outcomes support."""
+    rec = smap.get("record")
+    if rec is None:
+        return smap["a"] + smap["b"] * alpha_net_bp_yr
+    return calibration.size_bp_yr(rec, alpha_net_bp_yr)
 
 
 def convergence_alpha_bp(gap: float, spread_duration: float, rho_q: float, h_years: float) -> float:
@@ -120,12 +159,15 @@ def weighted(estimates: Mapping[str, float], weights: Mapping[str, float]) -> di
     return {"rows": rows, "alpha_bp_yr": tot, "agree": agree, "n": len(counted), "weight_present": w}
 
 
-def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: float) -> dict[str, Any]:
+def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: float,
+            decision_time: pd.Timestamp | None = None, calibration_path: Path | None = None) -> dict[str, Any]:
     """Combined alpha across the five buckets, set against the scenario-weighted alpha (methodology 7.5, 8; spec S14).
 
     alpha_b = the bucket's weighted mean over its estimates present (v0 weights, renormalised inside the bucket);
     alpha_comb = sum_b W_b alpha_b / sum_b W_b over the buckets with an estimate, W_b the bucket share (BUCKETS).
     After cost subtracts the anchor's round-trip cost once. Returns per-bucket results and the totals.
+    alpha_sized (spec S14b) uses the latest calibration available before `decision_time` when the calibration file
+    exists (`size_map`), else `SIZED_V0`; `size_use` says "size" or "rank only, minimum size".
     Intuition: five analysts each give a number; the desk weighs them as the user set and pays the cost once.
     """
     groups = {}
@@ -142,10 +184,11 @@ def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: flo
         v["group_share"] = v["share_set"] / wp if wp and v["present"] else 0.0
         v["contribution"] = v["group_share"] * v["alpha_bp_yr"] if v["present"] else 0.0
     net = comb - cost_bp_yr
-    a, b = SIZED_V0
+    smap = size_map(decision_time, calibration_path)
     agree = sum(1 for v in groups.values() if v["present"] and np.sign(v["alpha_bp_yr"]) == np.sign(comb))
     return {"groups": groups, "combined_before_cost": comb, "combined_after_cost": net, "cost": cost_bp_yr,
-            "alpha_sized": a + b * net, "anchor_before_cost": anchor_bp_yr, "anchor_after_cost": anchor_bp_yr - cost_bp_yr,
+            "alpha_sized": sized_alpha(net, smap), "size_use": smap["use"], "size_source": smap["source"],
+            "anchor_before_cost": anchor_bp_yr, "anchor_after_cost": anchor_bp_yr - cost_bp_yr,
             "groups_agree": agree, "groups_n": sum(1 for v in groups.values() if v["present"])}
 
 
