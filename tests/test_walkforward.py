@@ -82,3 +82,11 @@ def test_events_from_8k_labels_credit_items_only():
     labels = dict((d.strftime("%Y-%m-%d"), x) for d, x in ev)
     assert "bankruptcy filing" in labels["2025-10-31"] and "debt acceleration" in labels["2025-10-31"]
     assert labels["2024-12-11"] == "new debt agreement" and "2025-07-30" not in labels
+
+
+def test_numeric_or_nan_keeps_numbers_and_drops_text():
+    # Step 4 quotes the runway as a number or as "no shortfall in 8 quarters"; a mixed column cannot be saved.
+    assert wf.numeric_or_nan(6.5) == 6.5
+    assert wf.numeric_or_nan(3) == 3.0
+    for x in ("no shortfall in 8 quarters", None, float("nan")):
+        assert wf.numeric_or_nan(x) != wf.numeric_or_nan(x)  # NaN

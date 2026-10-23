@@ -150,7 +150,7 @@ def predictions() -> pd.DataFrame:
                  "margin": O("3").get("margin_ltm"), "fcf_ltm_bn": (O("3").get("fcf_ltm_m") or np.nan) / 1e3,
                  "eq_score": O("3").get("eq_score"),
                  # S4
-                 "liquidity_bn": (lq.get("L_eff_m") or np.nan) / 1e3, "runway_q": lq.get("runway_quoted_q"),
+                 "liquidity_bn": (lq.get("L_eff_m") or np.nan) / 1e3, "runway_q": wf.numeric_or_nan(lq.get("runway_quoted_q")),
                  "runway_basis": lq.get("runway_quoted_basis"), "funding_gap_min_bn": (lq.get("funding_gap_min") or np.nan) / 1e3,
                  "delta_I_to_ebitda": lq.get("delta_I_to_ebitda"), "wall_18m_bn": (lq.get("wall_18m_m") or np.nan) / 1e3,
                  # S5

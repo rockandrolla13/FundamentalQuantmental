@@ -282,6 +282,12 @@ def ltm_figures(quarters) -> dict:
     return out
 
 
+def ltm_ready(ltm: dict) -> bool:
+    """True when ltm_figures found four consecutive quarters and an LTM EBITDA (not None, not NaN)."""
+    x = ltm.get("ebitda_adj")
+    return x is not None and x == x
+
+
 def step_normalise(blk, decision) -> Step:
     s = Step("3 Normalise earnings", "Framework F3; methodology 4.1")
     v = ci.values(blk["inputs"])
@@ -312,7 +318,7 @@ def step_normalise(blk, decision) -> Step:
                  "fcf_conversion": _f(fcf / eb) if eb else None, "fcf_to_debt": _f(fcf / debt) if debt else None,
                  "eq_flags": flags, "eq_score": int(sum(1 for f in flags.values() if f)), "notes": notes}
     # G3 ebitda-addback-treatment and hy-model-standards FCF check; G4 Kricheff ch. 9-10 cash-flow bridge.
-    if ltm.get("ebitda_adj") == ltm.get("ebitda_adj"):
+    if ltm_ready(ltm):
         ab = skills.addback_bridge(ltm["ebitda_rep_q"], ltm["addback_q"], cash_share=0.0)
         chk = skills.fcf_check_gap(ltm["cfo"], ltm["capex"], ltm["ebitda_adj"], 0.0, ltm["cash_interest"],
                                    ltm["cash_taxes"], ltm["delta_wc"])
@@ -548,7 +554,7 @@ def book_block(blk, ltm: dict, mcap: float, archetype: str, top_customer) -> dic
     debt, lease = r["debt"], r["lease_debt"]
     eb = ltm.get("ebitda_adj", np.nan)
     kr = books.kricheff_ratios(eb, ltm.get("capex", np.nan), ltm.get("maint_capex", np.nan), ltm.get("cash_interest", np.nan),
-                               debt, ltm.get("cash", np.nan) if ltm.get("cash") == ltm.get("cash") else 0.0,
+                               debt, ltm["cash"] if ltm.get("cash") is not None and ltm["cash"] == ltm["cash"] else 0.0,
                                ltm.get("fcf", np.nan), mcap)
     adj = books.sp_adjusted(debt, lease, eb, ltm.get("cash_interest", np.nan))
     ffo = ltm.get("cfo", np.nan) + ltm.get("delta_wc", 0.0)
@@ -590,7 +596,7 @@ def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), 
                  "lev_lease_adj": _f(r.lev_lease_adj), "net_lev": _f(r.extra["net_lev"]),
                  "coverage": _f(cov), "fccr": _f(fccr), "cash_interest_ltm_m": _f(intr, 0), "bonds": rows}
     ltm = blk.get("_ltm", {})
-    if ltm.get("ebitda_adj") == ltm.get("ebitda_adj"):
+    if ltm_ready(ltm):
         bb = book_block(blk, ltm, mcap, archetype, top_customer)
         k = bb["kricheff"]
         s.outputs.update({"lev_gross": k["lev_gross"], "lev_net": k["lev_net"], "cash_cov": k["cash_cov"],

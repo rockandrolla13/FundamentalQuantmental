@@ -83,6 +83,12 @@ def bond_realised(p0: float, p_end: float, coupon: float, tau: float, tsy0: floa
     return {"total": total, "tsy": tsy, "bench": bench, "realised": real, "net": real - cost, "beta": beta, "s0": s0}
 
 
+def numeric_or_nan(x) -> float:
+    """A step output as a float for a numeric table: numbers pass, text (such as "no shortfall in 8 quarters") and None
+    become NaN. The text stays in the step's basis field. Intuition: a column holds one type, so it can be saved."""
+    return float(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else float("nan")
+
+
 def annualise_bp(x: float, months: float) -> float:
     """Return over `months` to bp a year (simple: x 12 / months x 1e4), the unit of the predictions."""
     return x * 12.0 / months * 1e4 if x == x and months else float("nan")
