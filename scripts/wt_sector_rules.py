@@ -532,6 +532,14 @@ def restrict_hy(W: dict, hyq: dict) -> dict:
     return {k: v.where(mask) for k, v in W.items()}
 
 
+def as_float(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """WRDS returns nullable extension dtypes (Float64 with pd.NA); cast to float64 with NaN for numpy code."""
+    for c in cols:
+        if c in df:
+            df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64")
+    return df
+
+
 def main(argv=None) -> dict:
     ap = argparse.ArgumentParser()
     ap.add_argument("--draws", type=int, default=1000)
@@ -546,8 +554,10 @@ def main(argv=None) -> dict:
         "long": r["long"], "short": r["short"]} for rid, r in RULES.items()}}
 
     # Layer 1
-    fq = pd.read_parquet(sd / "fundq_all.parquet")
+    fq = as_float(pd.read_parquet(sd / "fundq_all.parquet"),
+                  ["saleq", "revtq", "oibdpq", "ibq", "atq", "ceqq", "dlttq", "dlcq"])
     fq["gvkey"] = fq["gvkey"].astype(str)
+    fq["datacqtr"] = fq["datacqtr"].astype(object)
     W, quarters = firm_wide(fq)
     quarters = quarters[(quarters >= pd.Period("1994Q1", "Q"))]
     W = {k: v[quarters] for k, v in W.items()}
@@ -576,7 +586,7 @@ def main(argv=None) -> dict:
     print("layer 2: done")
 
     # Layer 3
-    msf = pd.read_parquet(sd / "crsp_msf.parquet")
+    msf = as_float(pd.read_parquet(sd / "crsp_msf.parquet"), ["ret", "prc", "shrout", "dlret", "ret_total"])
     link = pd.read_parquet(sd / "ccm_link.parquet")
     sp = stock_panel(msf, link, gics, (3, 6))
     L3 = {rid: pair_returns(sp, f"r{r['h']}", r, MIN_STOCKS, "me") for rid, r in RULES.items()}
