@@ -84,3 +84,11 @@ def test_score_recovers_a_real_signal_and_rejects_noise():
     n = sr.score(y_null, z, None, 1, sr.OOS_START_Q, sr.CYCLE_WINDOWS, 3)
     assert r["P1"] and r["oos"]["t"] > 3
     assert n["oos"]["p"] > 0.01
+
+
+def test_gics_at_handles_unsorted_records():
+    gics = pd.DataFrame({"gvkey": ["2", "1", "1"], "indfrom": ["2001-01-01", "2005-01-01", "1999-06-30"],
+                         "indthru": [None, None, "2004-12-31"], "gsector": ["35", "45", "20"],
+                         "ggroup": ["3510", "4520", "2010"]})
+    keys = pd.DataFrame({"gvkey": ["1", "1", "2"], "date": pd.to_datetime(["1995-03-31", "2010-06-30", "1996-01-31"])})
+    assert list(sr.gics_at(keys, gics)["gsector"]) == ["20", "45", "35"]

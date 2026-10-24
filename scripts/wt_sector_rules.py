@@ -142,7 +142,7 @@ def gics_at(keys: pd.DataFrame, gics: pd.DataFrame) -> pd.DataFrame:
     g["gvkey"] = g["gvkey"].astype(str)
     g["indfrom"] = pd.to_datetime(g["indfrom"])
     g["indthru"] = pd.to_datetime(g["indthru"])
-    first = g.sort_values("indfrom").groupby("gvkey")["indfrom"].transform("min")
+    first = g.groupby("gvkey")["indfrom"].transform("min")
     g.loc[g["indfrom"] == first, "indfrom"] = pd.Timestamp("1900-01-01")
     k = keys[["gvkey", "date"]].copy()
     k["gvkey"] = k["gvkey"].astype(str)
