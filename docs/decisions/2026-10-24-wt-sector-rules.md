@@ -48,17 +48,66 @@ for ISM new orders, prices paid (PPC) for ISM prices paid. NAHB is not in our da
 | R14 | 133 | New home sales, 12-month change | + | 3 | Banks (group 4010) minus market |
 | R15 | 64 | Activity (GAC) | + | 3 | Diversified financials (4020) minus insurance (4030) |
 
-## Outcomes
+## Outcomes: three layers per rule
 
-1. **HY bonds, primary.** TRACE panel 2008-2026. Sector credit excess return (total minus Treasury) over t to t + h,
-   equal weight per sector, from `results_h{3,6}_full`. A sector needs 10 bonds in the month. A rule whose groups
-   lack bonds is reported as "no data", not as a fail.
-2. **Stocks, second.** CRSP monthly returns 1994-2026, the 500 largest US stocks each month, value weight per
-   sector, historical GICS from Compustat. This gives 32 years and the 2001 recession.
+Each rule is tested on the same signal and the same pair at three layers. The order matters: fundamentals first,
+then prices. The pattern across the layers says why a rule works or fails.
+
+**Layer 1. Fundamentals (user decision 2026-10-24: earnings and EBITDA are the primary question).**
+Compustat quarterly, 1994-2026, all US firms with LTM sales above 40m, and separately the HY issuers of the TRACE
+panel. Each firm counts equally. The group value is the median firm. The pair value is long group minus short group.
+
+| Outcome | Non-financial pairs (R1-R8) | Financial pairs (R9-R15) |
+| --- | --- | --- |
+| EBITDA | LTM EBITDA change over the next 2 and 4 quarters, divided by LTM sales | Not used: banks and insurers have no EBITDA |
+| Earnings | LTM income before extraordinary items (`ibq`), change over 2 and 4 quarters, divided by LTM sales | Same change divided by book equity (change in ROE) |
+| Margin | LTM EBITDA margin, change over 4 quarters | LTM earnings over assets, change over 4 quarters |
+| Sales | LTM sales growth over 4 quarters | LTM revenue growth over 4 quarters |
+| Leverage | Debt over LTM EBITDA, change over 4 quarters | Not used |
+
+The primary fundamental outcome is EBITDA over 4 quarters for R1-R8 and earnings over 4 quarters for R9-R15. The
+others are reported beside it and do not pass a rule on their own.
+
+**Layer 2. HY bond returns.** TRACE panel 2008-2026. Sector credit excess return (total minus Treasury) over t to
+t + h, equal weight per sector, from `results_h{3,6}_full`. A sector needs 10 bonds in the month. A rule whose groups
+lack bonds is reported as "no data", not as a fail.
+
+**Layer 3. Stock returns.** CRSP monthly returns 1994-2026, the 500 largest US stocks each month, value weight per
+sector. This gives 32 years and the 2001 recession.
+
+**What the pattern means.**
+
+| Fundamentals | Bond returns | Reading | Use in the model |
+| --- | --- | --- | --- |
+| Pass | Fail | The signal predicts the business, and the market prices it in time | A driver shift in the cases (door B), not alpha |
+| Pass | Pass | The market prices the business news late | A sector signal in Section 8: alpha |
+| Fail | Pass | Prices move for another reason: risk appetite or flows | A sector timing signal, with no fundamental story |
+| Fail | Fail | The claim does not hold | Drop |
+
+A lead-lag check goes with each passing rule: does the spread move before or after the reported EBITDA?
+
+## How the test is built
+
+1. **Data pull (WRDS, cached, out of git).** `comp.fundq` for all sectors including financials and real estate:
+   `saleq`, `oibdpq`, `ibq`, `atq`, `ceqq`, `dlttq`, `dlcq`, `rdq`. `comp.co_hgic` for the GICS sector in force on
+   each date. `crsp.msf` with the CCM link for stock returns. FRED: new home sales (HSN1F) and household owners'
+   equity (OEHRENWBSHNO). The existing files lack net income and financial firms.
+2. **Point in time.** A quarter's numbers count as known on the report date `rdq`, or 90 days after the quarter end
+   when `rdq` is empty. Each macro value counts as known after its release lag. The GICS sector is the one in force
+   at t. The outcome window starts after t.
+3. **Signals.** One function per rule builds the standardised signal at each month end, using only history up to t.
+4. **Outcomes.** One function per layer builds the pair value for each rule and date.
+5. **Scoring.** The pass rule below, applied per rule and per layer, with the same code as `scripts/wt_tests.py`
+   (EWC t, Holm, cycle windows).
+6. **Tests first.** Unit tests check no look-ahead in the signal, the report-date rule, the GICS date rule, the pair
+   sign, and the inverted-chart sign flip. They are written before the run.
+
+Known limit: `comp.fundq` is the current view, not the first report. Restatements can make the past look smoother.
+The earlier study carried the same limit. The HY-issuer subset uses point-in-time vintages where they exist.
 
 ## Pass rule, set before the run
 
-A rule passes on an outcome when all four hold:
+A rule passes on a layer when all four hold. Layer 1 uses quarters: one observation every 4 quarters for the t, and Holm across the 15 rules on the primary outcome.
 
 1. **Out of sample.** After December 2011, the date of the notes, the slope of the pair return on the signal has the
    claimed sign with an EWC t above 2. The t uses one observation every h months, so the windows do not overlap.
