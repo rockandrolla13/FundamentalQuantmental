@@ -105,19 +105,137 @@ A lead-lag check goes with each passing rule: does the spread move before or aft
 Known limit: `comp.fundq` is the current view, not the first report. Restatements can make the past look smoother.
 The earlier study carried the same limit. The HY-issuer subset uses point-in-time vintages where they exist.
 
-## Pass rule, set before the run
+## Detailed specification, frozen before the run
 
-A rule passes on a layer when all four hold. Layer 1 uses quarters: one observation every 4 quarters for the t, and Holm across the 15 rules on the primary outcome.
+### S1. Dates and samples
 
-1. **Out of sample.** After December 2011, the date of the notes, the slope of the pair return on the signal has the
-   claimed sign with an EWC t above 2. The t uses one observation every h months, so the windows do not overlap.
-2. **Count of tests.** The p value survives Holm across the 15 rules on that outcome.
-3. **Cycles.** The pair return is in the claimed direction in at least 3 of the 4 windows 2008, 2015, 2020, 2022.
-   For stocks, the 2001 window is added. The rule needs 4 of 5.
-4. **After cost.** Bonds only: the long-short return on the signal's sign is positive after the round-trip cost of
-   both legs each h months.
+| Layer | Decision dates t | Outcome window | Sample of t | Out of sample (can pass) |
+| --- | --- | --- | --- | --- |
+| 1 Fundamentals | Calendar quarter ends | Fiscal quarters q+1 to q+k after the quarter q that ends at t; k = 2 and 4 | 1994Q1 to the last q with q+k reported | 2012Q1 onward |
+| 2 HY bonds | Month ends | t to t+h months; h from the rule table | 2008-01 to 2026-08 minus h | 2012-01 onward |
+| 3 Stocks | Month ends | t to t+h months | 1994-01 to 2026 minus h | 2012-01 onward |
 
-Before December 2011 the rule is in sample: Wolfe Trahan saw that data. That period is reported, but it cannot pass.
+The notes are dated May to November 2011. Every t before 2012 is in sample: it is reported and cannot pass.
+
+### S2. Signals
+
+1. **Raw value `X_t`.** The last value published by t:
+
+| Series | Source | Release lag | Transform |
+| --- | --- | --- | --- |
+| Activity (GAC), new orders (NOC), prices paid (PPC) | Philadelphia Fed survey, seasonally adjusted | 0 months (published inside its month) | Level |
+| CPI | FRED CPIAUCNS | 1 month | log change over 12 months |
+| Oil | FRED WTISPLC | 0 months (monthly average) | log change over 12 months |
+| 10-year yield | FRED GS10 | 0 months (monthly average) | change over 12 months, in points |
+| New home sales | FRED HSN1F | 1 month | log change over 12 months |
+| Household owners' equity | FRED OEHRENWBSHNO | 3 months (Z.1 release) | log change over 4 quarters |
+
+2. **Standardise with the past only.** `z_t = (X_t - mean(X_s, s <= t)) / sd(X_s, s <= t)`, with at least 60 months
+   of history. All series start before 1975, so every t from 1994 has a value.
+3. **Apply the claimed sign.** `zs_t = sign_r * z_t`, with `sign_r` from the rule table. A positive slope then always
+   means "the claim holds".
+
+### S3. Groups
+
+1. GICS sector of each firm at t from `comp.co_hgic` (the record with `indfrom <= t <= indthru`). For the HY layer,
+   `gics_history` as before.
+2. Groups as defined above. Real estate is sector 60 from September 2016 and industry group 4040 before.
+3. Minimum size per group and date: 20 firms (all US firms), 5 firms (HY issuers), 10 bonds (bond layer), 5 stocks
+   (stock layer). Below the minimum the date drops out for that rule.
+
+### S4. Firm outcomes (layer 1)
+
+All sums are over four consecutive fiscal quarters (LTM). A gap leaves the value empty. Firms need LTM sales above
+40m at q.
+
+| Name | Formula | Used for |
+| --- | --- | --- |
+| `d_ebitda_k` | `(EBITDA_LTM[q+k] - EBITDA_LTM[q]) / Sales_LTM[q]` | Primary, R1-R8 |
+| `d_earn_k` | `(IB_LTM[q+k] - IB_LTM[q]) / Sales_LTM[q]` | Reported, R1-R8 |
+| `d_roe_k` | `(IB_LTM[q+k] - IB_LTM[q]) / CEQ[q]`, CEQ > 0 | Primary, R9-R15 |
+| `d_margin_4` | `EBITDA_LTM / Sales_LTM`, change q to q+4 (financials: `IB_LTM / AT`) | Reported |
+| `g_sales_4` | `log(Sales_LTM[q+4] / Sales_LTM[q])` | Reported |
+| `d_lev_4` | `Debt / EBITDA_LTM`, change q to q+4, EBITDA > 0 at both ends, clipped to [0, 20] | Reported, R1-R8 |
+
+EBITDA = `oibdpq`. IB = `ibq`. Debt = `dlttq + dlcq`. Each outcome is winsorised at 1% and 99% within each quarter.
+The group value is the median firm. The pair value is `P_q = G_long - G_short`.
+
+Scaling by sales, not by EBITDA, keeps firms with small or negative EBITDA in the sample with a finite value.
+
+### S5. Return outcomes (layers 2 and 3)
+
+1. **Bonds.** Per bond, `x = total - tsy_ret` over t to t+h (from `results_h{h}_full`). Winsorise at 1% and 99% per
+   month. The sector value is the equal-weight mean of its bonds. The pair value is long minus short.
+2. **Stocks.** CRSP `msf` return with the delisting return. The universe is the 500 largest US common stocks by
+   market value at t. The sector value is the value-weight mean, with weights at t. The h-month return compounds
+   the monthly returns.
+
+### S6. The regressions
+
+**Layer 1, primary.** One regression per rule, quarterly:
+
+`P[q -> q+k] = a + b * zs_t + c * P[q-k -> q] + e`
+
+The control `P[q-k -> q]` is the pair's own last change. EBITDA trends persist. A signal that only repeats last
+year's trend adds nothing new, and this control removes that trend.
+
+**Layers 2 and 3.** One regression per rule, monthly:
+
+`R[t -> t+h] = a + b * zs_t + e`
+
+Returns have little persistence, so no lag control.
+
+**Standard errors.** EWC (Lazarus, Lewis, Stock and Watson 2018) on all dates, overlapping windows included.
+`nu = floor(0.4 * T^(2/3))`. The p value is one-sided from Student t with nu degrees of freedom. The same function
+as `scripts/s_tests.py`.
+
+**Holdout race.** An expanding-window forecast from 2000, scored on 2012 onward. Layer 1: the baseline is the
+regression without `zs_t`. Layers 2 and 3: the baseline is the past mean of the pair return. The test is Clark and
+West (2007), one-sided, on the losses of forecasts whose outcome is known before the forecast date.
+
+### S7. The pass rule
+
+A rule passes on a layer when all five hold, out of sample:
+
+1. **P1 direction.** `b > 0` with EWC one-sided p below 0.05.
+2. **P2 count of tests.** The Romano-Wolf stepdown p (Romano and Wolf 2005) across the 15 rules of that layer is
+   below 0.05. The null draws come from a stationary bootstrap of the signals (Politis and Romano 1994, mean block
+   8 quarters or 24 months, 1,000 draws). The bootstrap moves all signals together and keeps outcomes and controls
+   fixed. Holm is reported beside it.
+3. **P3 forecast gain.** The Clark-West p is below 0.05.
+4. **P4 cycles.** The mean of `zs_t * P` is above 0 in at least 3 of the 4 windows (2008, 2015, 2020, 2022). The
+   stock layer adds 2001 (2001-01 to 2002-12) and needs 4 of 5. A window counts by the start date of the outcome.
+5. **P5 cost (bond layer only).** Hold the pair on the sign of `zs_t`, rebalance every h months, and pay the
+   round-trip cost of both legs at each rebalance. The mean net return is above 0.
+
+Layer 1 is judged on its primary outcome only: `d_ebitda_4` for R1-R8 and `d_roe_4` for R9-R15. It is judged twice,
+on all US firms and on HY issuers. The rule passes layer 1 if it passes on all US firms. The HY-issuer result says
+whether it also holds where we invest.
+
+### S8. Robustness, reported, never used to pass
+
+1. The signal as a 6-month change instead of a level (diffusion indexes), or as a level (changes).
+2. k = 2 quarters.
+3. Sales-weighted groups instead of the median firm.
+4. Without 2020.
+5. Wider late cyclicals: industrials, materials and energy.
+6. The lead moved by one quarter either way.
+7. The share of all 6 variants that keep the sign (a specification curve).
+
+### S9. Data checks before scoring
+
+1. Every firm-quarter value has `available_at = rdq`, or the quarter end plus 90 days when `rdq` is empty. An
+   assertion checks that each outcome window starts after t and each signal value is known by t.
+2. Count firms per group and date, and print the dates that drop out.
+3. Rebuild one rule by hand for one date and compare it with the script.
+
+### S10. Outputs
+
+1. `data/raw/backtest/wt_sector_rules.json`: per rule and layer, `b`, EWC t and p, Romano-Wolf p, Holm, Clark-West p,
+   cycle means, P1 to P5, the number of dates, and the in-sample (pre-2012) result.
+2. One figure per passing rule: the signal against the pair outcome at the three layers.
+3. A results section on this page and a LaTeX write-up with a one-line verdict per rule and the pattern table
+   reading (fundamentals against bond returns).
 
 ## Rows not turned into rules, and why
 
