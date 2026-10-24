@@ -143,3 +143,23 @@ def test_claim_leads_are_fixed_in_the_table():
     assert {(o, s) for _, o, s in h1["tests"]} == {("dv_k2", +1), ("dsg_k4", -1)}
     assert {w.horizon(o) for _, o, _ in h1["tests"]} == {2, 4}
     assert w.holm_threshold() == pytest.approx(0.05 / 8)
+
+
+def test_cycle_means_use_no_later_outcomes():
+    """The 2008 window statistic must not move when outcomes after 2011 change (old code: full-sample mean)."""
+    rng = np.random.default_rng(0)
+    idx = _quarters(140, "1992Q1")
+    z = pd.Series(rng.normal(size=140), index=idx)
+    y = pd.Series(rng.normal(size=140), index=idx)
+    y2 = y.copy()
+    y2[y2.index >= pd.Period("2012Q1", "Q")] += 5.0  # change outcomes after the 2008 window only
+    k = 2
+    assert w.cycle_means(z, y, +1, k)[2008] == pytest.approx(w.cycle_means(z, y2, +1, k)[2008])
+
+
+def test_cycle_centre_is_the_mean_known_at_q():
+    idx = _quarters(30, "2000Q1")
+    y = pd.Series(np.arange(30.0), index=idx)
+    c = w.cycle_centre(y, k=4)
+    assert c[idx[20]] == pytest.approx(np.mean(np.arange(17.0)))  # known at q: outcomes of quarters 0..16
+    assert np.isnan(c[idx[10]])  # 7 known outcomes, fewer than the minimum of 8
