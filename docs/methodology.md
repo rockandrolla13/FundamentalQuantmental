@@ -369,6 +369,63 @@ Set the threshold `δ_i` to the EBITDA decline in the issuer's moderate downside
 
 Macro also shifts the drivers. Regress each sector's revenue growth on its macro series to get a sensitivity `β_sector`. Shift the base case growth by `β_sector` times the gap between the current macro forecast and its trend. A cyclical issuer (Section 4.4) gets a larger shift than a defensive one, which is the HCA hospital argument (p. 413).
 
+#### 5.2.1 Proposed revision (proposed, not fitted)
+
+Status: proposed on 2026-10-24. Nothing below is fitted. Decision pages: `2026-10-24-downside-weight-model`, `2026-10-24-macro-link-method`.
+
+Role: this model is a separate method, not a revision of the case weights. It feeds estimate E17 in its own bucket, G5 macro link (Section 8, Composite). The model above keeps the case weights of E1. One model in two places would count the same macro view twice. G5 has a weight of zero until the tests in this subsection pass.
+
+**What the sources say.** The literature splits the work in two. Issuer state ranks issuers. Macro sets the level for all issuers.
+- Distance to default is the strongest covariate of default (cards `duffie-saita-wang-2007-multi-period-default`, `carling-jacobson-linde-roszbach-2007-credit-risk-macro`).
+- Macro barely moves the firm-level fit, but it lifts the fit to the aggregate default rate from 0.42 to 0.95 (card `jacobson-linde-roszbach-2013-firm-default-aggregate`).
+- Defaults cluster more than observed covariates explain. A latent common factor of about 43% a year closes the gap (card `duffie-eckner-horel-saita-2009-frailty`).
+- The part of the spread that expected default explains has no power for GDP since 1985. The excess bond premium (EBP) carries all of it (card `gilchrist-zakrajsek-2012-credit-spreads-business-cycle`).
+- A recent rise in spreads predicts weak growth. A low spread level two years earlier also predicts weak growth (card `lopez-salido-stein-zakrajsek-2017-credit-market-sentiment`).
+- Over 150 years, the lagged default rate predicts default best. The lagged spread and a recession dummy add nothing (card `giesecke-longstaff-schaefer-strebulaev-2011-150-year-default`).
+- Macro helps for Ba and B issuers but not for Caa to C. The likelihood-ratio gain of the macro block is 201.16 for Ba and B against 42.31 for Caa to C (card `figlewski-frydman-liang-2012-macro-default-rating-transitions`, Tables 5B and 5C).
+- Recent rating history is a strong issuer term. A downgrade in the last two years adds +0.446 to the default hazard. An upgrade adds −1.465. The Baa spread is +0.474 alone but −0.140 next to the ratings (same card, Tables 4 and 5A).
+
+**What our data says.** Nothing yet. The model above has no issuer term. It gives every issuer in one sector on one date the same `p`, unless the thresholds `δ_i` differ.
+
+**Proposed specification.** Let `D_{i,t+4} = 1` when EBITDA falls below `(1 − δ_i)` times its level at `t` within four quarters.
+
+```latex
+\Pr(D_{i,t+4} = 1) = \sigma\big(\theta_0 + \theta_x^{\top} x_{i,t} + \theta_m^{\top} m_t + \theta_{sector} + \gamma_{c(i)}^{\top} m_t + u_{y(t)}\big), \qquad u_y \sim N(0, \tau^2)
+```
+
+Intuition: the issuer term ranks, the macro term sets the level, and the year term carries the shocks that no observed series explains.
+
+| Term | Content | Source card |
+| --- | --- | --- |
+| `x_{i,t}` | Lease-adjusted net leverage (`state.issuer_net_leverage`), interest cover, naive distance to default where equity trades, a flag for a downgrade or an upgrade in the last two years | Duffie-Saita-Wang, Carling et al., Figlewski et al. |
+| `m_t` | EBP (published monthly by the Federal Reserve Board, with `available_at`); four-quarter change in `hy_oas`; `hy_oas` and the high yield share of issuance at t − 8; trailing 12-month default rate; 10-year minus 3-month Treasury slope; `sloos_tightening` | Gilchrist-Zakrajšek, López-Salido et al., Giesecke et al., Carling et al. |
+| `γ_{c(i)}` | Interaction of the macro terms with the cyclical class (Section 4.4) and the rating bucket | Jacobson et al. 2013, López-Salido et al. |
+| `u_{y(t)}` | Year random intercept | Duffie-Eckner-Horel-Saita |
+
+Remove `pmi` from `m_t` until test T3 admits it. Keep the split `f = 0.25` between the two downside cases. Gatto's recession table (80% none, 15% modest, 5% severe, p. 536) gives the same ratio. That table is a worked example, not an estimate (card `gatto-2023-credit-cycle-and-recession-cases`).
+
+**Prediction.** At decision time `u_y` is unknown. Set it to zero for the issuer weight `p`. Use its variance `τ²` to widen the distribution of the count of issuers in their downside case. That count feeds the book-level loss tail.
+
+**Horizon.** The link from spreads to defaults fades fast. It is 0.84 in year 1 and 0.12 in year 2 (card `dynkin-et-al-2021-spreads-predict-defaults`). Beyond eight quarters, shrink the path probabilities of Section 5.4 to the phase prior.
+
+**Sources that disagree: sign constraints.** Elkamhi and Lee fix the macro signs by theory (card `elkamhi-lee-2026-macro-regime-views`). Duffie-Saita-Wang find a short-rate coefficient of −0.105. Jacobson et al. find +0.073 for the same variable with other controls. Fixed signs are right when each regressor has a clear causal sign that no other control absorbs. Free signs are right when the regressors overlap, as here. Choice: fit without sign constraints. Test T5 reports sign stability.
+
+**Second event (proposed).** Macro predicts downgrades better than defaults. The likelihood-ratio gain is 294.60 for downgrades against 192.91 for defaults (Figlewski et al.). Fit the same model for a second event: a downgrade into CCC within four quarters. Its probability feeds the rating review row of Section 9.1. The EBITDA event stays the case-weight event.
+
+**Driver shift.** Estimate `β` by sector and rating bucket, not by sector alone. Apply the macro shift of the base case to the fixed SG&A share as well as to growth, as the downside cases already do (Gatto pp. 162–163, 306).
+
+**Tests.** Each test names the result that rejects the proposal. Run all tests out of sample in the four cycle windows: 2008, 2015, 2020, 2022.
+
+| Test | Question | The proposal fails if |
+| --- | --- | --- |
+| T1 | Does the issuer term rank issuers? | Out-of-sample AUC of the full model does not beat the macro-only model in at least 3 of 4 windows |
+| T2 | Is the year term needed? | Without `u_y`, the yearly count of events falls inside the model's 90% band in at least 90% of years, and the yearly PIT values show no serial correlation |
+| T3 | Does each macro input earn its place? | Its removal does not lower the out-of-sample log score in at least 3 of 4 windows. Then drop it |
+| T4 | Does the EBP beat the spread level? | The model with `hy_oas` level has an equal or better log score than the model with the EBP |
+| T5 | Are the signs stable? | A macro coefficient changes sign between windows. Then report it as unstable and do not read it as a cause |
+| T6 | Is the level right? | The predicted share of issuers in their downside case differs from the realised share by rating bucket, outside the 90% band, in more than 1 year in 10 |
+| T7 | Does macro help in every rating bucket? | The macro block improves the out-of-sample log score for CCC issuers. Then keep one macro slope for all buckets. Otherwise set the CCC macro slopes to zero |
+
 ### 5.3 Forward features
 
 Compute these for horizons of 4 and 8 quarters. Each one is an expectation or a tail statistic over the weighted scenarios.
@@ -774,6 +831,21 @@ C_i = \sum_{j} w_{j,phase}\, \tilde{S}_{j,i}, \qquad w_{j,phase} \propto \max(0,
 | S5 documents | Put in the money; protected tranche | To catalyst | Pair within issuer | Fall-away, negative carry |
 | S6 ratings and flows | Positive rating gap | 1 to 6 months | Index beta | Already priced |
 | S7 sector tilt | Sector cheap to macro | 1 to 3 months | Index beta | Stale forecast |
+
+**Macro link (G5, estimate E17).** The issuer-macro downside model of Section 5.2.1 enters the combined view as its own bucket. The estimate sets the spread against the model's risk, as E12 does for the S&P score:
+
+```latex
+E17_i = z(\log s_i) - z(\operatorname{logit} p_i), \qquad p_i = \Pr(D_{i,t+4} = 1 \mid x_{i,t}, m_t, sector_i, bucket_i), \quad u_y = 0
+```
+
+Intuition: a bond that pays a wide spread for a low downside chance in this economy scores high.
+
+Assumptions:
+- On one date every issuer sees the same macro state `m_t`. So the macro level cancels in the cross-section. E17 ranks issuers by the issuer term and by the macro slopes that differ by rating bucket and cyclical class.
+- The year term `u_y` is unknown at decision time and is zero.
+- A fit with `available_at` after the decision time is look-ahead. The run then gives E17 no value.
+
+E17 is NaN until the model is fitted. The bucket share is zero until tests T1 to T7 pass. The user then sets the share (decision page `2026-10-24-macro-link-method`).
 
 The force rank is the composite sorted across the whole universe, not within sectors. The book trains analysts to rank outside their coverage for this reason (p. 369). Publish the rank with the answer to the book's question for each new position: which position it replaces (p. 369).
 

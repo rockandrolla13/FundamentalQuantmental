@@ -790,8 +790,28 @@ def _o(st: dict, k: str) -> dict:
     return v.outputs if v is not None else {}
 
 
-def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[dict, dict, float]:
-    """Estimates E0 to E16 per issuer in bp a year before cost (research/combined_framework_spec.md S14; hy.groups).
+def _macro_logit(model: forward.IssuerMacroModel | None, m: dict | None, cs: dict, pe9: dict,
+                 decision: pd.Timestamp | None) -> float:
+    """logit p of the issuer-macro downside model (methodology 5.2.1) for one issuer; NaN when it cannot run.
+
+    Issuer term x: lease-adjusted net leverage and cash interest cover from step 5, and the two-year rating-history
+    flags (no rating history is stored yet: NaN, so the model gives NaN). Bucket: the step 9 peer rating class.
+    Intuition: no fitted model, no view; a model fitted after the decision date is look-ahead and stays unused.
+    """
+    if model is None or not m:
+        return float("nan")
+    if model.available_at is not None and (decision is None or model.available_at > decision):
+        return float("nan")
+    x = {"net_leverage": cs.get("net_lev"), "interest_cover": cs.get("cash_cov"),
+         "downgrade_2y": np.nan, "upgrade_2y": np.nan}
+    p = model.predict(x, m, sector=pe9.get("sector"), bucket=pe9.get("rating_class"))
+    return float(np.log(p / (1.0 - p))) if 0.0 < p < 1.0 else float("nan")
+
+
+def group_estimates(steps_all: dict, scen: dict, xs, s_index: float,
+                    macro_model: forward.IssuerMacroModel | None = None, macro_state: dict | None = None,
+                    decision: pd.Timestamp | None = None) -> tuple[dict, dict, float]:
+    """Estimates E0 to E17 per issuer in bp a year before cost (research/combined_framework_spec.md S14; hy.groups).
 
     alpha type: E0 spread level (s5 - S_index) x 1e4 with beta = 1 (spec K15); E1 scenario-weighted alpha; E2 fair-line
     convergence D (1 - rho^(4h)) (s - s_fair) / h; E3 pair convergence signed by the leg; E4 the spread-implied PD
@@ -804,7 +824,9 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
     p. 124: FCF / debt <= 0 or TEV / debt <= 1, or two of high leverage, low FCF / debt and a thin cushion); E14 ESP against sector and rating peers (log spread minus the peer median); E15 SPiDER, log spread /
     (debt / 10-year mean EBITDA), absolute across sectors (Dynkin et al. 2021, ch. 13 and 14; NaN without 6 annual
     EBITDA figures); E16 OneScore, the mean of the within-sector ranks of ESP and the 3-month stock return
-    (Dynkin et al. ch. 19; NaN for an unlisted issuer).
+    (Dynkin et al. ch. 19; NaN for an unlisted issuer); E17 z(log s5) - z(logit p), p the issuer-macro downside
+    probability of methodology 5.2.1 (`macro_model` on the issuer term x and the macro state m), positive = the spread
+    is wide for the risk; NaN with no fitted model, a model not yet available at `decision`, or a missing input.
     one_way type (scaled, then min(0, x)): E7 -(earnings-quality flags + add-back flags + FCF check flag); E11
     -(watch tier) - 1{headroom falling} (headroom history not stored yet: the second term is 0).
     Intuition: each estimate is one witness; pricing witnesses speak in bp, score witnesses rank the issuers.
@@ -856,6 +878,7 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
         score[t]["E14"] = pe9["esp_sr"] if pe9.get("esp_sr") is not None else np.nan
         score[t]["E15"] = pe9["spider"] if pe9.get("spider") is not None else np.nan
         score[t]["E16"] = pe9["onescore"] if pe9.get("onescore") is not None else np.nan
+        score[t]["_logit_p"] = _macro_logit(macro_model, macro_state, cs, pe9, decision)
         k = cs.get("kricheff", {})
         score[t]["_trap_in"] = (k.get("lev_gross"), k.get("fcf_to_debt"), (1.0 / ltv) if ltv else None)
     lev_run = [score[t]["_trap_in"][0] for t in tick]
@@ -874,7 +897,10 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float) -> tuple[di
         # Guarded-out issuers stay out of the standardisation and get exactly 0 after it (below): a raw 0 would
         # standardise to a credit whenever the run's mean is negative.
         score[t]["E13"] = e13 if score[t]["_spt_ok"] else np.nan
-    for k in ("E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14", "E15", "E16"):
+    zl = groups.zscore({t: score[t]["_logit_p"] for t in tick})
+    for t in tick:  # E17: the spread against the issuer-macro downside risk, built like E12
+        score[t]["E17"] = zs[t] - zl[t] if zs[t] == zs[t] and zl[t] == zl[t] else np.nan
+    for k in ("E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14", "E15", "E16", "E17"):
         sc_ = groups.scale_scores({t: score[t][k] for t in tick}, sd1)
         for t in tick:
             v = sc_[t]
@@ -899,7 +925,7 @@ def combined_view(steps_all: dict, scen: dict, xs, s_index: float, decision: pd.
     Ranks: by the combined alpha after cost (spec: raw alpha sets the rank), and by each group's alpha. Then the
     decision against cash across the run: opportunity cost and the best admissible alternative (spec S15; F1 R8).
     """
-    raw, meta, h = group_estimates(steps_all, scen, xs, s_index)
+    raw, meta, h = group_estimates(steps_all, scen, xs, s_index, decision=decision)
     out = {}
     for t in raw:
         cost = scen[t]["alpha"]["cost"] / h * 1e4

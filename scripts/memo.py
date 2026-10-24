@@ -2,7 +2,7 @@
 
     PYTHONPATH=. python3 scripts/memo.py     # reads data/raw/process/*.json, writes docs/writeup/issuer_memos.tex
 
-Each memo opens with the call and the combined view across the four groups. Then one section per group:
+Each memo opens with the call and the combined view across the five groups. Then one section per group:
 G1 core process (Gatto's seven steps, the method, the rulebook, the relative value paper), G2 built methods (the two
 clocks in full, the stories and cases, relative value, the gate, the health panel), G3 credit skills (add-backs,
 covenants, watchlist, trajectory, memo checks), G4 books (Kricheff; Ganguin and Bilardello). The framework's full
@@ -39,6 +39,7 @@ GROUPS = {
     "G3": ("Credit skills", "the lender's checklists: add-backs, covenants, watchlist, trend, memo structure"),
     "G4": ("Books and peers", "Kricheff's cash bridge and ratios; the S\\&P risk profiles and rating anchor; "
            "spread against peers (Dynkin et al.)"),
+    "G5": ("Macro link", "the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1)"),
 }
 ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_framework_spec.md S14)
     "E0": ("Spread level: the extra pay over the market (carry)", "Spec S14 E0; K15"),
@@ -58,6 +59,7 @@ ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_f
     "E14": ("Excess spread to sector and rating peers (ESP)", "Dynkin et al. ch. 13"),
     "E15": ("SPiDER: spread per unit of debt to 10-year EBITDA", "Dynkin et al. ch. 14"),
     "E16": ("OneScore: sector ranks of ESP and 3-month stock return", "Dynkin et al. ch. 19"),
+    "E17": ("Spread against the issuer-macro downside risk (not fitted yet)", "M5.2.1; decision 2026-10-24-macro-link-method"),
 }
 GLOSSARY = [
     ("Spread", "The extra yield a bond pays over a US Treasury of the same maturity. More risk, more spread."),
@@ -104,7 +106,7 @@ RISK_TEXT = {
     "margin_trend_t": ("Margins are falling.", "two quarters of stable margins"),
 }
 METHODS = [
-    ("Top", "The call and the combined view of the four groups", "Methodology 8; F10, F12.1; decision 2026-10-22-four-group-combination"),
+    ("Top", "The call and the combined view of the five groups", "Methodology 8; F10, F12.1; decision 2026-10-22-four-group-combination"),
     ("G1", "The business, earnings, cash, debt, value, the funding gap, the refinancing shock, the decision against cash",
      "Gatto steps 1-7; M4.1-4.3, M6, M7.5; F2-F5, F7; RV PDF (hyrv mapping items 1-4; C2, C3)"),
     ("G2", "The two clocks, the stories and cases, relative value and the pair, expected profit, the gate, the health panel",
@@ -113,6 +115,8 @@ METHODS = [
      "hy-model-standards; ebitda-addback-treatment; covenant-compliance; borrower-monitoring; credit-memo-standards"),
     ("G4", "Kricheff's cash bridge, ratio set, snapshot and spread per turn; the S\\&P profiles and anchor",
      "Kricheff ch. 9, 10, 21, 24; Ganguin and Bilardello ch. 2-5, 10, App. E"),
+    ("G5", "The issuer's chance of a large EBITDA fall from its balance sheet and the economy, against its spread",
+     "M5.2.1; decision 2026-10-24-macro-link-method"),
     ("End", "Coming events, open questions, the record", "F11, F12"),
 ]
 
@@ -183,9 +187,10 @@ def plain_call(g: dict) -> str:
 
 
 GROUP_OF = {"E0": "G2", "E1": "G2", "E2": "G2", "E3": "G2", "E4": "G1", "E5": "G2C", "E6": "G2", "E7": "G1",
-            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4", "E14": "G4", "E15": "G4", "E16": "G4"}  # hy.groups.ESTIMATES
-BUCKET_ORDER = ("G1", "G2C", "G2", "G3", "G4")  # hy.groups.BUCKETS
-BUCKET_LABEL = {"G1": "G1", "G2C": "G2 clocks", "G2": "G2 rest", "G3": "G3", "G4": "G4"}
+            "E8": "G1", "E9": "G1", "E10": "G1", "E11": "G3", "E12": "G4", "E13": "G4", "E14": "G4", "E15": "G4", "E16": "G4",
+            "E17": "G5"}  # hy.groups.ESTIMATES
+BUCKET_ORDER = ("G1", "G2C", "G2", "G3", "G4", "G5")  # hy.groups.BUCKETS
+BUCKET_LABEL = {"G1": "G1", "G2C": "G2 clocks", "G2": "G2 rest", "G3": "G3", "G4": "G4", "G5": "G5"}
 VERDICT_COL = {"supports owning": "good", "leans to owning": "amber", "against owning": "bad", "no view": "gray",
                "no objection": "good"}
 
@@ -230,12 +235,13 @@ def memo(d: dict) -> str:
     # ------------------------------------------------------------------ combined view
     sz = O("14b")
     if cb.get("groups"):
-        L.append("\\subsection*{The combined view: four groups, one estimate}")
+        L.append("\\subsection*{The combined view: five groups, one estimate}")
         L.append("Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. "
-                 f"The combined estimate weighs the four groups. It ranks {cb.get('rank')} of the issuers in this run. "
+                 f"The combined estimate weighs the groups. It ranks {cb.get('rank')} of the issuers in this run. "
                  f"{cb.get('groups_agree')} of {cb.get('groups_n')} groups point the same way as the combination.")
         rows = [[f"{BUCKET_LABEL[gg]}. {GROUPS[gg][0]}", bp(cb['groups'][gg]['alpha_bp_yr']), pct(cb['groups'][gg].get('group_share')),
-                 bp(cb['groups'][gg].get('contribution')), vword(cb['groups'][gg]['verdict'])] for gg in BUCKET_ORDER]
+                 bp(cb['groups'][gg].get('contribution')), vword(cb['groups'][gg]['verdict'])] for gg in BUCKET_ORDER
+                if gg in cb['groups']]
         rows += [["\\textbf{Combined, before trading costs}", "", "", f"\\textbf{{{bp(cb['combined_before_cost'])}}}", ""],
                  ["Trading costs", "", "", bp(-cb["cost"]), ""],
                  ["\\textbf{Combined, after trading costs}", "", "", f"\\textbf{{{bp(cb['combined_after_cost'])}}}", ""],
@@ -247,8 +253,10 @@ def memo(d: dict) -> str:
         L.append(f"Against the weighted cases and stories alone, the combination is {abs(diff):,.0f} bp a year "
                  f"{'higher' if diff > 0 else 'lower'}: the other methods {'add to' if diff > 0 else 'take away from'} "
                  "the case for owning the bond. A group that supports owning must beat the trading costs on its own. "
-                 "The weights are the user's choice: core process 45\\%, two clocks 20\\%, and 11.7\\% each for the "
-                 "rest of the built methods, the credit skills and the books. The backtest alone would have put most "
+                 "The weights are the user's choice: "
+                 + ", ".join(f"{GROUPS[gg][0].lower()} {pct(cb['groups'][gg].get('share_set'))}" for gg in BUCKET_ORDER
+                             if gg in cb['groups'])
+                 + ". The macro link has no weight until its tests pass. The backtest alone would have put most "
                  "weight on the built methods.")
         if sz:
             if sz.get("use") == "size":
@@ -605,6 +613,11 @@ def memo(d: dict) -> str:
                     "did not slope upward, so it gives no estimate. ")
                  + "The 2005 edition has no modern anchor table; its own weighting table stands in for it.")
 
+    # ------------------------------------------------------------------ G5
+    L.append("\\section*{G5. Macro link: the issuer's downside risk in this economy}")
+    if "G5" in cb.get("groups", {}):
+        L.append(group_box(cb, "G5", "The model is not fitted yet. It has no weight until its seven tests pass."))
+
     # ------------------------------------------------------------------ end
     L.append("\\section*{Coming events, open questions, and the record}")
     L.append("\\begin{itemize}" + "".join(f"\\item {esc(e['event'])}: {esc(e.get('date') or '')}{' (estimate)' if e.get('confirmed') is False else ''}"
@@ -646,9 +659,9 @@ def main() -> None:
                         *[f"{BUCKET_LABEL[k]} ({gw.get(k, 0) * 100:.0f}\\%)" for k in BUCKET_ORDER], "Cases", "Best alt.", "Gate"],
                        [[C(d)["rank"], d["ticker"], f"\\textbf{{{bp(C(d)['combined_after_cost'])}}}",
                          bp(d["steps"].get("14b", {}).get("outputs", {}).get("alpha_sized")),
-                         *[bp(C(d)["groups"][gg]["alpha_bp_yr"]) for gg in BUCKET_ORDER],
+                         *[bp(C(d)["groups"].get(gg, {}).get("alpha_bp_yr")) for gg in BUCKET_ORDER],
                          bp(C(d)["anchor_after_cost"]), esc(d["steps"].get("15", {}).get("outputs", {}).get("replaces_position", "n/a")),
-                         plain_call(d["steps"].get("11", {}).get("outputs", {})).split(".")[0]] for d in rk], "rlrrrrrrrrll"
+                         plain_call(d["steps"].get("11", {}).get("outputs", {})).split(".")[0]] for d in rk], "rlrr" + "r" * len(BUCKET_ORDER) + "rll"
                        ).replace("\\tabcolsep}{3.5pt}", "\\tabcolsep}{2pt}")
     sz0 = rk[0]["steps"].get("14b", {}).get("outputs", {}) if rk else {}
     wtxt = ", ".join(f"{GROUPS[k][0].lower()} {gw.get(k, 0) * 100:.1f}\\%" for k in BUCKET_ORDER)
@@ -657,13 +670,13 @@ def main() -> None:
 \usepackage{{booktabs,xcolor,hyperref,enumitem,graphicx,float,caption,array}}
 \definecolor{{good}}{{HTML}}{{2E7D4F}}\definecolor{{amber}}{{HTML}}{{B07D1A}}\definecolor{{bad}}{{HTML}}{{B5403A}}
 \setlist{{itemsep=1pt,topsep=2pt}}\emergencystretch=3em
-\title{{Issuer memos: one analyst, four groups of methods}}
+\title{{Issuer memos: one analyst, five groups of methods}}
 \author{{FundamentalQuantmental HY Analyst: one memo per company, written by the process}}
 \date{{Data as known on {run['decision']}}}
 \begin{{document}}
 \maketitle
 \noindent\fcolorbox{{gray}}{{gray!6}}{{\parbox{{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}}{{\sloppy
-\textbf{{How these memos are made.}} One analyst runs every company through four groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Each group gives its own estimate of expected profit above a hedge, in bp a year. The combined estimate weighs five buckets as the user set them ({wtxt}) and pays trading costs once. Each step is \textcolor{{good}}{{done}}, \textcolor{{amber}}{{partial}} (it ran but needs an analyst input), or \textcolor{{bad}}{{blocked}}. Missing inputs appear as open questions.}}}}
+\textbf{{How these memos are made.}} One analyst runs every company through five groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Group 5 links the economy to the company: the chance of a large fall in earnings, from the balance sheet and the macro state, set against the spread. It is not fitted yet and has no weight. Each group gives its own estimate of expected profit above a hedge, in bp a year. The combined estimate weighs six buckets as the user set them ({wtxt}) and pays trading costs once. Each step is \textcolor{{good}}{{done}}, \textcolor{{amber}}{{partial}} (it ran but needs an analyst input), or \textcolor{{bad}}{{blocked}}. Missing inputs appear as open questions.}}}}
 
 \section*{{All issuers, ranked by the combined view}}
 The combined column is after trading costs; the five bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{{Alpha sizes are uncalibrated}}: in the backtest, realised alpha was about {num(sz0.get('mz_b'), 2)} times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.

@@ -695,6 +695,42 @@ def scenario_weights(p_down: float, p_up: float, severe_fraction: float = 0.25) 
     return {k: v / s for k, v in w.items()}
 
 
+@dataclass(frozen=True)
+class IssuerMacroModel:
+    """Issuer-macro downside model of Section 5.2.1, the input of estimate E17 (proposed, not fitted).
+
+    Pr(D = 1) = sigma(theta_0 + theta_x' x + theta_m' m + theta_sector + gamma_c' m + u_y), u_y ~ N(0, tau2).
+    Coefficients are keyed by input name. `gamma` maps a rating bucket (or a cyclical class) to its macro slopes.
+    `available_at` is the date the fit became known; a run before it must not use the model.
+    """
+
+    theta0: float
+    theta_x: Mapping[str, float]
+    theta_m: Mapping[str, float]
+    theta_sector: Mapping[str, float] = field(default_factory=dict)
+    gamma: Mapping[str, Mapping[str, float]] = field(default_factory=dict)
+    tau2: float = 0.0
+    available_at: pd.Timestamp | None = None
+
+    def predict(self, x: Mapping[str, float], m: Mapping[str, float], sector: str | None = None,
+                bucket: str | None = None) -> float:
+        """Issuer probability with the year term at zero (Section 5.2.1, Prediction). NaN when an input is missing.
+
+        Intuition: the issuer term ranks, the macro term sets the level, the unknown year shock is left at its mean.
+        A missing input gives NaN, never a silent zero: zero is a value, not a gap.
+        """
+        z = self.theta0
+        for terms, coefs in ((x, self.theta_x), (m, self.theta_m), (m, self.gamma.get(bucket, {}) if bucket else {})):
+            for k, b in coefs.items():
+                v = terms.get(k)
+                if v is None or v != v:
+                    return float("nan")
+                z += b * float(v)
+        if sector is not None:
+            z += self.theta_sector.get(sector, 0.0)
+        return float(1.0 / (1.0 + np.exp(-z)))
+
+
 def fit_sector_beta(rev_growth: np.ndarray, macro_growth: np.ndarray) -> tuple[float, float]:
     """OLS sensitivity of sector revenue growth to macro growth (Section 5.2; Section 9.2 growth channel).
 
