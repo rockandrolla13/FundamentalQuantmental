@@ -1,12 +1,20 @@
 # Test whether the Wolfe Trahan series predict issuer EBITDA and leverage
 
-Date: 24 October 2026. Rewritten the same day: the main test is now issuer EBITDA, not the PMI. Status: proposed, no code yet.
+Date: 24 October 2026. Rewritten the same day: the main test is now issuer EBITDA, not the PMI. Scope set the same day: a historical study first. Status: proposed, no code yet.
 Data: `research/wolfe-trahan-2011-relationships.csv`. Card: `research/cards/wolfe-trahan-2011-macro-relationships.md`.
 Sections: methodology 3.6, 5.2; framework F6.
 Code that a survivor changes: `hy/forward.py` (`DEFAULT_DRIVER_LINKS`, `link_drivers`, `fit_sector_beta`, `fit_decline_model`) and `hy/macro.py` (`MacroPath.extra`).
 
 ## The question in one sentence
-Does a change in a macro series today tell us that the companies in a sector will report lower (or higher) EBITDA, and so higher (or lower) leverage, six to twelve months from now? It must tell us more than the model already knows.
+Did a change in each macro series, in the past, tell us that the companies in a sector would report lower (or higher) EBITDA, and so higher (or lower) leverage, six to twelve months later? It must have told us more than the series the model already uses.
+
+## Scope: a historical study first
+1. **Phase 1, now: a historical study.** For each claim, use history from about 1995 to 2026 and ask whether it worked, cycle by cycle. Use models M1 and M2 below on history, plus the event count below. Build no forward tooling.
+2. **Phase 2, later: only for the claims that worked.** Wire them into the engine (the "How a result changes the model" section) and build the scenario tooling M3 to M6.
+
+**Event count, the plain view.** For each claim, find the dates when the series gave a clear signal. Example: prices paid rose by more than one standard deviation over six months. Then count how often sector EBITDA, margin, and leverage moved as the claim says in the following two to four quarters. Compare that with all other dates. Report the result per cycle (2001, 2008, 2015, 2020, 2022). Example of the output: "After 9 signals, industrial margins fell in 7 cases. On other dates they fell 40% of the time."
+
+**Data on hand (checked 24 October 2026).** WRDS access is configured (`~/.pgpass`), and `hy/sources/compustat_pit.py` reads the point-in-time quarterly table. FRED and the Philadelphia Fed survey page answer from this machine.
 
 ## Why this question
 A macro series matters to a credit analyst only through the business of the borrower. The chain is:
