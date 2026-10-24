@@ -160,11 +160,15 @@ def test_leverage_caps_negative_ebitda_and_drops_stale_quarters():
 
 
 def test_leverage_needs_four_consecutive_quarters():
-    # Q3 2019 is missing: the four latest quarters (Q1, Q2, Q4 2019, Q1 2020) span 366 days and are not an LTM.
-    q = pd.to_datetime(["2019-03-31", "2019-06-30", "2019-12-31", "2020-03-31"])
+    # Q4 2019 is missing: the old rule summed Q1 2019 to Q1 2020 over the gap, so Q1 counted twice.
+    q = pd.to_datetime(["2019-03-31", "2019-06-30", "2019-09-30", "2020-03-31"])
     v = pd.DataFrame([dict(gvkey="001", datadate=d, vintage=0, snapshot_available_at=d + pd.Timedelta(45, unit="D"),
-                           pit_exact=True, oibdp=25.0, debt_current=0.0, debt_long_term=300.0) for d in q])
-    assert tp.leverage_as_of(v, "2020-06-30").empty
-    full = pd.concat([v, v.iloc[[1]].assign(datadate=pd.Timestamp("2019-09-30"),
-                                           snapshot_available_at=pd.Timestamp("2019-11-14"))])
-    assert tp.leverage_as_of(full, "2020-06-30").set_index("gvkey").loc["001", "leverage"] == pytest.approx(3.0)
+                           pit_exact=True, oibdp=e, debt_current=0.0, debt_long_term=300.0) for d, e in zip(q, [90, 20, 20, 20])])
+    r = tp.leverage_as_of(v, "2020-06-30").set_index("gvkey").loc["001"]
+    assert r["lev_basis"] == "plain_3q"                      # Q2, Q3 2019 and Q1 2020, scaled by 4/3
+    assert r["ltm_ebitda"] == pytest.approx(80.0)
+    assert tp.leverage_as_of(v.iloc[[0, 3]], "2020-06-30").empty  # two quarters are not enough
+    full = pd.concat([v, v.iloc[[1]].assign(datadate=pd.Timestamp("2019-12-31"),
+                                           snapshot_available_at=pd.Timestamp("2020-02-14"))])
+    r = tp.leverage_as_of(full, "2020-06-30").set_index("gvkey").loc["001"]
+    assert r["lev_basis"] == "plain" and r["leverage"] == pytest.approx(300.0 / 80.0)

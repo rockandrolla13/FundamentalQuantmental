@@ -457,10 +457,13 @@ def leverage_as_of(vintages: pd.DataFrame, as_of: Any, max_stale_days: int = MAX
     """Issuer leverage as known at `as_of` (Section 4.3, plain basis): debt / LTM EBITDA before special items.
 
     Steps: keep versions with `available_at <= as_of` (the snapshot day after month end; rows without a snapshot
-    stay out); per fiscal quarter, the latest such version; per issuer, the four latest quarters, which must be
-    consecutive (span at most `LTM_MAX_SPAN_DAYS`, so a gap does not enter the LTM sum); the latest quarter must be
-    at most `max_stale_days` old. Debt is that quarter's debt_current + debt_long_term. EBITDA <= 0 with positive
-    debt maps to `LEV_CAP`; leverage is clipped to [0, LEV_CAP]. Intuition: the leverage a reader of the latest filed quarter would compute that day.
+    stay out); per fiscal quarter, the latest such version; per issuer, the quarters that end within
+    `LTM_MAX_SPAN_DAYS` of the latest one. Four quarters give the LTM sum (`lev_basis = 'plain'`). Three quarters,
+    one missing, give 4/3 of their sum (`lev_basis = 'plain_3q'`): Compustat point in time lacks about half of the
+    fiscal Q4 quarters 2018-2025, and a sum over a gap would count one season twice. Fewer than three: no value.
+    The latest quarter must be at most `max_stale_days` old. Debt is that quarter's debt_current + debt_long_term.
+    EBITDA <= 0 with positive debt maps to `LEV_CAP`; leverage is clipped to [0, LEV_CAP].
+    Intuition: the leverage a reader of the latest filed quarter would compute that day.
     """
     t = pd.Timestamp(as_of)
     v = vintages.copy()
@@ -470,23 +473,25 @@ def leverage_as_of(vintages: pd.DataFrame, as_of: Any, max_stale_days: int = MAX
         return pd.DataFrame(columns=["gvkey", "ltm_ebitda", "ltm_revenue", "debt", "leverage", "datadate", "available_at",
                                      "lev_basis"])
     v = v.sort_values(["gvkey", "datadate", "vintage"]).drop_duplicates(["gvkey", "datadate"], keep="last")
-    v = v.sort_values(["gvkey", "datadate"]).groupby("gvkey").tail(4)
+    v = v.sort_values(["gvkey", "datadate"])
+    last = v.groupby("gvkey")["datadate"].transform("max")
+    v = v[(last - v["datadate"]).dt.days <= LTM_MAX_SPAN_DAYS]
     g = v.groupby("gvkey")
-    span = (g["datadate"].max() - g["datadate"].min()).dt.days
     n = g["oibdp"].count()
-    ltm = g["oibdp"].sum(min_count=4)
+    scale = (4.0 / n).where(n.isin([3, 4]))
+    ltm = g["oibdp"].sum(min_count=3) * scale
     latest = v.drop_duplicates("gvkey", keep="last").set_index("gvkey")
     debt = latest["debt_current"].fillna(0.0) + latest["debt_long_term"].fillna(0.0)
     debt = debt.where(latest["debt_current"].notna() | latest["debt_long_term"].notna())
-    rev = g["revenue"].sum(min_count=4) if "revenue" in v else pd.Series(np.nan, index=ltm.index)
+    rev = g["revenue"].sum(min_count=3) * scale if "revenue" in v else pd.Series(np.nan, index=ltm.index)
     out = pd.DataFrame({"ltm_ebitda": ltm, "ltm_revenue": rev, "debt": debt, "datadate": latest["datadate"],
-                        "available_at": g["available_at"].max()})
-    ok = (n == 4) & (span <= LTM_MAX_SPAN_DAYS) & ((t - out["datadate"]).dt.days <= max_stale_days) & out["debt"].notna()
+                        "available_at": g["available_at"].max(), "n_quarters": n})
+    ok = scale.notna() & ((t - out["datadate"]).dt.days <= max_stale_days) & out["debt"].notna()
     out = out[ok].copy()
     lev = np.where(out["ltm_ebitda"] > 0, out["debt"] / out["ltm_ebitda"].where(out["ltm_ebitda"] > 0), LEV_CAP)
     out["leverage"] = np.clip(np.where(out["debt"] <= 0, 0.0, lev), 0.0, LEV_CAP)
-    out["lev_basis"] = "plain"
-    return out.reset_index()
+    out["lev_basis"] = np.where(out["n_quarters"] == 4, "plain", "plain_3q")
+    return out.drop(columns="n_quarters").reset_index()
 
 
 def leverage_history(vintages: pd.DataFrame, months: Sequence[pd.Timestamp]) -> pd.DataFrame:
