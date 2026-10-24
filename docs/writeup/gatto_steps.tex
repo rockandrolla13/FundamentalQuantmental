@@ -1,0 +1,70 @@
+\newpage
+\begin{center}
+{\Large\bfseries Gatto's process, step by step, and what we compute}\\[2pt]
+{\small Each step: what the book says, what the system computes, and what the data says. ``Code'' names the module and the step of \code{scripts/process.py}.}
+\end{center}
+
+\newcommand{\step}[3]{\par\medskip\noindent\colorbox{spine!10}{\parbox{\dimexpr\linewidth-2\fboxsep}{\textbf{#1}\hfill{\small #2}}}\par\nopagebreak\smallskip\noindent #3}
+\newcommand{\gatto}{\textbf{Gatto.} }
+\newcommand{\we}{\par\noindent\textbf{We compute.} }
+\newcommand{\data}{\par\noindent\textbf{Evidence.} }
+
+\step{Step 1. Sources and uses}{Chapter 5, pp.~142--154}{%
+\gatto Ask why the company needs money and which instruments fund it. The step applies to new issues only.
+\we The inputs layer loads filings, TRACE bond prices and the macro feed. Every field carries \code{as\_of} and \code{available\_at}. For a bond in the secondary market, the step records the purpose of each tranche from the capital structure table. Code: \code{hy/inputs.py}, process step 1.
+\data A unit test blocks any field that is not known on the decision day. Leverage now uses only consecutive quarters (fix of 24 October).}
+
+\step{Step 2. Qualitative analysis}{Chapter 6, pp.~155--186}{%
+\gatto Score eight industry and business risks (Figure 6.2, p.~158). Add management, sponsor, strategy and ESG.
+\we Framework F2 frames the business in five lines: what it sells, how one unit earns, what it must spend to stand still, the market structure, and what breaks it. Then it assigns one of eight archetypes (A1 lease-heavy consumer to A8 financials) and up to three modifiers (sponsor, secular decline, concentration). The archetype selects the EBITDA definition, the collateral basis and the downside driver. Each risk scores 0, 1 or 2. The system stores the vector, not only the sum. Code: process step 2.
+\data Not tested on its own. The scores enter the fair spread model as features.}
+
+\step{Step 3a. Profitability}{Chapter 7, pp.~187--223}{%
+\gatto Remove one-off items, test earnings quality, compare with peers, and judge against expectations.
+\we Framework F3 builds three EBITDA numbers and keeps them apart: the analyst number, the company number and the covenant number. Ten add-back classes set the rules. Examples: stock compensation is never added back, and projected synergies are never added back. Ten earnings-quality tests (EQ1--EQ10) each set a flag. Examples: receivable days up 10\% while sales grow below 5\%, or cash conversion below 0.3 for two years. Code: process step 3, estimate E7.
+\data E7 is a one-way penalty. A clean record earns no credit. A failed record costs.}
+
+\step{Step 3b. Cash flow and liquidity}{Chapter 8, pp.~224--254}{%
+\gatto A default is a liquidity event before it is a leverage event (p.~424). Measure cash, the maturity wall and access to refinancing.
+\we Framework F4. Effective liquidity is
+$L^{eff} = \text{cash} + \min(\text{commitment}, \text{borrowing base}) - \text{drawn} - \text{letters of credit} - \text{minimum cash}$.
+The runway is the number of quarters until $L^{eff}$ runs out under the downside case. Below 4 quarters is red. The wall cover is liquidity over the debt due in the next 4 quarters. Below 1 is red. A refinance score from 0 to 6 maps to the probability of refinance access. Code: \code{hy/state.py}, process step 4, estimate E8.
+\data Liquidity and refinancing carry 10\% of the total weight.}
+
+\step{Step 3c. Capital structure}{Chapter 9, pp.~255--282}{%
+\gatto Build the capital structure table by priority. Senior claims enter at face. The tranche under study enters at market. That gives the creation multiple (p.~264).
+\we Leverage through tranche $k$ is $Lev_k = \sum_{j \le k} F_j / EBITDA^{adj}$. The market version replaces $F_k$ with $P_k F_k$. Loan-to-value is $LTV_k = \sum_{j \le k} F_j / TEV$. Coverage is $(EBITDA - capex) / interest$. Leases add $8\times$ rent for lease-heavy firms (pp.~267--268). Framework F5 keeps two views apart. The going-concern view asks how much debt the business carries. The claims view asks who gets paid in a failure. Code: \code{hy/state.py}, process step 5, estimates E9 and E13.
+\data Leverage feeds E9, E13, SPiDER and the rating class implied for unrated issuers. The backtest leverage now sums four consecutive quarters. When one quarter is missing, it scales the three known quarters by 4/3. The signal ICs moved by less than 0.01.}
+
+\step{Step 4. Forecasting}{Chapter 10, pp.~283--318}{%
+\gatto Set the drivers, build a management case, a base case and downside cases, and assign probabilities by judgement (p.~311). The base case is a coin toss. The downside case is where credit work earns its keep (p.~285).
+\we Framework F6 runs six cases for at least 8 quarters. Each quarter: $Rev_h = Rev_{h-1}(1+g_h)$, $EBITDA_h = Rev_h(1 - v_h - a_h)$, and $FCF_h = EBITDA_h - capex - interest - tax - \Delta WC$. Negative free cash flow draws the revolver, so liquidity and leverage come out of one calculation. Covenants are tested on covenant EBITDA. A maturity refinances only when the refinance probability exceeds 0.5. Code: \code{hy/forward.py}, process step 7, estimate E1.
+\par\noindent\textbf{Where macro enters.} The book weighs the cases by judgement. We tried to replace that judgement with data in three ways:
+\begin{enumerate}
+\item \textbf{The phase vote.} Six indicators set the cycle phase: HY spread, distress ratio, SLOOS, PMI, default rate and issue quality. The phase sets the case weights. \textcolor{bad}{Test S3: each indicator's vote failed.}
+\item \textbf{The downside model} (methodology 5.2). A logistic model of a large EBITDA fall on the macro vector and the sector. \textcolor{bad}{Tests S1, S2 and S4: after 2009 it does not beat the sector alone.}
+\item \textbf{Sector sensitivities} to macro series (the Wolfe Trahan claims). \textcolor{bad}{3 of 92 tests passed, and none is robust.}
+\end{enumerate}
+\data Keep Gatto's judgement weights. Use the five macro paths only as stress tests of the cases.}
+
+\step{Step 5. Valuation and recovery}{Chapter 11, pp.~319--336}{%
+\gatto Value the company by comparable companies, precedent deals, DCF and liquidation. Read loan-to-value off the range. The market's own value is a check, never the anchor (p.~321).
+\we Framework F7 picks at least three methods by archetype. The waterfall pays each tranche $Pay_k(V) = \min(F_k, \max(0, V - S_k))$, where $S_k$ is everything senior to $k$. Recovery is $R_k = E[Pay_k \mid \text{default}] / F_k$, and the loss given default is $1 - R_k$. A liability-management score adjusts recovery for the drop-downs and uptiers that the documents allow (Chapter 18). Code: \code{hy/recovery.py}, process step 8.
+\data Recovery enters the expected loss in the alpha formula. Not yet tested against realised recoveries.}
+
+\step{Step 6. Structure and documents}{Chapter 12, pp.~337--365}{%
+\gatto Read the economics, collateral, covenants, add-back caps, baskets and sacred rights. Permissive add-backs take the lender's seat at the table (pp.~354--355).
+\we Document fields feed the covenant headroom (methodology 4.6), the liability-management score (F7), and signal S5. Code: \code{hy/state.py}, estimate E11.
+\data This is the weakest step today. Indentures are not in our licensed data, so most document fields are open questions in the memo.}
+
+\step{Step 7. Recommendation and relative value}{Chapter 13, pp.~366--414}{%
+\gatto Write the thesis, the risks and the mitigants. Compare the bond with rating indices, peers and the issuer's own capital structure. Force-rank it against the portfolio (p.~369).
+\we Five computations turn the earlier steps into one number per bond:
+\begin{enumerate}
+\item \textbf{Fair spread} (process step 9). Today it is the peer median: same sector, rating and maturity, at least 5 other issuers. The gap is $z = (\log s - \log s^{fair}) / \text{noise}$, and the noise is the peers' spread dispersion. Positive means cheap.
+\item \textbf{Expected alpha} (step 10). Over $h$ years, averaged over the macro paths: carry, plus the gap that closes at the measured speed, minus the expected default loss, minus the cost.
+\item \textbf{Gate} (step 11, framework F9). Compute the default probability that the price implies. Put the analyst's number beside it. A call needs a named gap between the two.
+\item \textbf{Combined view} (step 14). 17 estimates in 5 buckets: core process 40\%, two clocks 20\%, other built methods 18\%, books and peers 17\%, credit skills 5\%.
+\item \textbf{Size and decision} (steps 14b and 15). A calibration maps alpha to a return. The slope is about 0.08, so the number ranks bonds and does not size them. Each new position names the position it replaces.
+\end{enumerate}
+\data The peer gap (ESP) ranks 12-month returns beyond the spread level: rank IC $+0.096$ ($t$ 2.6), positive in all 4 stress periods. The result is the same on the fixed leverage. The book's leverage control halves that edge ($+0.045$, $t$ 1.3).}
