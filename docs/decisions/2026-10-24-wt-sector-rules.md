@@ -253,6 +253,15 @@ whether it also holds where we invest.
 candidate sector signal in Section 8 and goes to the composite only after the robustness checks of the earlier
 study (placebo, Romano-Wolf, specification curve).
 
+## Clarifications recorded before the first run
+
+1. **P4 centring.** The cycle check multiplies the signal by the outcome minus the outcome's own mean known at t
+   (outcomes complete by t). Without it, a pair that always grows faster (tech against defensives) would count as a
+   hit in every window.
+2. **GICS before 1999.** `comp.co_hgic` starts on 1999-06-30. For 1994-1999 each firm keeps its first recorded
+   sector. Out-of-sample results (2012 on) do not depend on this.
+3. **Holdout race start.** Clark-West trains on all data before each forecast date and scores from 2012.
+
 ## Results
 
-Not run.
+Running.
