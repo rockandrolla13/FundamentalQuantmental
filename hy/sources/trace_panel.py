@@ -458,9 +458,9 @@ def leverage_as_of(vintages: pd.DataFrame, as_of: Any, max_stale_days: int = MAX
 
     Steps: keep versions with `available_at <= as_of` (the snapshot day after month end; rows without a snapshot
     stay out); per fiscal quarter, the latest such version; per issuer, the four latest quarters, which must be
-    consecutive (span at most `LTM_MAX_SPAN_DAYS`, so a gap does not enter the LTM sum); the latest quarter must be at most `max_stale_days` old. Debt is that quarter's
-    debt_current + debt_long_term. EBITDA <= 0 with positive debt maps to `LEV_CAP`; leverage is clipped to
-    [0, LEV_CAP]. Intuition: the leverage a reader of the latest filed quarter would compute that day.
+    consecutive (span at most `LTM_MAX_SPAN_DAYS`, so a gap does not enter the LTM sum); the latest quarter must be
+    at most `max_stale_days` old. Debt is that quarter's debt_current + debt_long_term. EBITDA <= 0 with positive
+    debt maps to `LEV_CAP`; leverage is clipped to [0, LEV_CAP]. Intuition: the leverage a reader of the latest filed quarter would compute that day.
     """
     t = pd.Timestamp(as_of)
     v = vintages.copy()
