@@ -58,3 +58,52 @@ Run each test on the HY issuer universe (TRACE-linked Compustat point-in-time) w
 | S4 | Is the break real or a 2020 artefact? | Rerun S1 and S3 without 2020. If `sloos_tightening` passes without 2020, record the result. Then use a rule that excludes pandemic quarters, with its own decision page |
 
 The decision closes when S1 to S4 have run and this page records the outcome. Each change to `hy/macro.py` or `m_t` gets a test that fails on the old behaviour.
+
+## Frozen specification for S1 to S4 (24 October 2026)
+This section fixes the tests before the results run. Code: `scripts/s_tests.py`. Tests: `tests/test_s_tests.py`. Output: `data/raw/backtest/s_tests.json` (vendor-derived, out of git).
+
+Disclosure: one run of S1 to S3 took place before this freeze. That run used the event, inputs, windows, models, and log-loss rule below. After that run, the coordinator added the attrition rule, the EWC test, and the Ibragimov–Müller test. I also added three context outputs: `m_t` against a sector-only model, the in-sample gain, and a pooled gain. No input, window, threshold, or pass rule changed after that run.
+
+### Event
+1. Unit: one issuer in one fiscal quarter `t` (gvkey, quarter end).
+2. `D = 1` if `LTM EBITDA_{t+4} < (1 − δ) LTM EBITDA_t`, with `LTM EBITDA_t > 0` (`hy.forward.decline_labels`).
+3. Each LTM is the first-release value. It is the sum of four consecutive quarters of `oibdp`. Each quarter takes its latest version known on the first day that the end quarter was known. Consecutive means gaps of 80 to 100 days between quarter ends.
+4. `δ = 20%` is the primary. `δ = 10%` and `δ = 30%` are robustness runs. The page asks for the issuer's own `δ_i`. That value has no history, so this is a deviation.
+5. Attrition, two variants:
+   - "exclude": a row with no `LTM EBITDA_{t+4}` leaves the sample.
+   - "exits": a row with no `LTM EBITDA_{t+4}` counts as `D = 1` when `comp.company` shows `dlrsn` 02 (bankruptcy) or 03 (liquidation), with `dldte` after `t` and no more than 21 months after `t`. Other rows with no outcome leave the sample. The outcome is known on `dldte` + 1 day.
+
+### Universe and time
+1. Universe: gvkeys with an unambiguous link to a TRACE HY bond in `panel_full` at month end `M`.
+2. Decision time `τ`: the first day on which the LTM of `t` is known in Compustat point in time. `M = τ − 1 day`.
+3. Windows: `hy.backtest.CYCLE_WINDOWS` (2008–2009, 2015–2016, 2020, 2022). Test rows have `τ` inside the window. Train rows have an outcome known before the window starts.
+4. The 2008 window trains on HY-like Compustat firms, 1994–2007, from `comp.fundq` (current view, not point in time): debt / LTM EBITDA > 4, LTM EBITDA > 0. That window replaces the two `hy_oas` columns with the Baa spread level and its 3-month change.
+
+### Inputs (each known at `M`)
+| Column | Definition | Release rule |
+|---|---|---|
+| `spread_lvl` | HY index level, `hy.backtest.benchmark_spread` (`state.hy_index_level`) | TRACE row available by `M` + 1 day |
+| `spread_chg3` | Change of `spread_lvl` over 3 months | Same |
+| `sloos` | Latest `DRTSCILM` reading | A reading dated month m enters at the end of month m + 1 |
+| `pmi` | Philadelphia Fed GAC, the PMI proxy | Month `M` |
+| `baa_chg6` | Change of the monthly mean of `BAA10Y` over 6 months | Month `M` |
+| `lev` | Debt / LTM EBITDA at `t`, clipped to [0, 20] | First release of `t` |
+| sector | GICS sector from `gics_history` at `τ` | `available_at` ≤ `τ` |
+
+The code standardises each column with the train mean and standard deviation.
+
+### Models
+- Base "macro": the 5.2 logistic (`fit_decline_model`) on the five `m_t` columns and the sector.
+- Base "macro_lev": the same plus `lev`, because the proposed 5.2.1 adds issuer state.
+- S1: the base against the base without `sloos`.
+- S2: the base without `pmi` against (L) the base with `pmi`, and (I) the base with `pmi` and `pmi × cyclical`. Cyclical sectors: GICS 10, 15, 20, 25. All other sectors are defensive.
+- S3: for each F6 vote, the share of `D = 1` with the flag on at `τ` minus the share with the flag off. Votes: `hy_oas` (above its trailing 60-month median and up over 3 months), `distress_ratio` (above its trailing 60-month median), `sloos_tightening` (the last two readings positive), `pmi` (GAC below 0, not 50, because GAC is centred on 0). The medians need at least 6 months, because the panel starts in January 2008. Two combined flags: majority (more than half of the available votes) and `phase_vote` late (late_cycle or downturn). `default_rate_fcst` and issuance quality cannot be built.
+- S4: S1 and S3 on the windows 2008, 2015, and 2022. Two exclusions: drop rows whose `t` ends in 2020, or drop rows whose span from `t` to `t+4` touches 2020.
+
+### Scoring and pass rules
+1. Gain = log loss of the smaller model minus log loss of the larger model, per row. A positive gain means that the term helps. The page says "lower the log score". This study reads that phrase as "lower the log loss of the model that holds the term".
+2. Per window, report the row mean gain with a quarter-block bootstrap 95% interval (2,000 draws, seed 42), and the Brier gain.
+3. Per window, also average the gain across issuers within each quarter. Test the mean of that quarterly series with the EWC long-run variance (Lazarus, Lewis, Stock, Watson 2018): `Λ_j = sqrt(2/T) Σ_t cos(π j (t − ½)/T) u_t`, `Ω = (1/ν) Σ_{j=1..ν} Λ_j²`, `ν = max(1, floor(0.4 T^{2/3}))`, and a t distribution with `ν` degrees of freedom. The same test runs on the pooled quarterly series of all test windows.
+4. A term passes S1 or S2 when its gain is positive in at least 3 of 4 windows. A vote passes S3 when its difference is positive in at least 3 of 4 windows. In S4 the rule is at least 2 of 3 windows, and the output also shows 3 of 3.
+5. Next to each window count, report the Ibragimov–Müller t-test across the per-window values: `t = mean / (sd / sqrt(q))` with `q − 1` degrees of freedom, one-sided. A fair coin passes the 3-of-4 count with probability 5/16 = 31%.
+6. Report the results with and without the 2008 window.
