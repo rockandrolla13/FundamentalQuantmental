@@ -148,3 +148,34 @@ Write `tests/test_wt_tests.py` with four checks:
 4. The lead of each claim comes from the table above. The code cannot change it.
 
 The decision closes when the tables exist and this page records which claims passed.
+
+## Phase 1 results
+
+### H1: rising factory input prices (run 24 October 2026)
+Run: `PYTHONPATH=. python3 scripts/wt_tests.py --claim H1`. Output: `data/raw/backtest/wt_H1.json` (vendor-derived, out of git). Tests: `tests/test_wt_tests.py`.
+Signal: Philadelphia Fed prices paid (SA), quarter average, a 2-quarter rise above one standard deviation. Ten signal episodes: 1994Q2, 1999Q3, 2002Q2, 2004Q1, 2008Q1, 2009Q3, 2011Q1, 2016Q2, 2020Q4, 2025Q2.
+
+**Verdict: the claim failed.** None of the 30 outcome tests passed: 3 sectors, all firms and high-leverage firms, 5 outcomes each. In most cases the result is not just weak. It points the other way.
+
+What happened in the four quarters after a signal, industrials (all firms, about 500 a quarter):
+
+| Outcome | Claim | After a signal | Other quarters |
+|---|---|---|---|
+| EBITDA, change over 4 quarters | Falls | +15.3% on average. It fell in 1 of 10 episodes | +5.1% on average |
+| Sales growth, change | Slows | Sped up by 8.6 points on average. It slowed in 2 of 10 episodes | Slowed by 1.9 points |
+| Cost ratio (COGS / sales), 2 quarters | Rises | Fell by 0.4 points. It rose in 4 of 10 episodes | Fell by 0.1 points |
+
+Materials and consumer discretionary show the same pattern. After a signal, EBITDA grew by 29% (materials) and 13% (consumer) on average, against 2% and 6% in other quarters.
+
+Before and after the note date:
+1. **To 2011 (the period the notes could see):** weak support. With the controls in place, a one-standard-deviation rise in prices paid came before a 0.2-point rise in the industrial cost ratio over two quarters (t = +3.3). It also came before somewhat lower EBITDA growth (t = -1.8).
+2. **From 2012 (the true test):** the cost effect disappeared (t = -0.5). Sales growth went the opposite way to the claim and sped up (t = +5.2). Prices paid did improve the sales forecast (Clark-West t = +2.7), but with the sign reversed. A reversed sign is a fail under the pass rule.
+3. **High-leverage firms** (debt above 4x EBITDA) show no stronger margin squeeze. The closest case was the industrial cost ratio: t = +3.4 to 2011 and t = +1.5 after, with Clark-West p = 0.09. That is far from the Holm bar of 0.006.
+
+Why the claim fails, as far as the data shows:
+1. Most of the jumps in prices paid came in recoveries: 2004, 2009Q3, 2016Q2, 2020Q4. Strong demand pushed up input prices and sales together.
+2. Sales are in nominal dollars, so inflation itself raises reported sales. The margin and cost-ratio outcomes carry no such bias, and they show no squeeze either.
+
+Limits: `comp.fundq` is the current view, not point in time, so it measures outcomes after restatements. The survey seasonal factors are revised each year. Aggregates weight large firms more.
+
+**What we decide:** prices paid does not enter the model as a warning of lower EBITDA. The reverse reading would treat prices paid as a sign of recovery and stronger demand. That is a new claim and exploratory under rule 8. It needs its own decision page and |t| > 3 on fresh data before any use.

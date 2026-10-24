@@ -41,3 +41,6 @@ For this project the useful rows are the candidate leads into the macro vector `
 Use the rows as a list of candidate leads only. The test plan is `docs/decisions/2026-10-24-wt-relationship-tests.md`. Test each candidate lead on the HY panel before it enters `m_t` or a `β_sector` regression. A candidate passes when it adds out-of-sample information over `hy_oas`, `sloos_tightening`, `default_rate_fcst`, and `pmi`.
 
 Section touched: methodology 3.6, 5.2
+
+## Test results
+- H1 (prices paid → lower margins and sales): failed on 1994–2026 Compustat data, all three sectors. After a prices-paid jump, EBITDA and sales usually rose. Details: `docs/decisions/2026-10-24-wt-relationship-tests.md`, Phase 1 results.
