@@ -362,10 +362,25 @@ def clark_west(y: pd.Series, X_base: pd.DataFrame, X_full: pd.DataFrame, k: int,
             "oos_r2": float(1 - (ef**2).sum() / (eb**2).sum())}
 
 
-def cycle_means(z: pd.Series, y: pd.Series, sign: int) -> dict[int, float]:
-    """Claim-signed mean of z * (y - mean y) inside each cycle window. Positive = the claim held there."""
-    d = pd.DataFrame({"z": z, "y": y}).dropna()
-    d["y"] = d["y"] - d["y"].mean()
+CYCLE_CENTRE_MIN_OBS = 8  # quarters of known outcomes before a centre exists
+
+
+def cycle_centre(y: pd.Series, k: int) -> pd.Series:
+    """Centre of y at q: the mean of y_t over t <= q - k. The outcome y_t covers t..t+k, so it is known by q.
+
+    Replaces the full-sample mean (a look-ahead found in review, 24 October 2026). Uses no later data.
+    """
+    full = pd.period_range(y.index.min(), y.index.max(), freq="Q")
+    yy = y.reindex(full)
+    return yy.expanding(min_periods=CYCLE_CENTRE_MIN_OBS).mean().shift(k).reindex(y.index)
+
+
+def cycle_means(z: pd.Series, y: pd.Series, sign: int, k: int = 0) -> dict[int, float]:
+    """Claim-signed mean of z * (y - centre) inside each cycle window. Positive = the claim held there.
+
+    centre = cycle_centre(y, k): the mean of the outcomes known at q, k = the outcome horizon in quarters.
+    """
+    d = pd.DataFrame({"z": z, "y": y - cycle_centre(y.dropna(), k).reindex(y.index)}).dropna()
     out = {}
     for c, (a, b) in CYCLE_WINDOWS.items():
         sel = d[(d.index >= pd.Period(a, "Q")) & (d.index <= pd.Period(b, "Q"))]
@@ -389,7 +404,7 @@ def run_outcome(z: pd.Series, controls: pd.DataFrame, y: pd.Series, name: str, s
     reg = {"full": hac_regression(y, X, k), "claim_period": hac_regression(y[claim], X[claim], k),
            "holdout": hac_regression(y[hold], X[hold], k)}
     cw = clark_west(y, base, X, k)
-    cyc = cycle_means(z, y, sign)
+    cyc = cycle_means(z, y, sign, k)
     center = float(y.median()) if name.startswith("decline") else 0.0
     hb = reg["holdout"]["b"]
     holdout_sign_ok = bool(np.isfinite(hb) and np.sign(hb) == sign)
