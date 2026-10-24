@@ -1,113 +1,142 @@
-# Test the Wolfe Trahan relationships before any of them enters the macro layer
+# Test whether the Wolfe Trahan series predict issuer EBITDA and leverage
 
-Date: 24 October 2026. Status: proposed, no code yet. Data: `research/wolfe-trahan-2011-relationships.csv`. Card: `research/cards/wolfe-trahan-2011-macro-relationships.md`. Sections: methodology 3.6, 5.2; framework F6 (phase vote). Code that a survivor changes: `hy/macro.py` (`phase_vote`, the PMI map `50 + 4 zG`, `estimate_rho`).
+Date: 24 October 2026. Rewritten the same day: the main test is now issuer EBITDA, not the PMI. Status: proposed, no code yet.
+Data: `research/wolfe-trahan-2011-relationships.csv`. Card: `research/cards/wolfe-trahan-2011-macro-relationships.md`.
+Sections: methodology 3.6, 5.2; framework F6.
+Code that a survivor changes: `hy/forward.py` (`DEFAULT_DRIVER_LINKS`, `link_drivers`, `fit_sector_beta`, `fit_decline_model`) and `hy/macro.py` (`MacroPath.extra`).
 
-## Context
-The sheet holds 156 rows from 25 notes of 2011. Each row is a chart: series 1, shifted forward by n months ("Advanced nM") and sometimes flipped in sign ("Inverted"), laid over series 2. A chart is not a test. Five problems make a chart overlay unreliable:
-1. Both series are year-on-year changes or diffusion indexes. Both are persistent, so two unrelated series show large cross-correlations at many lags (Haugh 1976; Ferson, Sarkissian, Simin 2003).
-2. The analyst picked the lead (6M, 9M) by eye. That is a search over lags, and the chart shows only the winner.
-3. Overlapping year-on-year changes inflate the apparent fit. Standard errors that ignore the overlap overstate the evidence (Boudoukh, Richardson, Whitelaw 2008).
-4. The charts use today's data, not the data an investor had on the date. CPI and payrolls are revised (Croushore and Stark 2001).
-5. Leading-indicator relationships are unstable. Most published predictors of output and inflation work in one period and fail in the next (Stock and Watson 2003). In-sample fit does not imply out-of-sample skill (Rossi 2013; Goyal and Welch 2008).
+## The question in one sentence
+Does a change in a macro series today tell us that the companies in a sector will report lower (or higher) EBITDA, and so higher (or lower) leverage, six to twelve months from now? It must tell us more than the model already knows.
 
-The project already uses `pmi` as one of the six votes of the F6 phase classifier. Several rows claim that prices paid and CPI lead the ISM index by six to nine months. If that claim survives, the phase vote can move six months earlier. That is the main prize.
+## Why this question
+A macro series matters to a credit analyst only through the business of the borrower. The chain is:
+1. The economy changes. For example, factory input prices rise.
+2. Months later, the business feels it. Sales slow, or costs rise faster than prices, so EBITDA falls.
+3. The credit metrics move. Leverage (debt / EBITDA) rises and interest cover falls.
+4. Default risk rises, and the spread widens.
 
-## What the sources say, what the data says, what we decide
+A series that moves at step 1 warns us before the company reports step 2. That warning is what we test. The 2011 notes tested only steps 1 and 4, or one macro series against another. They never tested step 2.
 
-| Question | Wolfe Trahan (2011) | Literature | Status |
-|---|---|---|---|
-| Does inflation lead the business cycle? | Yes. CPI and prices paid, inverted, lead ISM by about 6 months (rows 82, 153) | Asset-price and inflation leads are unstable across periods (Stock and Watson 2003) | Untested on our data |
-| Do spreads follow or lead activity? | ISM leads Baa spreads (row 90) | Credit spreads lead activity, in real time (Gilchrist and Zakrajšek 2012; Faust, Gilchrist, Wright, Zakrajšek 2013) | Conflict. Test both directions |
-| Is rising inflation bad for credit? | Yes, through weaker leading indicators 6 months later | Credit excess returns have a positive inflation beta, larger for riskier bonds, 2004–2022 (Lu, Nozawa, Song 2025) | Both can hold at different horizons. Test the sign at h = 0 and at h = 6M |
-| Does sector rotation by cycle pay? | Yes. Early vs late cyclicals follow CPI (rows 73, 96) | The gain is small even with perfect cycle timing, and it vanishes after costs (Stangl, Jacobsen, Visaltanachoti 2009; Molchanov and Stangl 2023). Cyclical industries have a negative relation to expected inflation (Boudoukh, Richardson, Whitelaw 1994) | Use sector effects for scenario weights only, not as a trade |
-| Which yield curve? | The real curve (10Y minus CPI) beats 10Y minus Fed funds at the zero bound (row 112) | A near-term forward spread beats the long-term spreads (Engstrom and Sharpe 2019) | Race the three curves |
+## What the model does today
+The forward engine builds each case from drivers (framework F6, `Scenario` in `hy/forward.py`): revenue growth `g`, variable cost ratio `v`, SG&A ratio `a`, working capital days, and capex. The engine then rolls EBITDA, cash, debt, leverage, and covenants forward each quarter (`run_scenario`). Three facts about the macro link:
+1. Only revenue growth listens to the macro path: `DEFAULT_DRIVER_LINKS = {"g": "gdp_growth"}`.
+2. The link has no lag. One beta per sector ties revenue growth to GDP growth in the same quarter (`fit_sector_beta`).
+3. Costs do not listen to the macro path at all. No driver links `v` to input prices.
 
-## Options
-1. Use the rows as stated. Rejected: problems 1 to 5 above.
-2. Fit every row at every lag and keep the best. Rejected: this repeats the search that made the charts.
-3. Pre-register a short list. Fix sign, lead, and transform from the 2011 note. Test on point-in-time data. Treat everything after November 2011 as a true holdout. **Chosen.**
+The Wolfe Trahan series can fill both gaps. Demand series (new orders, housing, copper, KOSPI) can move revenue with a lag. Cost series (prices paid, oil, commodity prices, import prices) can move the cost ratio, which is the margin squeeze.
 
-The note dates give a clean holdout. The analyst could not see data after the note date, so a test on December 2011 onward is out of sample by construction. No lag search is allowed, so no multiple-lag correction is needed for the main test.
+Leverage needs no model of its own. Once the drivers move, the engine computes EBITDA, cash flow, debt, and leverage. A direct test of leverage change serves only as a cross-check.
 
-## Choice: eight hypotheses, one protocol
+## What the sources say, what we decide
+1. **The 2011 notes say:** inflation and prices paid lead the business cycle by six to nine months. They show charts only.
+2. **The literature says:** leading-indicator relationships often break down from one period to the next (Stock and Watson 2003). Credit spreads lead activity, not the reverse (Gilchrist and Zakrajšek 2012). Firms short of cash raised prices in 2008 while other firms cut them (Gilchrist, Schoenle, Sim, Zakrajšek 2017). So highly leveraged issuers may pass a cost shock to customers more than other firms do.
+3. **We decide:** test each claim on issuer financials, with the lead fixed from the note. Test separately for high-leverage firms, because of point 2.
 
-Triage first. Most of the 156 rows fall outside the scope of an HY analyst:
-- Equity-only relative value, for example semiconductors vs the S&P or wireless vs telecom. These are out of scope.
-- Data-source lists, such as the 12 freight series. These are candidate sector drivers, not hypotheses.
-- Narrative rows, for example "Do corporate profits still generate jobs?". These cannot be tested.
+## The eight claims to test
+Row numbers are rows of the sheet tab "WT Relationships" and the `sheet_row` column of the CSV.
 
-The eight hypotheses below map to an HY use. Row numbers are the rows of the sheet tab "WT Relationships" (row 1 is the header).
-
-| ID | Rows | Hypothesis (sign, lead) | Target | Use if it passes |
+| ID | Rows | Claim, in plain words | What it should move | Sectors |
 |---|---|---|---|---|
-| H1 | 38, 54, 153 | Survey prices paid, inverted, leads the survey activity index by 6M | `pmi` | Forward PMI vote in F6 |
-| H2 | 81, 82 | CPI YoY, inverted, leads the ISM by 6M | `pmi` | Replace the PMI map `50 + 4 zG` in `hy/macro.py` |
-| H3 | 90, 89 | ISM leads Baa and HY spreads, inverted. Reverse: spreads lead ISM | `hy_oas` change over 3M and 6M | Settles the direction. A spread lead strengthens the `hy_oas` vote |
-| H4 | 112, 110 | The real curve (10Y minus CPI), advanced 6M, leads ISM. Race it against 10Y minus 3M and the near-term forward spread | `pmi`, `default_rate_ttm` 12M ahead | Add the winner to `m_t` |
-| H5 | 49, 50 | Copper YoY and KOSPI YoY track the global PMI in real time | PMI release, nowcast error | Daily nowcast of `pmi` between releases |
-| H6 | 73, 94, 96, 152 | Falling CPI leads early (consumer) over late (industrial, energy, materials) cyclicals | Sector OAS change; sector share of 4-quarter EBITDA declines | Sector term `θ_sector × ΔCPI` in the 5.2 logistic |
-| H7 | 65, 133, 134 | Housing (NAHB, new home sales) leads housing-linked sectors | Homebuilder and building products OAS and EBITDA | `sector_drivers[]` for those sectors |
-| H8 | 78, 52 | Oil up leads energy over consumer discretionary | Energy vs consumer OAS; EBITDA declines | `sector_drivers[]`; the 2015 cycle is the key window |
+| H1 | 38, 54, 153 | Rising factory input prices squeeze margins at once and cut sales 6 to 9 months later | `v` within 0 to 2 quarters; `g` after 2 to 3 quarters | Industrials, materials, consumer |
+| H2 | 73, 82, 96 | Rising consumer inflation hurts consumer companies and helps commodity producers about 6 months later | `g` and EBITDA margin | Consumer discretionary vs energy and materials |
+| H3 | 52, 78 | Rising oil lifts energy EBITDA and squeezes fuel users | `g` for energy; `v` for transport and consumer | Energy, transport, consumer |
+| H4 | 58, 133, 134 | Housing activity leads housing-linked companies by 6 to 12 months | `g` and EBITDA | Homebuilders, building products |
+| H5 | 42, 49, 50 | Copper and the Korean stock market give a real-time read of global demand | `g` in the next 1 to 2 quarters | Materials, industrials |
+| H6 | 2, 4 | Rising factory new orders lead sales and earnings of manufacturing-linked companies | `g` in the next 1 to 2 quarters | Industrials, materials, autos |
+| H7 | 112 | The real yield curve (10-year yield minus CPI) warns of broad EBITDA declines a year ahead. Race it against the nominal curve and the near-term forward spread | Odds of a 4-quarter EBITDA decline | All |
+| H8 | 90 | Control: the series already in the model (`hy_oas`, `sloos_tightening`, `default_rate_fcst`, `pmi`) predict EBITDA declines at all | Odds of a 4-quarter EBITDA decline | All |
 
-### Protocol for each hypothesis
-1. **Fix the claim.** Write the sign, the lead `h`, and the transform from the note. Do not search over lags.
-2. **Use point-in-time data.** Read every series as of its release date. Set `available_at` to the release date. Use ALFRED or Philadelphia Fed vintages for CPI. ISM data is licensed: FRED deleted all 22 ISM series in June 2016. Use the Philadelphia Fed Manufacturing Business Outlook Survey as the free survey. It runs from May 1968 and has activity, new orders, and prices paid diffusion indexes. Use ISM only under a license.
-3. **Split the sample.** In-sample: up to the note date. This replicates the chart. Holdout: the month after the note date to the latest release. Report both. Only the holdout counts.
-4. **Measure.** Report three statistics:
-   - (a) The cross-correlation at lag `h` after a univariate ARMA filter of each series (Haugh 1976). This removes the spurious correlation of problem 1.
-   - (b) A predictive regression of the target change from `t` to `t+h` on `x_t`, the target's own lags, and the current `m_t`. Use Newey–West standard errors with at least `h` lags for the overlap. Also report a non-overlapping version.
-   - (c) An expanding-window forecast. Compare it with the benchmark: the own lags plus the current `m_t`. Report the out-of-sample R² and the Clark–West (2007) test for nested models.
-5. **Check stability.** Report the sign and the Clark–West statistic in each cycle window: 2008, 2015, 2020, 2022. Run a Bai–Perron (2003) break test on the slope.
-6. **Correct for eight tests.** Use the Holm correction at a 5% family-wise level. Any lag outside the pre-registered set is exploratory. Any such lag needs |t| > 3 (Harvey, Liu, Zhu 2016) and a new decision page.
+H8 comes first. If the current macro inputs do not predict EBITDA declines, the baseline is wrong. In that case, fix the baseline before you add any new series.
 
-### Pass rule
-A hypothesis passes when all three hold:
-1. The holdout sign matches the note.
-2. The holdout Clark–West p-value passes Holm at 5%.
-3. The sign holds in at least three of the four cycle windows.
+## The models
+Use them in this order. Each model fills one slot that the engine already has.
 
-The 2008 window is in-sample for the 2011 notes. So the holdout must also hold in at least two of 2015, 2020, and 2022.
+### M1. Driver response by quarter (local projections)
+For each sector `s` and each quarter ahead `h = 1 … 8`, regress the change in a driver on the series:
 
-### Second gate for HY use
-A passing series enters `m_t` only if it improves the 5.2 logistic out of sample. The target is the 4-quarter EBITDA-decline event. The measure is the log loss and the Brier score, by sector, against the current `m_t` (`hy_oas`, `sloos_tightening`, `default_rate_fcst`, `pmi`). A macro series never becomes a bond-level signal. It is common to every bond in a sector, so it sets scenario weights and sector tilts only. Bond selection stays with the fundamentals.
+```latex
+x_{i,t+h} - x_{i,t} = a_{s,h} + b_{s,h}\, X_t + c_{s,h}' m_t + d_{s,h}\,(x_{i,t} - x_{i,t-4}) + e_{i,t+h}
+```
 
-## How to read the results
-- **H1 or H2 passes.** The F6 PMI vote reads the expected PMI six months ahead, not the current PMI. The phase classifier turns earlier. Check that the earlier turn improves PD calibration by cycle phase.
-- **H3 shows that spreads lead ISM.** This is the expected result under Gilchrist and Zakrajšek. Keep `hy_oas` as the lead and drop ISM-to-spread claims.
-- **H6 to H8 pass.** Sector sensitivity enters the downside probability, not a sector rotation trade. The sector-rotation literature says that the trade loses after costs.
-- **A hypothesis fails.** Record the failure in the card with the statistics. The row leaves the candidate list. A failure is a result.
+`x` is revenue growth or the cost ratio of issuer `i`. `X_t` is the series as known at date `t`.
+Intuition: one regression per horizon traces how the driver responds quarter by quarter (Jordà 2005). That is the exact shape of the 8-quarter driver arrays in `Scenario`.
 
-## References to card before the tests run
-Each source below needs a card in `research/cards/` before a test cites it. Status gives what was checked on 24 October 2026.
+- The output replaces the single beta of `fit_sector_beta` with a path `b_{s,1} … b_{s,8}`. `link_drivers` then shifts each quarter by its own beta.
+- Add an interaction with a high-leverage flag. This tests whether HY issuers respond differently (Gilchrist et al. 2017).
+- Shrink each sector's betas toward the all-sector average when the sector has few issuers. A sector with ten issuers should not get its own noisy beta.
+- Standard errors: the series is the same for every issuer in a quarter. Errors must allow for correlation across issuers within a date and across nearby dates (Driscoll and Kraay 1998). Without this, the test overstates the evidence many times over.
 
-| Source | Role | Status |
+### M2. Odds of a large EBITDA decline (logistic model, already built)
+`fit_decline_model` already fits the probability that EBITDA falls by more than the issuer's moderate-downside amount within four quarters. Add `X_t` as a column of `m_t`. A series passes when the out-of-sample log loss and Brier score fall in at least three of the four cycle windows. This model sets the scenario weights (`scenario_weights`).
+
+### M3. Depth of the bad case (quantile regression)
+Today the severe downside is a fixed 1.5 times the moderate revenue decline (framework F6). Fit the 25th and 10th percentiles of the 4-quarter EBITDA change on `X_t` and `m_t`. Pool all issuers, with an issuer fixed effect.
+Intuition: bad conditions move the bad tail far more than the middle. Financial conditions shift the lower quantiles of GDP growth while the upper ones stay put (Adrian, Boyarchenko, Giannone 2019). The Federal Reserve staff used the same tool to stress-test bank losses: Covas, Rump, Zakrajšek (2014) found that it forecast crisis losses better than a linear model. If the fit beats the fixed rule out of sample, the moderate and severe cases take their depth from the 25th and 10th percentiles.
+
+### M4. Macro paths to feed in (scenario generators)
+The models above say how a business responds to a macro path. These sources supply the paths:
+1. **The five named paths of `hy/macro.py`** (soft landing, recession, higher for longer, disinflation rally, stagflation). Each tested series goes into `MacroPath.extra`, with a stated rule per path.
+2. **Historical replay.** Run each issuer through the actual macro paths of 2008, 2015 (oil), 2020, and 2022 (inflation). This is the plainest stress test. It also checks the model: the replayed EBITDA path should look like what issuers in those sectors reported.
+3. **The Federal Reserve supervisory scenarios.** The 2026 severely adverse scenario has a 4.6% fall in real GDP, unemployment at a 10% peak, and a corporate bond spread of 5.7 points. The Federal Reserve publishes the scenario and the history of each variable every year. It is a standard outside stress that nobody in this project designed.
+4. **Later, if needed: conditional forecasts from a vector autoregression** (Bańbura, Giannone, Lenza 2015). Shock one variable, for example oil up 50%, and the model fills in consistent paths for CPI, the PMI, and rates. Build this only when hand-written path rules disagree with each other.
+
+### M5. Fewer series, less overfitting (principal components)
+If more than a few series survive, compress them into two or three common factors (Stock and Watson 2002) and test the factors. Forty series and one hundred quarters will overfit.
+
+### M6. Portfolio summary per path (debt at risk)
+For each path, report the share of HY debt held by issuers whose interest cover falls below 1x, and the share whose leverage rises above the covenant level. The IMF reports corporate "debt at risk" this way. The engine already computes both numbers per issuer and quarter.
+
+## The rules for every test
+1. **Fix the claim before you look.** Take the sign and the lead from the 2011 note. Do not search over lags.
+2. **Use only what was known at the time.** Each macro value takes its release date as `available_at`. Each EBITDA takes its filing date. Use first-release vintages for CPI. ISM data is licensed: FRED deleted all ISM series in June 2016. Use the free Philadelphia Fed Manufacturing Business Outlook Survey (from 1968: activity, new orders, prices paid).
+3. **Use the note date as the cut.** Data up to November 2011 only replicates the chart. Data from December 2011 onward is a true out-of-sample test. Only that period counts.
+4. **Estimate on a broad panel and apply to HY.** HY issuers alone are few, and many file privately. Estimate on all firms in the sector with point-in-time quarterly financials. Use the high-leverage interaction to read off the HY response. Compustat reports quarterly cash-flow fields year to date, so difference them first.
+5. **Count the quarters, not the firms.** The macro series varies only over time. Twenty-five years give about one hundred quarters of macro information, however many firms the panel holds.
+6. **Beat the current model out of sample.** The benchmark is the current `m_t` plus the driver's own past. For the regression, use the Clark–West (2007) test. For the event model, use the log loss and the Brier score.
+7. **Require stability.** The sign must hold in at least three of the four cycle windows (2008, 2015, 2020, 2022), and in at least two of the three windows after the note date.
+8. **Correct for eight tests.** Use the Holm correction at 5%. Any lag outside the table is exploratory. It needs |t| > 3 (Harvey, Liu, Zhu 2016) and a new decision page.
+
+## How a result changes the model
+- **Passes on revenue (M1):** add the series to `DEFAULT_DRIVER_LINKS` for `g` in that sector, with the per-quarter betas.
+- **Passes on the cost ratio (M1):** add a new link from `v` to the series. This is the first macro link on costs.
+- **Passes on the odds (M2):** add the series to `m_t`. The scenario weights then move with it.
+- **Passes on the depth (M3):** the downside cases take their depth from the fitted percentiles.
+- **Fails:** record the statistics in the card. The claim leaves the list. A failure is a result.
+
+A macro series never becomes a reason to buy or sell one bond. It moves the drivers and the odds for every issuer in a sector. The issuer's own numbers still decide which bond is cheap.
+
+## References
+Status shows what was checked on 24 October 2026. Each source needs a card before a test cites it.
+
+| Source | Use here | Status |
 |---|---|---|
-| Trahan and Krantz (2011), *The Era of Uncertainty*, Wiley, 228 pp. | The published long form of the Wolfe Trahan framework | Catalogue record found; text not read |
-| Stock and Watson (2003), JEL 41, 788–829 | Instability of leading indicators; the yield spread is the exception | Abstract read |
-| Faust, Gilchrist, Wright, Zakrajšek (2013), REStat 95(5), 1501–1519 | Credit spreads lead activity in real time | Abstract read |
-| Gilchrist and Zakrajšek (2012), AER 102(4), 1692–1720 | Already on the reading list | Cited in `forecast-ice-hy-oas.md`; no card of its own |
-| Engstrom and Sharpe (2019), FAJ 75(4) | The near-term forward spread for H4 | Abstract read |
-| Goyal and Welch (2008), RFS 21(4), 1455–1508 | Out-of-sample discipline | Abstract read |
-| Clark and West (2007), J. Econometrics 138(1), 291–311 | The nested-model test | Abstract read |
-| Ferson, Sarkissian, Simin (2003), JF 58, 1393–1413 | Spurious regression with persistent predictors | Abstract read |
-| Boudoukh, Richardson, Whitelaw (2008), RFS 21(4), 1576–1605 | Overlapping-horizon artefacts | Abstract read |
-| Haugh (1976), JASA | Prewhitened cross-correlation | Title confirmed; volume and pages not confirmed |
-| Bai and Perron (2003), JAE 18(1), 1–22 | Break test | Abstract read |
-| Rossi (2013), *Handbook of Economic Forecasting* 2, 1203–1324 | Forecasting under instability | Abstract read |
-| Harvey, Liu, Zhu (2016), RFS 29(1), 5–68 | The t > 3 hurdle for exploratory lags | Abstract read |
-| Croushore and Stark (2001), J. Econometrics 105, 111–130 | Real-time vintages | Abstract read |
-| Boudoukh, Richardson, Whitelaw (1994), JF 49(5), 1595–1615 | Industry inflation sensitivity follows cyclicality | Abstract read |
-| Stangl, Jacobsen, Visaltanachoti (2009); Molchanov and Stangl (2023), IJFE | Sector rotation fails after costs | Working paper via an unofficial copy; journal version abstract only |
-| Lu, Nozawa, Song (2025), working paper | Positive inflation beta of credit excess returns | Abstract read from the AEA 2026 PDF |
-| Asvanunt and Richardson (2017), JFI 26(3), 6–24 | The credit risk premium varies with growth and default rates | Abstract read |
-| Jonsson and Fridson (1996), JFI; Helwege and Kleiman (1996), NY Fed *Current Issues* 2(6) | Macro and aging models of HY default rates | Seen through the NY Fed summary; Jonsson and Fridson not opened |
-| Merrill Lynch, "The Investment Clock" (about 2004) | Practitioner growth × inflation quadrants | Not verified. Primary source not found. Do not cite until found |
+| Jordà (2005), AER 95(1), 161–182 | M1, driver response by horizon | Abstract read |
+| Driscoll and Kraay (1998), REStat 80(4), 549–560 | M1 standard errors with a common time shock | Not checked today |
+| Gilchrist, Schoenle, Sim, Zakrajšek (2017), AER 107(3), 785–823 | Cash-short firms raise prices; HY cost pass-through | Abstract read |
+| Adrian, Boyarchenko, Giannone (2019), AER 109(4), 1263–89 | M3, macro moves the bad tail | Abstract read. A 2022 replication finds that the effect weakens on data to 2021 |
+| Covas, Rump, Zakrajšek (2014), IJF 30, 691–713 | M3, panel quantile stress test | Abstract read; volume and pages from a third-party listing |
+| Federal Reserve, 2026 supervisory stress test scenarios | M4, outside stress paths | Scenario release read; history tables exist in each year's document |
+| Bańbura, Giannone, Lenza (2015), IJF 31(3), 739–756 | M4, conditional paths | Abstract read |
+| Stock and Watson (2002), JBES 20(2), 147–162 | M5, factors from many series | Abstract read |
+| Foroni, Marcellino, Schumacher (2015), JRSS A 178(1), 57–82 | Monthly series into a quarterly target | Abstract read |
+| IMF, *Global Financial Stability Report*, October 2019 | M6, debt at risk at interest cover below 1x | Secondary sources only; primary annex not read |
+| Novy-Marx (2011), RoF 15(1), 103–134 | Operating leverage: why `v` and fixed costs set EBITDA sensitivity | Abstract read |
+| Stock and Watson (2003), JEL 41, 788–829 | Leading indicators are unstable | Abstract read |
+| Gilchrist and Zakrajšek (2012), AER 102(4), 1692–1720 | Spreads lead activity; H8 | Cited in `forecast-ice-hy-oas.md`; no card of its own |
+| Faust, Gilchrist, Wright, Zakrajšek (2013), REStat 95(5), 1501–1519 | Spreads predict activity in real time | Abstract read |
+| Engstrom and Sharpe (2019), FAJ 75(4) | H7, the near-term forward spread | Abstract read |
+| Clark and West (2007), J. Econometrics 138(1), 291–311 | Out-of-sample test for nested models | Abstract read |
+| Harvey, Liu, Zhu (2016), RFS 29(1), 5–68 | The t > 3 hurdle | Abstract read |
+| Croushore and Stark (2001), J. Econometrics 105, 111–130 | First-release data | Abstract read |
+| Trahan and Krantz (2011), *The Era of Uncertainty*, Wiley | The framework behind the notes | Catalogue record only |
 
 ## Test that settles it
-Write `scripts/wt_tests.py`. It reads the point-in-time panel and runs the protocol for H1 to H8. It writes one table per hypothesis with the in-sample and holdout statistics and the pass flag. Write `tests/test_wt_tests.py` with four checks:
-1. No series value enters with `available_at` after the decision date.
-2. On two independent AR(1) series, the prewhitened cross-correlation stays inside its 95% band in about 95% of draws.
-3. The Clark–West statistic is near zero when `x` adds nothing.
-4. The lead `h` comes from the hypothesis table and the code cannot change it.
+Write `scripts/wt_tests.py`. It builds the issuer-quarter panel from point-in-time data and runs H8 first, then H1 to H7, through M1 and M2. It writes one table per claim: the in-sample and out-of-sample statistics, the sign per cycle window, and a pass flag. M3 runs only when M2 passes for at least one claim.
 
-The decision closes when the table exists and this page records which hypotheses passed.
+Write `tests/test_wt_tests.py` with four checks:
+1. No value enters with `available_at` after the decision date.
+2. On a synthetic panel with a known effect of `X` on `v` two quarters ahead, M1 recovers the effect at `h = 2` and finds none at `h = 0`.
+3. On a synthetic panel with no effect, the date-correlated standard errors reject at about 5%. The issuer-only standard errors reject far more often, which shows why rule 5 matters.
+4. The lead of each claim comes from the table above. The code cannot change it.
+
+The decision closes when the tables exist and this page records which claims passed.
