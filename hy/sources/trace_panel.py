@@ -62,6 +62,7 @@ REPLACING_STATUS = CANCEL_STATUS + CORRECT_STATUS
 FLAT_PRICE = 50.0       # below this price a bond is treated as trading flat (no coupon accrual)
 LEV_CAP = 20.0          # leverage ceiling; EBITDA <= 0 with debt > 0 maps here
 MAX_STALE_DAYS = 270    # a fiscal quarter older than this at t is too old to use
+LTM_MAX_SPAN_DAYS = 300  # four consecutive quarter ends span about 274 days; a missing quarter makes it about 365
 PANEL_COLUMNS = [
     "date", "cusip", "cusip6", "ticker", "coupon", "maturity", "years", "price", "yield", "yield_source",
     "g_spread", "tsy_yield", "mod_dur", "n_trades", "par_volume", "bid_ask_pts", "bid_ask_source", "last_trade",
@@ -456,8 +457,8 @@ def leverage_as_of(vintages: pd.DataFrame, as_of: Any, max_stale_days: int = MAX
     """Issuer leverage as known at `as_of` (Section 4.3, plain basis): debt / LTM EBITDA before special items.
 
     Steps: keep versions with `available_at <= as_of` (the snapshot day after month end; rows without a snapshot
-    stay out); per fiscal quarter, the latest such version; per issuer, the four latest quarters, which must span
-    no more than 13 months; the latest quarter must be at most `max_stale_days` old. Debt is that quarter's
+    stay out); per fiscal quarter, the latest such version; per issuer, the four latest quarters, which must be
+    consecutive (span at most `LTM_MAX_SPAN_DAYS`, so a gap does not enter the LTM sum); the latest quarter must be at most `max_stale_days` old. Debt is that quarter's
     debt_current + debt_long_term. EBITDA <= 0 with positive debt maps to `LEV_CAP`; leverage is clipped to
     [0, LEV_CAP]. Intuition: the leverage a reader of the latest filed quarter would compute that day.
     """
@@ -480,7 +481,7 @@ def leverage_as_of(vintages: pd.DataFrame, as_of: Any, max_stale_days: int = MAX
     rev = g["revenue"].sum(min_count=4) if "revenue" in v else pd.Series(np.nan, index=ltm.index)
     out = pd.DataFrame({"ltm_ebitda": ltm, "ltm_revenue": rev, "debt": debt, "datadate": latest["datadate"],
                         "available_at": g["available_at"].max()})
-    ok = (n == 4) & (span <= 400) & ((t - out["datadate"]).dt.days <= max_stale_days) & out["debt"].notna()
+    ok = (n == 4) & (span <= LTM_MAX_SPAN_DAYS) & ((t - out["datadate"]).dt.days <= max_stale_days) & out["debt"].notna()
     out = out[ok].copy()
     lev = np.where(out["ltm_ebitda"] > 0, out["debt"] / out["ltm_ebitda"].where(out["ltm_ebitda"] > 0), LEV_CAP)
     out["leverage"] = np.clip(np.where(out["debt"] <= 0, 0.0, lev), 0.0, LEV_CAP)

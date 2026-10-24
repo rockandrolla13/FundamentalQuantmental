@@ -157,3 +157,14 @@ def test_leverage_caps_negative_ebitda_and_drops_stale_quarters():
     v["oibdp"] = -5.0
     assert tp.leverage_as_of(v, "2020-06-30").set_index("gvkey").loc["001", "leverage"] == tp.LEV_CAP
     assert tp.leverage_as_of(v, "2021-06-30").empty
+
+
+def test_leverage_needs_four_consecutive_quarters():
+    # Q3 2019 is missing: the four latest quarters (Q1, Q2, Q4 2019, Q1 2020) span 366 days and are not an LTM.
+    q = pd.to_datetime(["2019-03-31", "2019-06-30", "2019-12-31", "2020-03-31"])
+    v = pd.DataFrame([dict(gvkey="001", datadate=d, vintage=0, snapshot_available_at=d + pd.Timedelta(45, unit="D"),
+                           pit_exact=True, oibdp=25.0, debt_current=0.0, debt_long_term=300.0) for d in q])
+    assert tp.leverage_as_of(v, "2020-06-30").empty
+    full = pd.concat([v, v.iloc[[1]].assign(datadate=pd.Timestamp("2019-09-30"),
+                                           snapshot_available_at=pd.Timestamp("2019-11-14"))])
+    assert tp.leverage_as_of(full, "2020-06-30").set_index("gvkey").loc["001", "leverage"] == pytest.approx(3.0)
