@@ -44,3 +44,4 @@ Section touched: methodology 3.6, 5.2
 
 ## Test results
 - H1 (prices paid → lower margins and sales): failed on 1994–2026 Compustat data, all three sectors. After a prices-paid jump, EBITDA and sales usually rose. Details: `docs/decisions/2026-10-24-wt-relationship-tests.md`, Phase 1 results.
+- All claims, firm level (17,767 firms, equal weight): 3 of 87 tests pass the pre-set rule; 1 survives Holm across all tests (H1c: input-price jumps raise high-leverage industrials' cost ratio 0.2 points of sales). H2 and H3 hold in direction only. Write-up: `docs/writeup/wt_relationships.pdf`.

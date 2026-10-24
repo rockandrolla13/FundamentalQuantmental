@@ -179,3 +179,28 @@ Why the claim fails, as far as the data shows:
 Limits: `comp.fundq` is the current view, not point in time, so it measures outcomes after restatements. The survey seasonal factors are revised each year. Aggregates weight large firms more.
 
 **What we decide:** prices paid does not enter the model as a warning of lower EBITDA. The reverse reading would treat prices paid as a sign of recovery and stronger demand. That is a new claim and exploratory under rule 8. It needs its own decision page and |t| > 3 on fresh data before any use.
+
+### All claims, firm level (run 24 October 2026)
+The first H1 run summed firms into sector totals, so the largest firms dominated it. For example, the 8 largest firms make 46% of consumer discretionary sales. The rerun treats each firm as one equal observation.
+Run: `PYTHONPATH=. python3 scripts/wt_tests.py`. Figures: `scripts/wt_figures.py`. Write-up: `docs/writeup/wt_relationships.pdf`.
+Universe: 17,767 US non-financial firms and 446,255 firm-quarters with LTM sales above $40m, 1992 to 2026.
+
+Three tests per claim:
+- A: the average firm, all firms and high-leverage firms.
+- B: the group against a comparison group in the same quarter, which is the cross-section with quarter fixed effects.
+- C: whether each firm's own past sensitivity carries over (Fama–MacBeth).
+
+**Verdict:** 3 of 87 tests passed the rule set in advance. Only 1 survives Holm across all 87 tests.
+1. **H1c passes.** For high-leverage industrials, the cost ratio rises 0.22 points of sales per 1 sd jump in prices paid, within 2 quarters (t +3.7 to 2011, +3.1 after; Clark–West p = 0.0001). H1 on the level of prices paid fails (0 of 18 tests).
+2. **The H1 sales claim is reversed.** Sales sped up after prices-paid jumps (t +3.3 to +6.0 against the claim, after 2011). All 10 tests that went clearly the wrong way after 2011 are H1 or H1c.
+3. **H5k passes the rule but is borderline.** KOSPI leads materials sales growth (p = 0.006; high leverage p = 0.0006). It misses Holm across all 87 tests.
+4. **H2 and H3 hold in direction in both periods but give no forecast gain.** Inflation goes with weaker consumer EBITDA and margins. Oil goes with higher energy EBITDA and higher consumer costs.
+5. **H4, H5 (copper), H6, and H7 fail.** H4 and H7 hold only after 2011.
+6. **Baseline (H8):** the Baa spread change is weakly useful (high-leverage t +3.5 to 2011, +3.0 after; all firms 4 of 4 cycles). Bank lending standards predict EBITDA declines only to 2011 (t +5.3, then 0.0). The factory survey does not predict them at all.
+7. **Test C:** firm sensitivities carry over for prices-paid jumps on sales (slope 0.89, t 5.3), KOSPI on sales (0.38, t 4.0), and factory activity on declines (0.20, t 3.6).
+
+**What we decide:**
+1. No Wolfe Trahan series enters `m_t`.
+2. H2 and H3 set signs only in the stress paths of `hy/macro.py`.
+3. A new decision page reviews the 5.2 inputs `sloos_tightening` and `pmi` on the issuer universe.
+4. A sensitivity per issuer, shrunk toward its sector, is a candidate to replace `fit_sector_beta`. Test it before use.
