@@ -16,8 +16,8 @@
 \noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
 \textbf{The answer}
 \begin{enumerate}
-\item \textbf{\color{bad}Mostly no.} We ran 87 tests on 17,767 companies. Only 3 passed every rule we set in advance. Only 1 survives the strictest correction for running 87 tests.
-\item \textbf{\color{good}One small effect is real.} When factory input prices jump, the costs of highly leveraged industrial companies rise. The rise is about 0.2\% of sales within two quarters, for each standard deviation of the jump. It held before and after 2011.
+\item \textbf{\color{bad}Mostly no.} We ran 92 tests on 17,767 companies (87 had enough data for every statistic). Only 3 passed every rule we set in advance. After the robustness checks (Section~\ref{sec:robust}), none is robust.
+\item \textbf{One small effect survives the strictest test, but it is fragile.} When factory input prices jump, the costs of highly leveraged industrial companies rise by about 0.2\% of sales within two quarters. It is the only test that survives a correction across all 92 tests (Romano--Wolf $p$ = 0.024). It holds only when every company counts equally, and it disappears when companies are weighted by sales. So it is a small-company effect.
 \item \textbf{\color{bad}The sales claim was backwards.} The notes say input-price jumps come before slower sales. In fact, sales sped up after a jump ($t = +5.2$ after 2011). The jumps came at the start of recoveries.
 \item \textbf{\color{good}Two directions hold, but they do not improve forecasts.} High inflation went with weaker consumer EBITDA and margins. Rising oil went with higher energy EBITDA and higher consumer costs. Both held the claimed way in both periods. Neither added enough to a forecast to pass.
 \item \textbf{\color{bad}Two of the model's own macro inputs failed after 2011.} Bank lending standards and the factory survey did not predict company EBITDA declines after 2011. The Baa spread did a little.
@@ -102,6 +102,20 @@ The notes read a jump in input prices as a coming squeeze. In the data, most jum
 \end{figure}
 For input-price jumps and sales (slope 0.89, $t$ 5.3), the Korean stock market and sales (0.38, $t$ 4.0), and factory activity and EBITDA declines (0.20, $t$ 3.6), companies that reacted more before reacted more again. For most other signals the carry-over is near zero.
 
+
+\section{Robustness checks (added 24 October 2026)}\label{sec:robust}
+A second agent stress-tested the 12 results that passed or came close (\code{scripts/wt\_robustness.py}). \textbf{Verdict: none is robust. Seven are fragile and five fail.}
+\begin{enumerate}
+\item \textbf{Placebo signals.} The agent replaced each signal with shifted and resampled copies that keep its autocorrelation. Under these placebos, one test falsely passes the full rule in 0.3\% of draws. At least one of the 92 tests passes in 18.7\% of draws. Three or more pass in 2.2\% of draws, against our 3 real passes. But two of the three use the same signal on the same companies.
+\item \textbf{Correction for 92 tests.} Romano--Wolf and Benjamini--Yekutieli keep only H1c. Benjamini--Hochberg keeps 3.
+\item \textbf{Few-quarter inference.} With equal-weighted cosine errors (Lazarus, Lewis, Stock, Watson 2018), the holdout $t$ of H1c falls from 3.05 to 2.22. The bar for $p < 0.05/8$ with about 54 quarters is about 3.8.
+\item \textbf{Researcher choices.} Over 96 combinations of leverage cut-off, size floor, trimming, signal form, and weighting, H1c holds the claimed sign in 69\%. It is significant in 23\% ($|t| > 2$ after 2011 and Clark--West $p < 0.05$). With sales weights it disappears.
+\item \textbf{A look-ahead fix.} The cycle check used the full-sample mean. The fix changes no pass flag.
+\end{enumerate}
+
+\section{The model's own macro inputs on high-yield issuers (tests S1--S4)}
+A third agent ran the review tests of \code{docs/decisions/2026-10-24-review-sloos-pmi.md} on 16,906 issuer-quarters of 1,430 TRACE high-yield issuers, 2008--2026. Bank lending standards (S1), the factory survey as a level or by cyclical class (S2), and each phase vote (S3) failed the out-of-sample log-score rule. Leaving out 2020 (S4) did not rescue lending standards. After 2009, the full macro vector did not beat a model that uses the sector alone. The same agent found a defect: \code{hy/sources/trace\_panel.leverage\_as\_of} can sum four quarters that are not consecutive when a quarter is missing.
+
 \section{What it means for the model}
 \begin{enumerate}
 \item \textbf{Add no Wolfe Trahan series to the forecast inputs $m_t$ of the downside model.} None improves the forecast of company results reliably. The two passes are small (H1c) or borderline (H5k).
@@ -115,7 +129,7 @@ For input-price jumps and sales (slope 0.89, $t$ 5.3), the Korean stock market a
 \item The company data is Compustat's current view, after restatements. It shows what happened, not what investors saw first.
 \item Sales are in dollars, so inflation raises them. Cost ratios and margins do not have this bias.
 \item Some groups are small: about 55 housing-linked and 40 auto companies a quarter. The high-leverage tests for these groups have too few companies after 2011.
-\item With 87 tests, about 4 would show $p < 0.05$ by chance. Only 1 survives the strictest correction (Holm across all 87 tests).
+\item The family has 92 tests; 87 have every statistic. Under the null, at least one of the 92 passes the full rule in 18.7\% of placebo draws (Section~\ref{sec:robust}).
 \item GICS codes are today's. A company that changed sector counts in its current one.
 \item The signal transforms follow the charts in the notes. H1c is a second transform of the same claim.
 \end{enumerate}
