@@ -757,6 +757,8 @@ S7_{sector} = \big[\eta_{sector,t} - \hat{\eta}_{sector}(m_t)\big] - \theta\, \D
 
 A positive value means the sector is cheap against its macro forecast. Apply it as a tilt on every bond in the sector. Horizon one to three months. Failure mode: a macro forecast that is itself stale; use the consensus vintage date.
 
+**Test result (decision page `2026-10-24-s7-sector-tilt`).** S7 failed on the TRACE panel, 2010-2026, with theta = 0. The macro part `η̂` adds nothing to the sector spread (EWC t 1.4). S7 leaves the composite. The sector spread alone ranks sector returns before cost (rank IC +0.167, t 3.1), which is sector value, not macro.
+
 ### Composite, sizing, and the force rank
 
 Standardise each signal to unit variance per date. Combine with weights from the trailing information coefficient per signal and per cycle phase. Neutralise the composite to the index beta and to duration. Cap each position at a multiple of average daily volume from `trace_volume`.

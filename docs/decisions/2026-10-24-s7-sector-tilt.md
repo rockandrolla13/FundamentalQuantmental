@@ -38,4 +38,25 @@ the case weights. Gatto's judgement weights (p. 311) and the peer fair spread st
 
 ## Results
 
-Pending the first run.
+Run 2026-10-24. 11 GICS sectors, 1,954 sector-months, signals from 2010-12 (36 months of training). S7 fails all
+three rules at both horizons.
+
+| Measure | h = 3 months | h = 6 months |
+| --- | --- | --- |
+| P1: slope on -eta_hat (macro part), EWC t | +0.0016, t 1.44 | +0.0007, t 1.18 |
+| P2: rank IC of S7 against eta alone | +0.072 against +0.167 | +0.065 against +0.163 |
+| P3: top minus bottom tercile after cost | -0.70% a period; negative in 2015, 2020, 2022 | -0.69%; negative in 2020, 2022 |
+
+What the data says:
+
+1. The macro part of the sector spread does not predict sector returns. The sign is right, and the t is 1.4.
+2. The sector spread itself does. Wide sectors beat tight sectors before cost (rank IC +0.167, EWC t 3.1). This is
+   sector value, not macro.
+3. After a full round-trip cost on both legs every period, sector value loses money too. The cost rule is strict:
+   a desk rotates sectors at a lower cost than a full bond round trip each quarter.
+
+## Decision
+
+Door C stays shut. S7 leaves the composite. The macro layer keeps one role: named stress paths (Section 5.4) for the
+downside cases. Sector value (eta alone) goes to the backlog as a candidate signal, to test with a turnover-based
+cost.
