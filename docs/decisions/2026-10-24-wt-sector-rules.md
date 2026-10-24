@@ -195,7 +195,7 @@ West (2007), one-sided, on the losses of forecasts whose outcome is known before
 
 ### S7. The pass rule
 
-A rule passes on a layer when all five hold, out of sample:
+A rule passes on a layer when all four hold, out of sample. No cost test (user decision 2026-10-24: the question is predictive, not a trading cost analysis):
 
 1. **P1 direction.** `b > 0` with EWC one-sided p below 0.05.
 2. **P2 count of tests.** The Romano-Wolf stepdown p (Romano and Wolf 2005) across the 15 rules of that layer is
@@ -205,8 +205,6 @@ A rule passes on a layer when all five hold, out of sample:
 3. **P3 forecast gain.** The Clark-West p is below 0.05.
 4. **P4 cycles.** The mean of `zs_t * P` is above 0 in at least 3 of the 4 windows (2008, 2015, 2020, 2022). The
    stock layer adds 2001 (2001-01 to 2002-12) and needs 4 of 5. A window counts by the start date of the outcome.
-5. **P5 cost (bond layer only).** Hold the pair on the sign of `zs_t`, rebalance every h months, and pay the
-   round-trip cost of both legs at each rebalance. The mean net return is above 0.
 
 Layer 1 is judged on its primary outcome only: `d_ebitda_4` for R1-R8 and `d_roe_4` for R9-R15. It is judged twice,
 on all US firms and on HY issuers. The rule passes layer 1 if it passes on all US firms. The HY-issuer result says
@@ -232,7 +230,7 @@ whether it also holds where we invest.
 ### S10. Outputs
 
 1. `data/raw/backtest/wt_sector_rules.json`: per rule and layer, `b`, EWC t and p, Romano-Wolf p, Holm, Clark-West p,
-   cycle means, P1 to P5, the number of dates, and the in-sample (pre-2012) result.
+   cycle means, P1 to P4, the number of dates, and the in-sample (pre-2012) result.
 2. One figure per passing rule: the signal against the pair outcome at the three layers.
 3. A results section on this page and a LaTeX write-up with a one-line verdict per rule and the pattern table
    reading (fundamentals against bond returns).
