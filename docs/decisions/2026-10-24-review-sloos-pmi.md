@@ -107,3 +107,102 @@ The code standardises each column with the train mean and standard deviation.
 4. A term passes S1 or S2 when its gain is positive in at least 3 of 4 windows. A vote passes S3 when its difference is positive in at least 3 of 4 windows. In S4 the rule is at least 2 of 3 windows, and the output also shows 3 of 3.
 5. Next to each window count, report the Ibragimov–Müller t-test across the per-window values: `t = mean / (sd / sqrt(q))` with `q − 1` degrees of freedom, one-sided. A fair coin passes the 3-of-4 count with probability 5/16 = 31%.
 6. Report the results with and without the 2008 window.
+
+## Results (run 24 October 2026)
+Run: `HY_DATA_ROOT=<data/raw> PYTHONPATH=. python3 scripts/s_tests.py`. Output: `data/raw/backtest/s_tests.json`. Units: a log-loss gain is in thousandths of a nat per issuer-quarter. A positive gain means that the term helps. Brackets hold the 95% quarter-block bootstrap interval. "IM" is the Ibragimov–Müller test across windows. All numbers are for `δ = 20%` and the "exclude" attrition variant, unless a line says otherwise.
+
+**Verdict: S1, S2, and S3 fail. S4 gives a weak pass for `sloos_tightening` on one base only, under a rule that this study set.** A larger finding sits behind the tests. Outside 2008, the full `m_t` does not beat a model with the sector alone.
+
+### Sample
+| Step | Issuer-quarters |
+|---|---|
+| In the TRACE HY universe at `τ` (1,945 issuers) | 39,834 |
+| Removed: a quarter missing in the LTM window (mostly the comp_pit fiscal Q4 gap) | 11,312 |
+| Removed: first release more than 200 days after the quarter end (back-fill) | 479 |
+| Removed: LTM EBITDA not positive | 1,103 |
+| Removed: no outcome at `t+4` (5,406 of them with `t` in 2017–2025) | 8,197 |
+| Final (1,430 issuers), event rate 16.1% | 16,906 |
+
+Test rows per window: 2008: 1,819 (8 quarters). 2015: 2,056 (9). 2020: 740 (5). 2022: 701 (5). The 2008 window trains on 41,014 HY-like Compustat rows from 1994–2007 (event rate 24.1%).
+
+Trap counts at the vintage level (156,101 issuer-quarters in the cache):
+- No snapshot version: 20,557.
+- A missing quarter in the LTM window: 24,737 (17,105 of them in 2018–2025).
+- Year-to-date cash-flow fields: 0, because the event uses `oibdp`, an income-statement field.
+- TRACE timing: the universe uses only rows with `available_at` ≤ month end + 1 day.
+
+**Defect found in `hy/sources/trace_panel.leverage_as_of`.** The function accepts any four latest quarters that span 400 days or less. When a quarter is missing, it sums four quarters that are not consecutive and calls the sum LTM. This affects 22,122 issuer-quarters of the cache, and so it affects `leverage_full.parquet`. This study does not read `leverage_full`. It rebuilds LTM from the same vintages with a 250–300 day span. The defect needs its own fix and test.
+
+### Context: does `m_t` help at all?
+Gain of the full `m_t` over a sector-only model: 2008 +24.6 [−1.3, +55.6], 2015 −5.7 [−13.1, +1.6], 2020 −9.8 [−76.3, +60.7], 2022 −4.4 [−14.0, +1.4]. At `δ = 10%` and `δ = 30%`, the sign pattern is the same. So the 5.2 macro vector, as built here, helps in 2008 only. Each S test below removes or adds one column of a vector that does not beat its own null after 2009.
+
+### S1: `sloos_tightening` in `m_t`. Fail.
+| Window | Macro base | Macro + leverage base |
+|---|---|---|
+| 2008 | +2.9 [−4.9, +11.2] | −3.7 [−16.3, +9.4] |
+| 2015 | +14.2 [+2.0, +27.6] | +14.4 [+2.3, +28.0] |
+| 2020 | −36.2 [−83.4, +17.4] | −35.1 [−82.9, +18.6] |
+| 2022 | −5.2 [−11.1, −0.9] | −4.8 [−11.0, −0.3] |
+| Windows positive | 2 of 4 (IM t −0.56, p 0.69) | 1 of 4 (IM t −0.71, p 0.74) |
+| Pooled, quarterly EWC | +0.8, t −0.11 (ν 3), p 0.54 | −1.2, t −0.42 (ν 3), p 0.65 |
+
+Without 2008: 1 of 3 on both bases. At `δ = 10%` and `δ = 30%`: 1 of 4 on both bases. The Brier gains have the same signs.
+
+### S2: `pmi` as a level or with the cyclical class. Fail.
+| Window | Level | Level + `pmi × cyclical` |
+|---|---|---|
+| 2008 | +0.6 [+0.2, +1.0] | +10.2 [+5.4, +16.4] |
+| 2015 | −1.1 [−2.8, +0.9] | −1.9 [−5.0, +1.2] |
+| 2020 | +13.1 [+0.1, +23.9] | +13.6 [+0.5, +22.1] |
+| 2022 | −2.8 [−6.7, +0.6] | −3.0 [−7.8, +0.1] |
+| Windows positive | 2 of 4 (IM p 0.27) | 2 of 4 (IM p 0.17) |
+
+Macro base shown. The macro + leverage base gives the same counts. The cyclical form has a pooled gain of +4.3 [+0.7, +8.2], but the quarterly EWC test gives p 0.10. Without 2008, its pooled interval holds zero (+1.2 [−2.7, +5.9]). The gain rests on the two recession windows.
+
+### S3: the F6 votes. All fail.
+Difference in the share of `D = 1`, flag on minus flag off, in percentage points:
+
+| Vote | 2008 | 2015 | 2020 | 2022 | Positive | IM p | All rows pooled |
+|---|---|---|---|---|---|---|---|
+| `hy_oas` | +17.5 | −2.5 | +20.6 | −2.7 | 2 of 4 | 0.14 | +6.5 [+0.6, +13.1] |
+| `distress_ratio` | +19.1 | −0.8 | −13.8 | −7.5 | 1 of 4 | 0.54 | +10.8 [+6.7, +14.9] |
+| `sloos_tightening` | none | −6.8 | −20.5 | +1.1 | 1 of 3 | 0.85 | +4.7 [−0.3, +9.6] |
+| `pmi` (GAC < 0) | +13.3 | −2.4 | +16.3 | −0.3 | 2 of 4 | 0.13 | +7.3 [+3.0, +11.9] |
+| Majority of the four | +16.8 | −3.3 | +16.3 | −0.9 | 2 of 4 | 0.14 | +13.4 [+7.5, +19.0] |
+| `phase_vote` late | none | −9.5 | −13.8 | −7.5 | 0 of 3 | 0.98 | +6.1 [+2.7, +9.6] |
+
+"None" means that the flag was on for every row in the window. `sloos_tightening` was on through all of 2008–2009. In 2020 and 2022, `distress_ratio` and the phase flag were off for only 14 and 20 rows. Those differences rest on very few rows.
+
+Votes not built:
+- `default_rate_fcst` and `default_rate_ttm`: no point-in-time default forecast history exists in the data.
+- Issuance quality: no CCC share or cov-lite share history of new issues exists in the data.
+
+### S4: without 2020
+| Exclusion | Rows | S1 macro base | S1 macro + leverage | S3 |
+|---|---|---|---|---|
+| `t` in 2020 | 16,164 | 2 of 3 (2008 +2.9, 2015 +14.2, 2022 −9.2 [−19.9, −2.6]); IM p 0.37 | 1 of 3 | every vote 1 of 3 or less |
+| `t` to `t+4` touches 2020 | 15,399 | 2 of 3 (2022 −4.1 [−10.4, +1.4]); IM p 0.26 | 1 of 3 | every vote 1 of 3 or less |
+
+`sloos_tightening` passes the 2-of-3 count on the macro base only. The 2008 gain has an interval that holds zero. The 2022 gain is negative. The IM test does not reject. This is not evidence that the break is a 2020 artefact. The only clear positive window is 2015.
+
+### Attrition variant "exits"
+The exit rule changes 13 issuer-quarters in the universe (1 in a test window) and 68 Compustat training rows. All S1 to S3 counts stay the same. The largest move of a gain is 1.5 (S1, 2020, macro + leverage base: −35.1 to −36.6). The rule catches few exits. Only 75 of the 3,163 panel issuers have a deletion code of 02 or 03. Most issuers that left the file carry code 01 (acquisition, 839) or 10 (no SEC filings, 321). So the "exclude" sample still drops most defaults. The event rate is therefore biased down, most of all in 2008 and 2020.
+
+### Limits
+1. The per-window EWC tests have `ν = 1`, because each window holds 5 to 9 quarters. A t distribution with one degree of freedom has no power. Only the pooled EWC tests (`ν` = 2 or 3) carry weight.
+2. Four windows give the IM test three degrees of freedom. A fair coin passes the 3-of-4 count 31% of the time.
+3. `δ` is fixed, not the issuer's own `δ_i`.
+4. The 2008 window trains on Compustat's current view and uses the Baa spread for `hy_oas`.
+5. The trailing medians of the `hy_oas` and `distress_ratio` votes use only months from January 2008, so the 2008 flags compare the level with a short history.
+6. The PMI is a proxy (GAC), with the vote threshold at 0.
+7. The OOS-above-IS flag of the protocol fires in 2008 and 2015 for S1, and in 2008 and 2020 for S2. Each training set averages calm and stressed quarters. A crisis window then shows a larger gain than the in-sample mean. No look-ahead explains these cases. `assert_rows_pit` and the window split tests pass.
+8. The EWC formula follows the paper's abstract (`ν = 0.4 T^{2/3}`, `t_ν` critical values) and the standard type II cosine basis. Every online copy of the full text refused access (HTTP 403), so the cosine normalisation is not checked against the paper text. A unit test checks the size on white noise (5% nominal, 3% to 7% observed bound).
+
+### What we decide
+1. `sloos_tightening` leaves `m_t`. S1 fails on both bases and at all three `δ`. The S4 pass is too weak to justify a pandemic-exclusion rule. This page records it and opens no new page for it.
+2. `pmi` stays out of `m_t`, as 5.2.1 proposes. The cyclical form helps in the two recession windows only. It stays a candidate for T3 of 5.2.1, and it needs a fresh hold-out before any use.
+3. All four buildable F6 votes fail the rule of this page, so the rule removes them. That leaves the F6 phase vote with no tested vote. A new decision page must choose what sets the phase prior. One option is the fitted 5.2 logistic, which F6 already names. The pooled differences favour the votes (majority +13.4 points). But the rule was set before the test, and this page does not change it after the result.
+4. Before any of this enters code, the 5.2 model itself needs review. The full `m_t` does not beat the sector-only model after 2009. A change to `hy/macro.py` or `m_t` gets a test that fails on the old behaviour, as this page requires. This branch changes no model code.
+5. Fix `leverage_as_of`: require consecutive quarters. Rebuild `leverage_full`. Write a test with a missing fiscal Q4.
+
+The decision closes with this section.
