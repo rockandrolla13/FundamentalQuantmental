@@ -1,0 +1,390 @@
+\documentclass[10.5pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,booktabs,longtable,array,xcolor,enumitem,listings}
+\usepackage{hyperref}
+\hypersetup{colorlinks,linkcolor=blue!50!black,urlcolor=blue!50!black}
+\setlist{itemsep=1pt,topsep=2pt}
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,breaklines=true,frame=single,rulecolor=\color{gray!50},
+        backgroundcolor=\color{gray!6},xleftmargin=2pt,xrightmargin=2pt}
+\title{Production wiring guide: the HY Analyst on your own data}
+\author{FundamentalQuantmental}
+\date{25 October 2026}
+\begin{document}
+\sloppy
+\maketitle
+\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+\textbf{What this is.} The steps that connect the HY Analyst to your data on another machine, and the commands that
+run it end to end. No WRDS.
+
+\smallskip
+\textbf{What you do.} Export your data into fixed tables (section 4), build two panels (section 5), check the source
+(section 8), then run the commands of section 7.
+
+\smallskip
+\textbf{Source file.} \code{docs/production\_wiring.md}. The data kinds are defined in \code{docs/data\_contract.md}.}}
+\tableofcontents
+
+This guide connects the HY Analyst to your own data on another machine, then runs every part of it end to end. You need no WRDS. You export your data into a fixed set of tables, and the analyst reads them.
+
+\code{docs/\allowbreak{}data\_\allowbreak{}contract.md} defines every data kind. This guide tells you what to export, in which file, with which columns. It also gives the commands in order.
+
+\section{The picture}
+
+The analyst reads every input through one \code{DataView} at one decision time. One setting, \code{HY\_\allowbreak{}SOURCE}, chooses the source behind the view.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Data} & \textbf{Who supplies it} & \textbf{Where it goes}\\
+\midrule
+\endhead
+Issuers, quarterly financials, bonds, daily bond prices, HY index level, equity value, peer panels & You & Tables under \code{<HY\_\allowbreak{}DATA\_\allowbreak{}ROOT>/\allowbreak{}tables/\allowbreak{}} (section 4)\\
+SEC filings: facts, filing list, balance sheets and schedules, filing text, first-reported cash flows & Public SEC EDGAR & Read by the code, cached under \code{<HY\_\allowbreak{}DATA\_\allowbreak{}ROOT>/\allowbreak{}edgar/\allowbreak{}}\\
+US Treasury par curve & Public US Treasury, or your table & Read by the code, or \code{tables/\allowbreak{}treasury\_\allowbreak{}curve}\\
+Macro forecasts: SPF, FOMC SEP, SLOOS & Public Fed sites & Read by the code, cached under \code{<HY\_\allowbreak{}DATA\_\allowbreak{}ROOT>/\allowbreak{}forecasts/\allowbreak{}}\\
+Analyst judgement: archetype, ratings override & You & \code{data/\allowbreak{}analyst\_\allowbreak{}inputs/\allowbreak{}<TICKER>.yaml}\\
+\bottomrule
+\end{longtable}
+
+\code{HY\_\allowbreak{}SOURCE=hy.data.tables:make\_\allowbreak{}source} joins your tables with the public part. Each data kind asks your tables first. When a table does not hold the item, the public part answers. \code{scripts/\allowbreak{}check\_\allowbreak{}source.py} prints which part serves each kind.
+
+\section{The steps on the work machine}
+
+Run every command from the repository root.
+
+\begin{enumerate}
+\item Install the package.
+\begin{lstlisting}
+pip install -e ".[test]"
+python3 -m pytest -q
+\end{lstlisting}
+The tests need no data. Expect about 600 passes and 1 skip.
+\item Set the four settings (section 3).
+\item Export your data into the tables (section 4). Start with one issuer.
+\item Build the two large panels from your tables (section 5).
+\begin{lstlisting}
+python3 scripts/build_panels.py --start 2010-01-31 --end 2026-08-31
+\end{lstlisting}
+\item Check the source. Fix every failed \code{required} row, then run the check again.
+\begin{lstlisting}
+python3 scripts/check_source.py AAPL F --decision 2026-09-18
+\end{lstlisting}
+\item Run the backtests and the size calibration (section 7, rows 1 to 5).
+\item Run the issuer process and the memos (section 7, rows 6 and 7).
+\item Take a golden snapshot. Compare against it after each later change.
+\end{enumerate}
+
+Time: about one day for the export of one issuer and its bonds. The panels for the whole high yield universe take longer, because they cover every bond since 2008.
+
+\section{Settings}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Variable} & \textbf{Value} & \textbf{Effect}\\
+\midrule
+\endhead
+\code{HY\_\allowbreak{}SOURCE} & \code{hy.data.tables:make\_\allowbreak{}source} & Read your tables, then the public data. Unset means this machine's WRDS warehouse. A value \code{package.module:function} calls your own factory with the run's config.\\
+\code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT} & \code{/\allowbreak{}path/\allowbreak{}to/\allowbreak{}data} & The data root. Tables go in \code{tables/\allowbreak{}} under it. Caches, backtest outputs, calibration and process outputs go under it too.\\
+\code{HY\_\allowbreak{}OFFLINE} & \code{1} or unset & \code{1} forbids every network read. The code then reads only the caches and your tables.\\
+\code{SEC\_\allowbreak{}USER\_\allowbreak{}AGENT} & \code{Your Name your@email} & The SEC asks for a name and an email in each request.\\
+\code{PYTHONPATH} & \code{.} (some scripts need \code{.:scripts}) & The repository root on the import path.\\
+\bottomrule
+\end{longtable}
+
+\textbf{A machine without internet.} Set \code{HY\_\allowbreak{}OFFLINE=1}. Supply the Treasury curve as a table. Copy the folders \code{edgar/\allowbreak{}} and \code{forecasts/\allowbreak{}} under \code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT} from a machine with internet access: run \code{scripts/\allowbreak{}check\_\allowbreak{}source.py} there once for your tickers, and the code fills both caches. Without the SEC caches, the facts kind fails and step 1 stops for the issuer.
+
+\section{The tables}
+
+Put each table in \code{<HY\_\allowbreak{}DATA\_\allowbreak{}ROOT>/\allowbreak{}tables/\allowbreak{}} as \code{<name>.parquet} or \code{<name>.csv}. Parquet wins when both exist.
+
+Rules for every table:
+
+\begin{itemize}
+\item Rates, yields, spreads, coupons and returns are decimals. 0.065 means 6.5\%. 350 bp is 0.035.
+\item Amounts are USD millions. One exception: \code{par\_\allowbreak{}volume} in \code{bond\_\allowbreak{}obs} is in USD.
+\item Dates are calendar dates. Times are naive UTC.
+\item \code{available\_\allowbreak{}at} is the first moment the value was public. Never put a time earlier than the real release. The view refuses a value with \code{available\_\allowbreak{}at} after the decision time.
+\item Leave a cell empty when you do not have the value. Never write a zero for a missing amount.
+\item The issuer key \code{issuer\_\allowbreak{}id} is any string. Use the same key in every table and in every panel's \code{gvkey} column. On this machine the key is the Compustat gvkey.
+\end{itemize}
+
+The column "This machine" names the WRDS field that fills the column here. Use it to find the matching field in your data.
+
+\subsection{\code{issuers} (required)}
+
+One row per issuer that you run or that enters the peer panels.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.180\linewidth}>{\raggedright\arraybackslash}p{0.135\linewidth}>{\raggedright\arraybackslash}p{0.360\linewidth}>{\raggedright\arraybackslash}p{0.225\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{ticker} & text & The ticker that you pass to the run & Compustat \code{tic}\\
+\code{issuer\_\allowbreak{}id} & text & Your issuer key & Compustat \code{gvkey}\\
+\code{cik} & text, optional & SEC central index key. The SEC kinds need it for every issuer you run. & Compustat \code{cik}\\
+\code{name} & text, optional & Company name & Compustat \code{conm}\\
+\bottomrule
+\end{longtable}
+
+\subsection{\code{financials} (required)}
+
+One row per issuer, per fiscal quarter, per version. A restatement is a new row with the same \code{period\_\allowbreak{}end} and a later \code{available\_\allowbreak{}at}. The view keeps the latest version public at the decision time.
+
+Flows are for the 3-month quarter, not year to date. Balances are at the quarter end.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.180\linewidth}>{\raggedright\arraybackslash}p{0.135\linewidth}>{\raggedright\arraybackslash}p{0.360\linewidth}>{\raggedright\arraybackslash}p{0.225\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Required} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{issuer\_\allowbreak{}id} & yes & Issuer key & \code{gvkey}\\
+\code{period\_\allowbreak{}end} & yes & Fiscal quarter end & \code{datadate}\\
+\code{available\_\allowbreak{}at} & yes & First public time of this version: the 10-Q or 10-K acceptance time for a first version & EDGAR acceptance, else the Compustat point-in-time snapshot day\\
+\code{revenue} & yes & Revenue & \code{saleq}\\
+\code{ebitda\_\allowbreak{}reported} & yes & EBITDA after special items & \code{oibdpq + spiq}\\
+\code{ebitda\_\allowbreak{}adj\_\allowbreak{}company} & yes & EBITDA before special items. The leverage panel uses it. & \code{oibdpq}\\
+\code{special\_\allowbreak{}items} & no & Special items. A charge is negative. The add-back is minus this value. & \code{spiq}\\
+\code{special\_\allowbreak{}items\_\allowbreak{}cash} & no & True when the special items used cash & not given (False)\\
+\code{cash\_\allowbreak{}interest} & no & Interest paid & \code{intpnq} de-cumulated, else \code{xintq}\\
+\code{cash\_\allowbreak{}taxes} & no & Taxes paid & \code{txpdq} de-cumulated, else \code{txtq}\\
+\code{capex\_\allowbreak{}total} & no & Capital expenditure & \code{capxq} de-cumulated\\
+\code{capex\_\allowbreak{}maintenance} & no & Maintenance capex & not given (empty)\\
+\code{operating\_\allowbreak{}cash\_\allowbreak{}flow} & no & Cash from operations & \code{oancfq} de-cumulated\\
+\code{depreciation} & no & Depreciation and amortisation & \code{dpq}\\
+\code{cogs} & no & Cost of goods sold & \code{cogsq}\\
+\code{inventory}, \code{receivables}, \code{payables} & no & Working capital balances & \code{invtq}, \code{rectq}, \code{apq}\\
+\code{cash} & no & Cash and equivalents & \code{cheq}\\
+\code{debt\_\allowbreak{}current}, \code{debt\_\allowbreak{}long\_\allowbreak{}term} & no & Debt due inside one year, and the rest & \code{dlcq}, \code{dlttq}\\
+\code{revolver\_\allowbreak{}commitment}, \code{revolver\_\allowbreak{}drawn}, \code{letters\_\allowbreak{}of\_\allowbreak{}credit}, \code{borrowing\_\allowbreak{}base} & no & Credit line terms & not given\\
+\code{maturity\_\allowbreak{}y1} to \code{maturity\_\allowbreak{}y5} & no & Debt due in each of the next five years & not given\\
+\code{rent\_\allowbreak{}expense}, \code{pension\_\allowbreak{}underfunded}, \code{guarantees\_\allowbreak{}weak} & no & Lease cost and two debt-like claims & not given\\
+\code{ebitda\_\allowbreak{}covenant} & no & EBITDA under the credit agreement & not given (empty)\\
+\code{source} & no & Provenance text for the memo & \code{compustat\_\allowbreak{}pit+edgar}\\
+\bottomrule
+\end{longtable}
+
+A column that you leave out takes the value that this machine uses for it. That value is 0 for the six "not given" balance fields and the maturity schedule. The borrowing base then sets no cap. Every other left-out column is empty. An empty cell in a column that you give stays empty.
+
+The LTM figures need four consecutive quarters. With fewer, the LTM figures are empty and the memo lists open questions. With no quarter at all, steps 4 to 15 show as blocked for that issuer, with the reason. The run continues for the other issuers.
+
+\subsection{\code{bonds} (required)}
+
+One row per bond. The terms are static between issue and redemption.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{bond\_\allowbreak{}id} & Bond identifier, for example a CUSIP. Use the same value in \code{bond\_\allowbreak{}obs}. & TRACE \code{cusip\_\allowbreak{}id}\\
+\code{ticker} & The issuer's ticker, as in \code{issuers} & TRACE master \code{company\_\allowbreak{}symbol}\\
+\code{coupon} & Coupon rate, decimal & \code{cpn\_\allowbreak{}rt} / 100\\
+\code{maturity} & Maturity date & \code{mtrty\_\allowbreak{}dt}\\
+\code{seniority} & \code{senior\_\allowbreak{}unsecured}, \code{secured}, or another word & TRACE master\\
+\code{fixed}, \code{convertible} & True or False & TRACE master\\
+\code{grade} & Optional. \code{H} for high yield. & TRACE master\\
+\bottomrule
+\end{longtable}
+
+The analyst keeps fixed, non-convertible, senior unsecured or secured bonds. It applies this rule itself. Export every bond.
+
+\subsection{\code{bond\_\allowbreak{}obs} (required)}
+
+One row per bond and trade day.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{bond\_\allowbreak{}id} & As in \code{bonds} & \code{cusip\_\allowbreak{}id}\\
+\code{date} & Trade day & \code{trd\_\allowbreak{}exctn\_\allowbreak{}dt}\\
+\code{price} & Price per 100 face, volume weighted over the day & TRACE, par weighted\\
+\code{yield} & Yield to maturity, decimal, volume weighted. Empty when the bond trades flat. & TRACE \code{yld\_\allowbreak{}pt} / 100, par weighted\\
+\code{n\_\allowbreak{}trades} & Number of trades that day & count\\
+\code{par\_\allowbreak{}volume} & Par traded that day, in USD & sum of the par of the day's trades\\
+\code{available\_\allowbreak{}at} & When the day's prices became public & trade day + 1 day\\
+\code{bid\_\allowbreak{}ask\_\allowbreak{}pts} & Optional. Quoted bid-ask in price points. The backtest cost uses it. & dealer-side gap, else the day's high-low\\
+\bottomrule
+\end{longtable}
+
+The process reads the last 180 days before the decision. The panel builder reads the last 7 calendar days of each month. A dealer quote feed works too: put the mid price in \code{price}, the mid yield in \code{yield}, and 1 in \code{n\_\allowbreak{}trades}.
+
+\subsection{\code{hy\_\allowbreak{}index} (required)}
+
+One row per market date.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{date} & Market date & TRACE benchmark window end\\
+\code{available\_\allowbreak{}at} & When the level was public & date + 1 day\\
+\code{spread} & The high yield market spread, decimal. An index OAS such as ICE BofA H0A0 is fine. & TRACE benchmark median G-spread (\code{hy.state.hy\_\allowbreak{}index\_\allowbreak{}level})\\
+\code{distress} & Share of high yield bonds wider than 1,000 bp, decimal & \code{hy.state.distress\_\allowbreak{}ratio}\\
+\code{name} & Optional. How you made the level. & \code{TRACE HY benchmark}\\
+\bottomrule
+\end{longtable}
+
+The F6 phase vote reads the level now, 3 months ago, and once a year for 5 years. Give at least monthly rows for the last 5 years.
+
+\subsection{\code{market\_\allowbreak{}value} (optional)}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.198\linewidth}>{\raggedright\arraybackslash}p{0.405\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} & \textbf{This machine}\\
+\midrule
+\endhead
+\code{ticker} & Issuer ticker & \\
+\code{period\_\allowbreak{}end} & Quarter end of the price & \code{datadate}\\
+\code{available\_\allowbreak{}at} & Report date & \code{rdq}\\
+\code{value} & Price times shares, USD millions & \code{prccq x cshoq}\\
+\code{source} & Optional provenance & \\
+\bottomrule
+\end{longtable}
+
+Without it, the market TEV ratios of step 8 are empty.
+
+\subsection{\code{treasury\_\allowbreak{}curve} (optional)}
+
+Give it when the machine cannot reach \code{home.treasury.gov}, or when you prefer your own curve.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.270\linewidth}>{\raggedright\arraybackslash}p{0.630\linewidth}@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning}\\
+\midrule
+\endhead
+\code{date} & Curve date\\
+\code{available\_\allowbreak{}at} & When the curve was public (the US Treasury: the next day)\\
+one column per tenor & Par yield, decimal. The column name is the tenor in years, for example \code{0.0833}, \code{0.25}, \code{2}, \code{10}, \code{30}.\\
+\bottomrule
+\end{longtable}
+
+\section{The panels}
+
+The peer step (step 9) and the backtests read six panels from \code{tables/\allowbreak{}panels/\allowbreak{}}. Each has an \code{available\_\allowbreak{}at} column. \code{gvkey} holds your issuer key.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.144\linewidth}>{\raggedright\arraybackslash}p{0.540\linewidth}>{\raggedright\arraybackslash}p{0.216\linewidth}@{}}
+\toprule
+\textbf{Panel} & \textbf{Columns} & \textbf{Build}\\
+\midrule
+\endhead
+\code{bond\_\allowbreak{}panel} & \code{date} (month end), \code{cusip}, \code{gvkey}, \code{years}, \code{g\_\allowbreak{}spread}, \code{available\_\allowbreak{}at}. The backtests also read \code{price}, \code{yield}, \code{coupon}, \code{maturity}, \code{mod\_\allowbreak{}dur}, \code{tsy\_\allowbreak{}yield}, \code{bid\_\allowbreak{}ask\_\allowbreak{}pts}, \code{n\_\allowbreak{}trades}, \code{par\_\allowbreak{}volume}, \code{carried}, \code{accrue\_\allowbreak{}to}, \code{hedge\_\allowbreak{}date}. & \code{scripts/\allowbreak{}build\_\allowbreak{}panels.py}\\
+\code{leverage} & \code{date}, \code{gvkey}, \code{leverage}, \code{ltm\_\allowbreak{}ebitda}, \code{debt}, \code{available\_\allowbreak{}at} & \code{scripts/\allowbreak{}build\_\allowbreak{}panels.py}\\
+\code{gics} & \code{gvkey}, \code{gsector} (two-digit GICS sector), \code{indfrom}, \code{indthru} (empty while current), \code{available\_\allowbreak{}at} & Export\\
+\code{ratings} & \code{gvkey}, \code{datadate}, \code{splticrm} (letter on the S\&P scale: AAA to D with + and -), \code{available\_\allowbreak{}at} & Export\\
+\code{annual\_\allowbreak{}ebitda} & \code{gvkey}, \code{datadate}, \code{fyear}, \code{oibdp} (annual EBITDA before special items), \code{debt}, \code{available\_\allowbreak{}at} & Export (optional)\\
+\code{equity\_\allowbreak{}monthly} & \code{gvkey}, \code{datadate} (month end), \code{ret} (monthly total return, decimal), \code{available\_\allowbreak{}at} & Export (optional)\\
+\bottomrule
+\end{longtable}
+
+\code{scripts/\allowbreak{}build\_\allowbreak{}panels.py} applies this machine's rules to your tables:
+
+\begin{itemize}
+\item \code{bond\_\allowbreak{}panel}: per bond and month end, the par-weighted price and yield over the month's last 7 days, the G-spread on the Treasury curve dated on or before the month end, the duration, and the bid-ask. A bond gets one extra "carried" row in the month after its last price, so its return ends where its prices end.
+\item \code{leverage}: debt over LTM EBITDA before special items, as known at each month end plus one day. It needs four consecutive quarters, or three with the fourth scaled in.
+\end{itemize}
+
+Gaps: without \code{bond\_\allowbreak{}panel}, \code{leverage}, \code{gics} or \code{ratings}, step 9 has no peer cell. The fair spread then falls back to the HY index, and the memo says so. Without \code{annual\_\allowbreak{}ebitda}, SPiDER (E15) is empty. Without \code{equity\_\allowbreak{}monthly}, OneScore (E16) is empty.
+
+\section{Analyst inputs}
+
+Write one YAML per issuer in \code{data/\allowbreak{}analyst\_\allowbreak{}inputs/\allowbreak{}<TICKER>.yaml}. The file holds judgement, not data. The key that every issuer needs is the framework F2 archetype:
+
+\begin{lstlisting}
+archetype:
+  value: A5
+  source: "framework F2 A5 asset-heavy: airlines"
+\end{lstlisting}
+
+Copy the files in \code{data/\allowbreak{}analyst\_\allowbreak{}inputs/\allowbreak{}} as examples. Without an archetype, step 2 shows as blocked and asks for one. Run the scripts from the repository root, because the code finds this folder from there.
+
+\section{Run everything end to end}
+
+Set the variables of section 3 first. Run the rows in order. Each row needs the outputs of the rows above it.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.045\linewidth}>{\raggedright\arraybackslash}p{0.153\linewidth}>{\raggedright\arraybackslash}p{0.450\linewidth}>{\raggedright\arraybackslash}p{0.252\linewidth}@{}}
+\toprule
+\textbf{No.} & \textbf{Task} & \textbf{Command} & \textbf{Writes under \code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT}}\\
+\midrule
+\endhead
+1 & Alpha backtest replay & \code{python3 scripts/\allowbreak{}backtest\_\allowbreak{}alpha.py -{}-from-panels -{}-tag full -{}-start 2010-01 -{}-end 2026-08 -{}-h 3 6 12} & \code{backtest/\allowbreak{}results\_\allowbreak{}h*\_\allowbreak{}full.parquet}, \code{summary\_\allowbreak{}full.json}\\
+2 & Peer signals & \code{python3 scripts/\allowbreak{}backtest\_\allowbreak{}peers.py -{}-tag full} & \code{backtest/\allowbreak{}peer\_\allowbreak{}signals\_\allowbreak{}full.parquet}\\
+3 & Peer-line backtest & \code{python3 scripts/\allowbreak{}backtest\_\allowbreak{}peer\_\allowbreak{}line.py -{}-cost-bp 15} & \code{backtest/\allowbreak{}summary\_\allowbreak{}peer\_\allowbreak{}line\_\allowbreak{}*.json}\\
+4 & OneScore test & \code{python3 scripts/\allowbreak{}backtest\_\allowbreak{}onescore.py -{}-tag full} & \code{backtest/\allowbreak{}}\\
+5 & Size calibration & \code{python3 scripts/\allowbreak{}calibrate\_\allowbreak{}sizes.py} & \code{calibration/\allowbreak{}size\_\allowbreak{}calibration.json}\\
+6 & Issuer process & \code{python3 scripts/\allowbreak{}process.py -{}-tickers AAPL F -{}-pairs AAPL:F -{}-end 2026-09-17} & \code{process/\allowbreak{}<TICKER>.json}\\
+7 & Memos & \code{python3 scripts/\allowbreak{}memo.py} & \code{docs/\allowbreak{}writeup/\allowbreak{}issuer\_\allowbreak{}memos.tex}\\
+8 & Walk-forward replay & \code{PYTHONPATH=.:scripts python3 scripts/\allowbreak{}walkforward.py all -{}-tickers AAPL F -{}-pairs AAPL:F -{}-first 2024-03-31 -{}-last 2026-09-17} & \code{walkforward/\allowbreak{}}\\
+9 & Golden snapshot & \code{PYTHONPATH=.:scripts python3 scripts/\allowbreak{}golden\_\allowbreak{}check.py snapshot -{}-tickers AAPL F -{}-pairs AAPL:F -{}-end 2026-09-17} & \code{golden/\allowbreak{}}\\
+\bottomrule
+\end{longtable}
+
+\code{-{}-end} is the last trade day of your bond data. The run decides at the next day, with the filings known by then.
+
+Rows 1 to 5 are optional for a first run. Without them, step 14b uses the spec S14b v0 slope, and the memo says so.
+
+The snapshot saves its tickers, pairs and end date. \code{golden\_\allowbreak{}check.py check} reruns the same run and compares every number. Run the check after each change that must not move a number. Your numbers will differ from this machine's numbers, because the data differs. They must not move between your own runs.
+
+\section{When the check fails}
+
+\code{scripts/\allowbreak{}check\_\allowbreak{}source.py} writes \code{check\_\allowbreak{}source.csv} under the data root. Fix the failed rows in this order.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.153\linewidth}>{\raggedright\arraybackslash}p{0.297\linewidth}>{\raggedright\arraybackslash}p{0.450\linewidth}@{}}
+\toprule
+\textbf{Failed row} & \textbf{Detail says} & \textbf{Fix}\\
+\midrule
+\endhead
+\code{issuer} & missing \code{cik} & Add the SEC CIK to \code{issuers}. The SEC kinds need it.\\
+\code{financials} & fewer than 4 quarters & Export more quarters. Check that \code{issuer\_\allowbreak{}id} matches \code{issuers}.\\
+\code{financials} & expect USD millions & Divide amounts in dollars by 1,000,000.\\
+\code{facts} & unavailable, HTTP or NetworkDisabled & Allow access to \code{data.sec.gov} and \code{www.sec.gov}, or copy the \code{edgar/\allowbreak{}} cache. Set \code{SEC\_\allowbreak{}USER\_\allowbreak{}AGENT}.\\
+\code{facts} & missing keys & A custom facts source left out a key of \code{hy.data.source.FACT\_\allowbreak{}KEYS}. Add the key; its value may be None.\\
+\code{observations} & expect yield decimal & Divide yields in percent by 100.\\
+\code{observations} & no observations in the last 180 days & Check the \code{date} range and \code{available\_\allowbreak{}at}.\\
+\code{bonds} & expect decimals & Divide coupons in percent by 100.\\
+any & look-ahead & \code{available\_\allowbreak{}at} is later than the decision time for a record the source returned. Use the real release time.\\
+\code{curve} & unavailable & Allow access to \code{home.treasury.gov}, or give \code{treasury\_\allowbreak{}curve}.\\
+\code{hy\_\allowbreak{}index} & expect decimal & Divide spreads in percent by 100, or spreads in bp by 10,000.\\
+\bottomrule
+\end{longtable}
+
+\section{Your own class instead of tables}
+
+A database connection can replace the tables. Write a factory that returns a source object, then name it in \code{HY\_\allowbreak{}SOURCE}:
+
+\begin{lstlisting}
+# mydata/hy_source.py
+from hy.data.sources import CompositeSource, PublicSource
+
+class MyVendor:
+    def __init__(self, cfg): ...
+    def issuers(self, tickers): ...          # list[hy.data.records.Issuer]
+    def financials(self, issuer): ...        # list[IssuerFinancials], every version
+    def bonds(self, issuer): ...             # list[Bond]
+    def observations(self, bonds, start, end): ...  # frame with BOND_OBS_COLUMNS
+    def hy_index(self, on): ...              # IndexLevel public at `on`
+    def market_value(self, issuer, decision_time): ...
+    def panel(self, name, columns=None): ...  # frames with PANEL_COLUMNS[name]
+
+def make_source(cfg):
+    mine = MyVendor(cfg)
+    return CompositeSource(mine, PublicSource(cfg, fundamentals=mine, market=mine))
+\end{lstlisting}
+
+Then set \code{HY\_\allowbreak{}SOURCE=mydata.hy\_\allowbreak{}source:make\_\allowbreak{}source}. \code{hy/\allowbreak{}data/\allowbreak{}tables.py} is a full example. A method that cannot supply an item raises \code{hy.data.pit.DataUnavailable}. The composite source then asks the next part.
+
+\section{Limits}
+
+\begin{itemize}
+\item The SEC facts come from US SEC filings. A private issuer, or an issuer that files outside EDGAR, has no facts. Step 1 then stops for that issuer. Supplying the facts yourself needs a source with a \code{facts} method that returns all the keys of \code{FACT\_\allowbreak{}KEYS}.
+\item The peer panels define the peer universe. A thin universe gives thin peer cells.
+\item The study scripts (\code{scripts/\allowbreak{}wt\_\allowbreak{}*.py}, \code{s\_\allowbreak{}tests.py}, \code{s7\_\allowbreak{}sector\_\allowbreak{}tilt.py}, \code{pull\_\allowbreak{}sector\_\allowbreak{}data.py}) read this machine's warehouse files directly. They are research, not the production run, and this guide does not cover them.
+\item \code{scripts/\allowbreak{}rv\_\allowbreak{}pair.py} keeps a WRDS query for the benchmark band of one figure. The process does not use it.
+\item When every issuer of a run drops out at step 1, \code{process.run} stops with \code{KeyError: 's5'}. The walk-forward records such a date as failed and continues. Check the step 1 message of each issuer.
+\item The study script \code{scripts/\allowbreak{}wt\_\allowbreak{}sector\_\allowbreak{}rules.py} assigns a firm's first GICS sector to dates before that sector was published. That is a look-ahead in a research script, outside the production run.
+\end{itemize}
+\end{document}

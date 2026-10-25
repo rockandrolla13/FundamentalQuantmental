@@ -116,7 +116,7 @@ Flows are for the 3-month quarter, not year to date. Balances are at the quarter
 
 A column that you leave out takes the value that this machine uses for it. That value is 0 for the six "not given" balance fields and the maturity schedule. The borrowing base then sets no cap. Every other left-out column is empty. An empty cell in a column that you give stays empty.
 
-The run needs at least four consecutive quarters for the LTM figures. With fewer, steps 4 to 15 show as blocked for that issuer, with the reason. The run continues for the other issuers.
+The LTM figures need four consecutive quarters. With fewer, the LTM figures are empty and the memo lists open questions. With no quarter at all, steps 4 to 15 show as blocked for that issuer, with the reason. The run continues for the other issuers.
 
 ### 4.3 `bonds` (required)
 
