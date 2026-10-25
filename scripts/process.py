@@ -43,7 +43,7 @@ from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG
 from hy.data.pit import DataUnavailable  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.factory import open_view  # noqa: E402
 from hy.data.view import DataView  # noqa: E402  # noqa: E402
 
 RAW = CONFIG.root
@@ -100,8 +100,31 @@ def _f(x, nd=2):
 # ---------------------------------------------------------------------------------------------------------------
 
 
+# How the memo names the data: this machine's vendor names for the warehouse source, neutral names plus the serving
+# part for any other source (docs/production_wiring.md), so a memo never credits data it did not read.
+WAREHOUSE_LABELS = {"special_items": "Compustat spiq (PIT)", "one_special_line": "Compustat gives one special-items line",
+                    "bonds": "TRACE via WRDS, last 10 days", "bond_data": "TRACE", "coupons": "TRACE coupons",
+                    "panel": "the TRACE panel"}
+
+
+def data_labels(view: DataView) -> dict[str, str]:
+    """The memo's names for the data kinds that the run's source served."""
+    src = view.source
+    if type(src).__name__ == "WarehouseSource":
+        return WAREHOUSE_LABELS
+    parts = src.served_by() if callable(getattr(src, "served_by", None)) else {}
+
+    def by(kind: str) -> str:
+        return parts.get(kind) or type(src).__name__
+    return {"special_items": f"special items of the quarterly financials ({by('financials')})",
+            "one_special_line": "the financials give one special-items line",
+            "bonds": f"bond observations ({by('observations')}), last 10 days", "bond_data": "the bond data",
+            "coupons": "bond coupons", "panel": "the bond panel"}
+
+
 def step_inputs(t, decision, start, end, view: DataView) -> tuple[Step, dict]:
     blk = rv_pair.issuer_block(t, decision, start, end, view=view)
+    blk["_labels"] = data_labels(view)
     inputs = blk["inputs"]
     s = Step("1 Inputs", "Methodology 3; framework R5")
     s.outputs = {"filing": blk["filing"], "bonds_priced": int(len(blk["bonds"])), "curve_basis": blk["basis"],
@@ -110,7 +133,8 @@ def step_inputs(t, decision, start, end, view: DataView) -> tuple[Step, dict]:
                                                                       "q", "k", "archetype")}
     if blk["bonds"].empty:
         s.status = "partial"
-        s.open_questions.append("No priced bond in TRACE for this issuer: spreads and alpha cannot be read.")
+        s.open_questions.append(f"No priced bond in {blk['_labels']['bond_data']} for this issuer: spreads and alpha "
+                                "cannot be read.")
     return s, blk
 
 
@@ -290,14 +314,15 @@ def step_normalise(blk, decision, view: DataView) -> Step:
         if chk["fcf_check_flag"]:
             s.outputs["eq_flags"]["FCF check (waterfall against OCF less capex)"] = True
             s.outputs["eq_score"] += 1
-    s.sources = {"ebitda": ci.sources(blk["inputs"]).get("ltm_ebitda", ""), "special_items": "Compustat spiq (PIT)",
+    s.sources = {"ebitda": ci.sources(blk["inputs"]).get("ltm_ebitda", ""), "special_items": blk["_labels"]["special_items"],
                  "addback_rule": "ebitda-addback-treatment skill", "bridge": "Kricheff ch. 9, 10"}
     if filled:
         s.sources["cash_flow_gap_fill"] = filled
     s.status = "partial"
     s.open_questions += [
         "Add-back table by class C1 to C10: read the company's adjusted EBITDA reconciliation (8-K exhibit 99); "
-        "Compustat gives one special-items line, so the 5% test runs on the total.",
+        f"{blk['_labels']['one_special_line'][0].upper()}{blk['_labels']['one_special_line'][1:]}, so the 5% test "
+        "runs on the total.",
         "Cash share of the special items (decision page 2026-10-21-fcf-cash-nonrecurring sets 0 until read).",
         "Covenant EBITDA definition from the credit agreement (methodology 4.6).",
     ]
@@ -351,7 +376,7 @@ def funding_and_refi(blk, sc_out, info, start_, mac, s5) -> dict:
     bonds = blk["bonds"]
     near = bonds[bonds["maturity_years"] <= 2.25] if len(bonds) else bonds
     c_old = float(near["coupon"].mean()) if len(near) else float(info["rate"])
-    c_old_src = "TRACE coupons of bonds due inside 27 months" if len(near) else "derived cash interest rate (LTM interest / debt)"
+    c_old_src = f"{blk['_labels']['coupons']} of bonds due inside 27 months" if len(near) else "derived cash interest rate (LTM interest / debt)"
     lines = [ln for ln in start_.debt_lines if ln.maturity_q and ln.maturity_q <= H]
     shock = {}
     for p in mac.paths.paths:
@@ -559,7 +584,7 @@ def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), 
                           "kricheff": k, "sp": bb["sp"]})
         if view is not None:  # the covenant levels come from the filing text
             s.outputs.update(covenant_block(blk, liq or {}, ltm, view))
-    s.sources = {"debt": r.extra["debt_source"], "bonds": "TRACE via WRDS, last 10 days",
+    s.sources = {"debt": r.extra["debt_source"], "bonds": blk["_labels"]["bonds"],
                  "ratios": "Kricheff ch. 10; S&P ch. 5 and 10", "covenants": "10-Q then 10-K text (covenant-compliance skill)"}
     s.status = "partial"
     s.open_questions += ["Face amount of each tranche and the secured debt ahead of the bonds (debt note table).",
@@ -644,7 +669,7 @@ def step_valuation(blk, mcap_src: tuple) -> Step:
     return s
 
 
-def step_rv(t, xs, s_index: float, lev_gross=None) -> Step:
+def step_rv(t, xs, s_index: float, lev_gross=None, labels: dict | None = None) -> Step:
     """Step 9: the bond against its sector peers and the HY index (methodology 7.2, 7.4; decision page
     2026-10-23-peer-fair-spread). z_rv = log(s / fair) / the peers' robust sd of log spread."""
     s = Step("9 Relative value", "Methodology 7.4")
@@ -657,7 +682,7 @@ def step_rv(t, xs, s_index: float, lev_gross=None) -> Step:
                  "dts_beta": _f(fairspread.dts_beta(row["s5"], s_index)),
                  "spt_total": _f(books.spread_per_turn_bp(row["s5"] * 1e4, lev_gross), 1) if lev_gross else None,
                  "fair_basis": row["fair_basis"],
-                 "fair_line": ("median 5-year spread of sector x rating x maturity peers on the TRACE panel"
+                 "fair_line": (f"median 5-year spread of sector x rating x maturity peers on {(labels or WAREHOUSE_LABELS)['panel']}"
                                if row["fair_basis"] == "sector peers" else "HY index spread (no peer cell)")}
     s.status = "partial"
     s.open_questions.append("Rating-index and sector-index spreads (F12 full memo, section 9): no licensed source.")
@@ -1303,7 +1328,7 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
     end = pd.Timestamp(end_str)
     decision = end + pd.Timedelta(1, unit="D")
     start = (end - pd.Timedelta(rv_pair.HISTORY_DAYS, unit="D")).strftime("%Y-%m-%d")
-    view = view.at(decision) if view is not None else DataView(WarehouseSource(CONFIG), decision)
+    view = view.at(decision) if view is not None else open_view(decision)
     mac = scenarios.live_paths(view, decision, end)
     curve_now = view.curve().as_row()  # the latest Treasury curve public at the decision time
     steps_all, blocks, fits = {}, {}, {}
@@ -1374,7 +1399,8 @@ def run(tickers, end_str, pairs, out_dir: Path | None = None, figures: bool = Tr
         st["6"] = step_clocks(blk)
         st["7"] = step_cases(sc_out)
         st["8"] = step_valuation(blk, (mcap, mcap_src))
-        st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"))
+        st["9"] = step_rv(t, xs, mac.s_index_now, lev_gross=st["5"].outputs.get("lev_gross"),
+                          labels=blocks[t]["_labels"])
         st["10"] = step_alpha(sc_out, ref)
         st["11"] = step_gate(t, st, xs, sc_out, ref)
         st["12"] = step_events(blk, decision, view, st, sc_out)

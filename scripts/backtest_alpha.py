@@ -10,6 +10,11 @@ Steps:
 Run from the repo root (WRDS access needed for uncached months):
     PYTHONPATH=. python3 scripts/backtest_alpha.py --start 2019-01 --end 2026-08 --tag pilot
     PYTHONPATH=. python3 scripts/backtest_alpha.py --start 2008-01 --end 2026-08 --tag full
+
+On a machine without WRDS, `--from-panels` skips steps 1 and 2 and reads the `bond_panel` and `leverage` panels of
+the run's source instead (docs/production_wiring.md; build them with scripts/build_panels.py):
+    HY_SOURCE=hy.data.tables:make_source PYTHONPATH=. python3 scripts/backtest_alpha.py --from-panels --tag full \
+        --start 2010-01 --end 2026-08 --h 3 6 12
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_panel as tp  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
+from hy.data.history import history_view  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "backtest"
@@ -78,6 +84,21 @@ def build_inputs(months: list[pd.Timestamp], workers: int) -> tuple[pd.DataFrame
     timing["fundamentals_pull_s"] = time.time() - t0
     fund = tp.leverage_history(vint, months)
     return panel, fund, timing
+
+
+def inputs_from_panels(months: list[pd.Timestamp]) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """The panels that the run's source serves, cut to `months` (a carried exit row may fall one month later). No
+    TRACE pull and no WRDS. A panel built from issuer tables links every bond, so `link_source` is "issuer_table"."""
+    view = history_view()
+    panel, fund = view.panel("bond_panel"), view.panel("leverage")
+    last = months[-1] + pd.offsets.MonthEnd(1)
+    panel = panel[(panel["date"] >= months[0]) & (panel["date"] <= last)].reset_index(drop=True)
+    fund = fund[fund["date"].isin(months)].reset_index(drop=True)
+    if "link_source" not in panel:
+        panel["link_source"] = "issuer_table"
+    if "cusip6" not in panel:
+        panel["cusip6"] = panel["cusip"].astype(str).str[:6]
+    return panel, fund, {"source": "panels through the data view"}
 
 
 def coverage(panel: pd.DataFrame, fund: pd.DataFrame) -> dict:
@@ -285,12 +306,13 @@ def main() -> None:
     ap.add_argument("--h", type=int, nargs="+", default=[3, 6])
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--tag", default="pilot")
+    ap.add_argument("--from-panels", action="store_true", help="read the source's panels; no TRACE pull, no WRDS")
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     FIG.mkdir(parents=True, exist_ok=True)
     months = tp.month_ends(a.start, a.end)
     t_all = time.time()
-    panel, fund, timing = build_inputs(months, a.workers)
+    panel, fund, timing = inputs_from_panels(months) if a.from_panels else build_inputs(months, a.workers)
     panel.to_parquet(OUT / f"panel_{a.tag}.parquet", index=False)
     fund.to_parquet(OUT / f"leverage_{a.tag}.parquet", index=False)
     cov = coverage(panel, fund)

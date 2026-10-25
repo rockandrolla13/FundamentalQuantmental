@@ -22,7 +22,7 @@ from hy import alpha, forward, macro
 from hy.sources import clock_inputs as ci
 from hy.data.config import CONFIG  # noqa: E402
 from hy.data.pit import DataUnavailable  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.factory import open_view  # noqa: E402
 from hy.data.view import DataView  # noqa: E402
 from hy.forecasts import ForecastRegistry  # noqa: E402
 
@@ -123,7 +123,7 @@ def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp,
     Quarters and the 10-Q balance sheet come through `view` at `decision` (default: the warehouse).
     """
     v = ci.values(inputs)
-    view = view if view is not None else DataView(WarehouseSource(CONFIG), decision)
+    view = view if view is not None else open_view(decision)
     issuer = view.issuer(v["ticker"])
     try:
         quarters = view.financials(issuer)

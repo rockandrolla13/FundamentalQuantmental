@@ -27,7 +27,7 @@ from hy import clocks
 from hy.sources import clock_inputs as ci
 from hy.sources import schedules as sc
 from hy.data.config import CONFIG  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.factory import open_view  # noqa: E402
 from hy.data.view import DataView  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +53,7 @@ def build_case(inputs: dict, view: DataView | None = None) -> dict:
     and only obligation metrics remain.
     """
     if view is None:
-        view = DataView(WarehouseSource(CONFIG), pd.Timestamp(_v(inputs, "available_at")))
+        view = open_view(pd.Timestamp(_v(inputs, "available_at")))
     issuer = view.issuer(_v(inputs, "ticker"))
     q = view.balance_sheet(issuer, _v(inputs, "q"))
     k = view.balance_sheet(issuer, _v(inputs, "k")) if _v(inputs, "k") else None

@@ -34,7 +34,7 @@ from hy.fairspread import fit_ar1, half_life  # noqa: E402
 from hy.sources import trace_bonds as tb  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.factory import open_view  # noqa: E402
 from hy.data.view import DataView  # noqa: E402
 
 RAW = CONFIG.root
@@ -48,7 +48,7 @@ HISTORY_DAYS = 180   # TRACE history for the pair-gap persistence
 def issuer_block(ticker: str, decision: pd.Timestamp, start: str, end: str, view: DataView | None = None) -> dict:
     """Filing-based risk, clock metrics, and the bond curve for one issuer, as known at `decision`. Every input comes
     through `view` (hy.data.view)."""
-    view = view or DataView(WarehouseSource(CONFIG), decision)
+    view = view or open_view(decision)
     issuer = view.issuer(ticker)
     inputs = view.facts(issuer).values
     case = clock_case.build_case(inputs, view)
@@ -240,7 +240,7 @@ def main() -> None:
     tickers = list(dict.fromkeys(t for p in pairs for t in p))
 
     con = CONFIG.connect()  # the benchmark band of the figure only (display; no data-contract kind)
-    curves = DataView(WarehouseSource(CONFIG), decision).curve_history(pd.Timestamp(f"{start[:4]}-01-01"))
+    curves = open_view(decision).curve_history(pd.Timestamp(f"{start[:4]}-01-01"))
     bench = tb.hy_benchmark(con, args.end, cache_root=RAW)
     buckets = tb.benchmark_by_bucket(bench, tr.curve_on(end, cache_root=RAW))
 
@@ -298,7 +298,7 @@ def main() -> None:
               f"gap {al['gap_bp']:.0f} bp | half-life {al['half_life_weeks']:.1f} wk | convergence alpha "
               f"{al['alpha_convergence_bp_price']:.0f} bp of price over {H_YEARS}y")
     # Macro paths and issuer scenarios (Section 5.4): one run feeds this report and the clock write-up.
-    mac = scenarios.live_paths(DataView(WarehouseSource(CONFIG), decision), decision, end)
+    mac = scenarios.live_paths(open_view(decision), decision, end)
     scen_dir = RAW / "scenarios"
     scen_dir.mkdir(parents=True, exist_ok=True)
     report["macro"] = {"phase": mac.paths.phase, "votes": mac.paths.votes, "prior": mac.paths.prior,
@@ -315,7 +315,7 @@ def main() -> None:
         try:
             inputs = blk["inputs"]
             arch = (inputs.get("archetype") or ("A4", ""))[0]
-            start_, drv, info = scenarios.issuer_start(inputs, blk["case"], decision, DataView(WarehouseSource(CONFIG), decision))
+            start_, drv, info = scenarios.issuer_start(inputs, blk["case"], decision, open_view(decision))
             s5, sf5 = float(xs.loc[t, "s5"]), float(xs.loc[t, "fair_s5"])
             d5 = rv.modified_duration(0.04 + s5, 0.04 + s5, TENOR)
             pts = scenarios.refi_points(s5, blk["longest"], blk["recent_raise"])

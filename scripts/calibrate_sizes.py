@@ -36,8 +36,7 @@ from backtest_peer_line import peer_forecasts  # noqa: E402 - reuse, do not dupl
 from hy import backtest as bt  # noqa: E402
 from hy import calibration as cb  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
-from hy.data.sources import WarehouseSource  # noqa: E402
-from hy.data.view import DataView  # noqa: E402
+from hy.data.factory import open_view  # noqa: E402
 
 # forecast -> realised return after cost it is scored against (backtest_peer_line.HEDGES, without "widest", which is
 # a spread level and not a return forecast). The carry-kept peer forecast is the one hy.groups sizes with.
@@ -108,7 +107,7 @@ def main() -> None:
     a = ap.parse_args()
     src = CONFIG.path("backtest")
     out_path = a.out or cb.default_path()
-    panel = DataView(WarehouseSource(CONFIG), pd.Timestamp.now()).panel("bond_panel")
+    panel = open_view(pd.Timestamp.now()).panel("bond_panel")
     bench = bt.benchmark_spread(panel, pd.to_datetime(panel["available_at"]).max())
     dur = panel[["date", "cusip", "mod_dur"]]
     sig = pd.read_parquet(src / "peer_signals_full.parquet", columns=["date", "cusip", "gvkey", "g_spread", "esp_sr"])

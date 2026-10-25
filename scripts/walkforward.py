@@ -30,9 +30,8 @@ import process  # noqa: E402
 from hy import walkforward as wf  # noqa: E402
 from hy.data.pit import DataUnavailable  # noqa: E402
 from hy.data.config import CONFIG
-from hy.data.sources import WarehouseSource  # noqa: E402
+from hy.data.factory import open_source, open_view  # noqa: E402
 from hy.data.outcomes import RealisedOutcomes  # noqa: E402
-from hy.data.view import DataView  # noqa: E402
 
 RAW = CONFIG.root
 OUT = RAW / "walkforward"
@@ -84,7 +83,7 @@ _ACC: dict = {}
 def _acceptance(ticker: str, accession: str):
     """Acceptance time of one of the issuer's accessions, from its filing list as known today (the audit looks back)."""
     if ticker not in _ACC:
-        view = DataView(WarehouseSource(CONFIG), pd.Timestamp.now())
+        view = open_view(pd.Timestamp.now())
         try:
             fl = view.filings(view.issuer(ticker), ["10-Q", "10-K", "10-Q/A", "10-K/A"])
         except DataUnavailable:
@@ -95,7 +94,7 @@ def _acceptance(ticker: str, accession: str):
 
 def run_all(refresh: bool = False) -> pd.DataFrame:
     """The process at every decision date (cached per date); then the audit. Returns the timing and audit table."""
-    base = DataView(WarehouseSource(CONFIG), pd.Timestamp(FIRST))  # one source; process.run moves it to each date
+    base = open_view(pd.Timestamp(FIRST))  # one source; process.run moves it to each date
     rows = []
     for q in dates():
         d = RUNS / str(q.date())
@@ -200,7 +199,7 @@ def outcomes() -> pd.DataFrame:
     from hy import rv
     from hy.sources import treasury as tr
 
-    src = WarehouseSource(CONFIG)
+    src = open_source()
     pred = predictions()
     bench, curves, rows = {}, {}, []
     day1 = pd.Timedelta(1, unit="D")  # a trade day's quote, curve and index level are public the next day
@@ -308,7 +307,7 @@ def scores(df: pd.DataFrame) -> pd.DataFrame:
 def _events() -> dict:
     """Credit events per issuer from cached EDGAR 8-K item codes, and results dates (item 2.02). Display only: the
     8-K item codes are not a data-contract kind, so this report reads the warehouse's EDGAR files directly."""
-    view = DataView(WarehouseSource(CONFIG), pd.Timestamp.now())
+    view = open_view(pd.Timestamp.now())
     out = {}
     for t in TICKERS:
         try:
