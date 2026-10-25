@@ -815,7 +815,8 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float,
 
     alpha type: E0 spread level (s5 - S_index) x 1e4 with beta = 1 (spec K15); E1 scenario-weighted alpha; E2 fair-line
     convergence D (1 - rho^(4h)) (s - s_fair) / h; E3 pair convergence signed by the leg; E4 the spread-implied PD
-    gap x l_def (weight 0 until kappa_t is fitted, mapping C2); E10 excess over cash mu_excess / H (step 15).
+    gap x l_def (weight 0 until kappa_t is fitted, mapping C2); E10 the risk premium alpha mu_bond - lambda ES_bond
+    (step 15, methodology 7.7).
     score type (standardised across the run, x sd(E1)): E5 -years of EBITDAR in fixed bills; E6 (greens - reds) /
     bands; E8 refinance score (likely story) + min(wall cover, 3) + 1{funding_gap_min >= 0}; E9 -debt / market TEV;
     E12 z(log s5) - z(S&P default risk score), positive = the spread is wide for the score; E13 spread per turn against
@@ -851,9 +852,9 @@ def group_estimates(steps_all: dict, scen: dict, xs, s_index: float,
         g0 = _o(st, "11").get("table", [{}])[0]
         if g0.get("gap") is not None:
             raw[t]["E4"] = -g0["gap"] * (_o(st, "10").get("l_def") or lgd) * 1e4
-        mu = _o(st, "15").get("mu_excess_bp_yr")
-        if mu is not None:
-            raw[t]["E10"] = mu
+        a_rp = (_o(st, "15").get("risk_premium") or {}).get("alpha_bp_yr")
+        if a_rp is not None and a_rp == a_rp:
+            raw[t]["E10"] = a_rp
         lq, cs, nm, ev = _o(st, "4"), _o(st, "5"), _o(st, "3"), _o(st, "12")
         score[t]["E5"] = -(_o(st, "6").get("years_of_ebitdar") or np.nan)
         bands = [r["band"] for r in _o(st, "13").get("panel", []) if r["band"] != "n/a"]
@@ -922,7 +923,8 @@ def combined_view(steps_all: dict, scen: dict, xs, s_index: float, decision: pd.
     """One analyst across the four groups: group alphas, verdicts, and the combined alpha set against the
     scenario-weighted alpha (methodology 7.5, 8; framework F10, F12.1; spec S14; hy.groups.combine).
 
-    Ranks: by the combined alpha after cost (spec: raw alpha sets the rank), and by each group's alpha. Then the
+    Ranks: by the combined alpha before cost, the weighted alpha of all methods (user decision 2026-10-25: no trading
+    cost in the alpha), and by each group's alpha. Then the
     decision against cash across the run: opportunity cost and the best admissible alternative (spec S15; F1 R8).
     """
     raw, meta, h = group_estimates(steps_all, scen, xs, s_index, decision=decision)
@@ -935,9 +937,12 @@ def combined_view(steps_all: dict, scen: dict, xs, s_index: float, decision: pd.
         rows = [{"estimate": k, "name": groups.ESTIMATES[k][1], "group": groups.ESTIMATES[k][0], "type": groups.ESTIMATES[k][2],
                  "alpha_bp_yr": raw[t][k], "w_v0": groups.ESTIMATES[k][3]} for k in groups.ESTIMATES if k in raw[t]]
         gate = _o(steps_all[t], "11")
+        rp = _o(steps_all[t], "15").get("risk_premium") or {}
+        res["alpha_rp_bp_yr"] = rp.get("alpha_bp_yr")  # the risk premium test (methodology 7.7), also E10
+        res["alpha_rp_q0_bp_yr"] = rp.get("alpha_q0_bp_yr")
         out[t] = {**res, "rows": rows, "group_weights": groups.GROUP_WEIGHTS,
                   "gate_pass": bool(gate.get("G1") and gate.get("G3") and gate.get("G6")), **meta}
-    for t, i in groups.rank({t: out[t]["combined_after_cost"] for t in out}).items():
+    for t, i in groups.rank({t: out[t]["combined_before_cost"] for t in out}).items():
         out[t]["rank"] = i
     for g in groups.GROUP_NAMES:
         for t, i in groups.rank({t: out[t]["groups"][g]["alpha_bp_yr"] for t in out}).items():
@@ -1171,6 +1176,46 @@ def reference_bond(bonds: pd.DataFrame) -> dict | None:
             "dirty_price": float(b["price"]) + acc, "g_spread": float(b["g_spread"])}
 
 
+def risk_premium(ref: dict, mac, pdh: dict, conv_by_path: dict, y_T: float, y_left_now: float, r_tsy: float,
+                 rpv: float, h: float) -> dict:
+    """How much alpha: the risk premium test (methodology 7.7; decision page 2026-10-25-risk-premium-alpha).
+
+    Bond and HY index run through the same macro paths with rates held at today's curve. Per path the bond's spread
+    moves with the index (s_H = s_b S_H / S) less the part of its peer gap that closes (`conv_by_path`); the index
+    is a par bullet of the bond's tenor at the index spread. The default share over h is the bond's PD_h (with the
+    cash-shortfall floor) and the path's index default rate. No trading cost (user decision 2026-10-25).
+    alpha = mu_bond - lambda ES_bond, lambda = mu_index / ES_index; also with no gap closure (q = 0).
+    Intuition: the bond must earn what the market pays for the same bad-case loss; the gap closing is shown apart.
+    """
+    T, c, sb, P = ref["years"], ref["coupon"], ref["g_spread"], ref["dirty_price"]
+    S = mac.s_index_now
+    hq = max(1, int(round(4 * h)))
+    rows_b, rows_0, rows_i = [], [], []
+    for p in mac.paths.paths:
+        S_H = float(p.index_spread[hq - 1])
+        base = {"macro_path": p.name, "p_path": p.prob, "y_H": y_left_now}
+        rows_b.append({**base, "d_h": pdh[p.name], "s_H": max(5e-4, sb * S_H / S - conv_by_path[p.name])})
+        rows_0.append({**base, "d_h": pdh[p.name], "s_H": max(5e-4, sb * S_H / S)})
+        dr = float(np.mean(p.default_rate[:hq]))
+        rows_i.append({**base, "d_h": 1.0 - (1.0 - dr) ** h, "s_H": S_H})
+    c_idx = y_T + S
+    p_idx = hal.bond_price(c_idx, T, y_T + S)
+    b = hal.credit_excess_states(P, c, T, h, pd.DataFrame(rows_b), rpv, r_tsy)
+    b0 = hal.credit_excess_states(P, c, T, h, pd.DataFrame(rows_0), rpv, r_tsy)
+    ix = hal.credit_excess_states(p_idx, c_idx, T, h, pd.DataFrame(rows_i), rpv, r_tsy)
+    a = hal.risk_premium_alpha(b["mu"], b["es"], ix["mu"], ix["es"])
+    a0 = hal.risk_premium_alpha(b0["mu"], b0["es"], ix["mu"], ix["es"])
+    yr = lambda x: _f(x / h * 1e4, 0)  # noqa: E731
+    paths = b["paths"].merge(ix["paths"][["macro_path", "d_h", "s_H", "x_tsy"]], on="macro_path", suffixes=("", "_index"))
+    return {"mu_bond_bp_yr": yr(b["mu"]), "es_bond": _f(b["es"], 4), "mu_index_bp_yr": yr(ix["mu"]),
+            "es_index": _f(ix["es"], 4), "lambda": _f(a["lambda"], 3), "required_bp_yr": yr(a["required"]),
+            "alpha_bp_yr": yr(a["alpha"]), "alpha_q0_bp_yr": yr(a0["alpha"]),
+            "rests_on_convergence": bool(a["alpha"] > 0 and not a0["alpha"] > 0),
+            "flag": a["flag"],
+            "paths": [{k: (_f(v, 4) if isinstance(v, float) else v) for k, v in r.items()}
+                      for r in paths.to_dict("records")]}
+
+
 def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: list | None = None) -> Step:
     """Decision against cash (spec S15; RV PDF Section 9, E50 to E60; mapping Top 10 item 1 and C1, C3).
 
@@ -1183,7 +1228,8 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
     (s5 - s_fair) S_m / S; subtract a Treasury of the same tenor and beta x (index carry - index expected loss), with
     beta = s_b / S, the DTS hedge on the HY index (decision page 2026-10-23-peer-fair-spread; the walk-forward realises
     the same hedge). The total hedged return is that hedged mu. Catalysts: the step 12 events dated within the horizon.
-    E10 of the combined view uses the unhedged mu. Intuition: the same money in the bond or in cash; then the same with
+    The risk premium test (`risk_premium`, methodology 7.7) is E10 of the combined view: one weighted input of the
+    alpha, with the other methods. Intuition: the same money in the bond or in cash; then the same with
     the market hedged out.
     """
     s = Step("15 Decision against cash", "RV PDF Section 9; methodology 7.5, 8; framework F1 R8")
@@ -1197,7 +1243,12 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
     close = 1 - rho ** (4 * h)
     rpv = recovery.recovery_pv(G1_V0["recovery"], G1_V0["k_default"], G1_V0["tau_default"])
     T, c, sb, P = ref["years"], ref["coupon"], ref["g_spread"], ref["dirty_price"]
-    pdh = {r["macro_path"]: hal.pd_over_horizon(r["pd_12m"], h) for r in sc_out["table"].to_dict("records")}
+    recs = sc_out["table"].to_dict("records")
+    # A case that runs out of cash inside the horizon defaults at the v0 chance (methodology 7.7: a funding failure
+    # is a branch, not a plug); the rest is the rescue branch.
+    pdh = {r["macro_path"]: max(hal.pd_over_horizon(r["pd_12m"], h),
+                                scenarios.V0["p_default_given_liq_short"] * float(r.get("p_liq_short_h") or 0.0))
+           for r in recs}
     y_left_now = float(tr.interpolate(curve_now, max(T - h, 0.1)))
     un, hd = [], []
     for p in mac.paths.paths:
@@ -1215,6 +1266,9 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
     beta = fairspread.dts_beta(sb, S)  # DTS hedge on the HY index; the walk-forward realises the same beta
     idx = sum(p.prob * (S * h - float(np.mean(p.index_spread[:4])) / kappa * h) for p in mac.paths.paths)
     mu_h = hed["mu_excess"] + r_cash * h - r_tsy - beta * idx
+    rp = risk_premium(ref, mac, pdh, conv_by_path={p.name: close * (s5 - sf5) * float(np.mean(p.index_spread[:4])) / S
+                                                   for p in mac.paths.paths},
+                      y_T=y_T, y_left_now=y_left_now, r_tsy=r_tsy, rpv=rpv, h=h)
     st = dec["states"]
     s.outputs = {
         "reference_bond": ref, "horizon_years": h, "r_cash": _f(r_cash, 4), "recovery_pv": _f(rpv, 3),
@@ -1224,6 +1278,7 @@ def step_decision(t, ref: dict, sc_out, mac, xs, curve_now, decision, events: li
         "expected_wealth": _f(dec["expected_wealth"], 2), "mu_hedged_bp_yr": _f(mu_h / h * 1e4, 0),
         "total_hedged_return_bp_yr": _f(mu_h / h * 1e4, 0), "hedge": "Treasury of the same tenor + DTS beta x HY index",
         "fair_basis": xs.loc[t, "fair_basis"], "catalysts": hev.catalysts_in_horizon(events or [], decision, h),
+        "risk_premium": rp, "alpha_rp_bp_yr": rp["alpha_bp_yr"],
         "beta": _f(beta), "states": [{k: (_f(v, 4) if isinstance(v, float) else v) for k, v in r.items()}
                                      for r in st.to_dict("records")],
     }

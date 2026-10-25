@@ -9,7 +9,7 @@ The purpose of this repository is the **methodology**. The data is plugged in th
 1. **Collect the facts** as they were known on the decision date: filings, quarterly financials, bond prices, the Treasury curve, forecasts.
 2. **Judge the issuer:** earnings quality, liquidity and refinancing, capital structure, the duration mismatch between costs and revenue ("two clocks"), cases under macro paths, valuation and recovery.
 3. **Compare the price:** the bond's spread against the median of bonds in the same sector, rating and maturity, and against the high yield index.
-4. **Give a verdict:** 18 estimates in six weighted groups give one expected return after trading cost, a gate, the catalysts inside the horizon, and the decision against holding cash.
+4. **Give a verdict:** 18 estimates in six weighted groups give the alpha: one weighted number in bp a year, before trading costs. One of these estimates is the risk premium test: does the spread pay enough for the bond's risk, at the price the high yield index pays for risk? The verdict also carries a gate, the catalysts inside the horizon, and the decision against holding cash.
 
 The full method is in `docs/methodology.md`. The per-filing rulebook is `docs/framework.md`. Each design choice has a decision page in `docs/decisions/`.
 

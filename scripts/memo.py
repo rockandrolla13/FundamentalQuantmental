@@ -19,6 +19,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from hy.data.config import CONFIG  # noqa: E402
+from hy import groups  # noqa: E402
 
 PROC = CONFIG.path("process")
 FIGS = ROOT / "docs" / "writeup" / "figures"
@@ -52,7 +53,7 @@ ESTIMATE_WORDS = {  # plain words, then where it comes from (research/combined_f
     "E7": ("Earnings quality, add-backs, FCF check (can only lower)", "F3; ebitda-addback-treatment; hy-model-standards"),
     "E8": ("Access to new money and the funding gap", "F4; RV PDF E75-E76"),
     "E9": ("Debt against market value", "F7.7"),
-    "E10": ("Return above cash, repriced in every story", "RV PDF E50-E60; C1, C3"),
+    "E10": ("Risk premium alpha: does the spread pay for its risk at the index price of risk", "methodology 7.7; RV PDF E50-E60"),
     "E11": ("Watchlist tier (can only lower)", "borrower-monitoring; covenant-compliance"),
     "E12": ("Spread against the S\\&P risk score", "Ganguin and Bilardello ch. 10"),
     "E13": ("Spread per turn of leverage (with the trap guard)", "Kricheff ch. 21"),
@@ -231,6 +232,39 @@ def memo(d: dict) -> str:
     L.append(box(f"\\textbf{{Recommendation.}} {esc(plain_call(g))} "
                  + (f"If the money went elsewhere, the best alternative in this run is {esc(rep)}. " if rep else "")
                  + "Position size and hedge: open until the call passes."))
+
+    # ------------------------------------------------------------------ how much alpha (methodology 7.7, 8)
+    rp = dc.get("risk_premium") or {}
+    aw = cb.get("combined_before_cost")
+    if aw is not None and aw == aw:
+        L.append("\\subsection*{How much alpha: the weighted estimate of all methods}")
+        w10 = groups.effective_weights().get("E10", 0.0)
+        L.append(box(
+            f"\\textbf{{Alpha: {bp(aw)} bp a year.}} "
+            + ("The methods together say the bond pays more than its risk needs. " if aw > 0 else
+               "The methods together say the bond does not pay enough for its risk. ")
+            + f"This number weighs every method with a value, at the weights the user set. "
+            f"The risk premium test below is one of these methods. It carries {w10 * 100:.0f}\\% of the weight. "
+            f"{cb.get('groups_agree')} of {cb.get('groups_n')} groups point the same way. "
+            "The number is before trading costs. It is not yet calibrated against realised returns."))
+    if rp:
+        a, a0 = rp.get("alpha_bp_yr"), rp.get("alpha_q0_bp_yr")
+        if a is None:
+            call = f"No alpha: {esc(rp.get('flag') or 'the test could not run')}."
+        else:
+            call = ("The spread pays more than the market rate for this risk." if a > 0 else
+                    "The spread does not pay enough for this risk.")
+        L.append("\\subsection*{One input: is there enough risk premium?}")
+        L.append(box(
+            f"\\textbf{{Risk premium test: {bp(a)} bp a year.}} {call} Over Treasuries, the bond is expected to earn "
+            f"{bp(rp.get('mu_bond_bp_yr'))} bp a year. Its risk needs "
+            f"{bp(rp.get('required_bp_yr'))} bp a year at the price the high yield index pays for risk "
+            f"({num(rp.get('lambda'), 2)} per unit of bad-case loss). The bond's bad-case loss is {pct(rp.get('es_bond'), 1)} "
+            f"of the money over the half-year; the index's is {pct(rp.get('es_index'), 1)}. "
+            f"With no closure of the gap to peers, the alpha is {bp(a0)} bp a year"
+            + (": \\textbf{the alpha rests on that gap closing}." if rp.get("rests_on_convergence") else ".")
+            + (f" Note: {esc(rp['flag'])}." if rp.get("flag") and a is not None else "")
+            + " This test is one weighted input (E10) of the alpha above."))
 
     # ------------------------------------------------------------------ combined view
     sz = O("14b")
@@ -655,13 +689,14 @@ def main() -> None:
     def C(d):
         return d["steps"]["14"]["outputs"]
     gw = run.get("group_weights", {})
-    rank_table = table(["Rank", "Issuer", "Combined", "Calibrated",
+    rank_table = table(["Rank", "Issuer", "Alpha", "Risk prem.", "Calibrated",
                         *[f"{BUCKET_LABEL[k]} ({gw.get(k, 0) * 100:.0f}\\%)" for k in BUCKET_ORDER], "Cases", "Best alt.", "Gate"],
-                       [[C(d)["rank"], d["ticker"], f"\\textbf{{{bp(C(d)['combined_after_cost'])}}}",
+                       [[C(d)["rank"], d["ticker"], f"\\textbf{{{bp(C(d)['combined_before_cost'])}}}",
+                         bp(C(d).get('alpha_rp_bp_yr')),
                          bp(d["steps"].get("14b", {}).get("outputs", {}).get("alpha_sized")),
                          *[bp(C(d)["groups"].get(gg, {}).get("alpha_bp_yr")) for gg in BUCKET_ORDER],
                          bp(C(d)["anchor_after_cost"]), esc(d["steps"].get("15", {}).get("outputs", {}).get("replaces_position", "n/a")),
-                         plain_call(d["steps"].get("11", {}).get("outputs", {})).split(".")[0]] for d in rk], "rlrr" + "r" * len(BUCKET_ORDER) + "rll"
+                         plain_call(d["steps"].get("11", {}).get("outputs", {})).split(".")[0]] for d in rk], "rlrrr" + "r" * len(BUCKET_ORDER) + "rll"
                        ).replace("\\tabcolsep}{3.5pt}", "\\tabcolsep}{2pt}")
     sz0 = rk[0]["steps"].get("14b", {}).get("outputs", {}) if rk else {}
     wtxt = ", ".join(f"{GROUPS[k][0].lower()} {gw.get(k, 0) * 100:.1f}\\%" for k in BUCKET_ORDER)
@@ -676,10 +711,10 @@ def main() -> None:
 \begin{{document}}
 \maketitle
 \noindent\fcolorbox{{gray}}{{gray!6}}{{\parbox{{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}}{{\sloppy
-\textbf{{How these memos are made.}} One analyst runs every company through five groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Group 5 links the economy to the company: the chance of a large fall in earnings, from the balance sheet and the macro state, set against the spread. It is not fitted yet and has no weight. Each group gives its own estimate of expected profit above a hedge, in bp a year. The combined estimate weighs six buckets as the user set them ({wtxt}) and pays trading costs once. Each step is \textcolor{{good}}{{done}}, \textcolor{{amber}}{{partial}} (it ran but needs an analyst input), or \textcolor{{bad}}{{blocked}}. Missing inputs appear as open questions.}}}}
+\textbf{{How these memos are made.}} One analyst runs every company through five groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Group 5 links the economy to the company: the chance of a large fall in earnings, from the balance sheet and the macro state, set against the spread. It is not fitted yet and has no weight. Each group gives its own estimate of expected profit above a hedge, in bp a year. The alpha of a bond is the weighted estimate of all methods, before trading costs. The weights are the bucket shares the user set ({wtxt}). One method in group 1 is the risk premium test: does the spread pay enough for its risk, at the price the high yield index pays for risk. Each step is \textcolor{{good}}{{done}}, \textcolor{{amber}}{{partial}} (it ran but needs an analyst input), or \textcolor{{bad}}{{blocked}}. Missing inputs appear as open questions.}}}}
 
 \section*{{All issuers, ranked by the combined view}}
-The combined column is after trading costs; the five bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{{Alpha sizes are uncalibrated}}: in the backtest, realised alpha was about {num(sz0.get('mz_b'), 2)} times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
+``Alpha'' is the weighted estimate of all methods, in bp a year, before trading costs. It ranks the bonds. ``Risk prem.'' is the risk premium test (methodology 7.7) alone: the bond's expected return over Treasuries less the premium its bad-case loss needs at the high yield index's price of risk. It is one weighted input of the alpha. The bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{{Alpha sizes are uncalibrated}}: in the backtest, realised alpha was about {num(sz0.get('mz_b'), 2)} times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
 {rank_table}
 
 \section*{{What each part of a memo answers}}

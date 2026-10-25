@@ -36,7 +36,9 @@ ESTIMATES = {
     "E7": ("G1", "Earnings quality", "one_way", 0.05),  # spec: G1 and G3; counted in G1's share
     "E8": ("G1", "Liquidity and refinancing", "score", 0.05),
     "E9": ("G1", "Market value check", "score", 0.05),
-    "E10": ("G1", "Excess over cash", "alpha", 0.05),
+    # User decision 2026-10-25 (decision page 2026-10-25-risk-premium-alpha): E10 is the risk premium test of
+    # methodology 7.7, one weighted input of the alpha. It replaces the excess over cash (same step 15 cash flows).
+    "E10": ("G1", "Risk premium alpha", "alpha", 0.05),
     "E11": ("G3", "Watchlist and covenant path", "one_way", 0.05),
     "E12": ("G4", "Ratio-implied rating gap", "score", 0.05),
     "E13": ("G4", "Spread per turn", "score", 0.05),

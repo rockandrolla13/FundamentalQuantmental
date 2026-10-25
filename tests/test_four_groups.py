@@ -217,7 +217,7 @@ def test_effective_weights_keep_relative_weights_inside_a_bucket():
     assert sum(w.values()) == pytest.approx(1.0)
     assert w["E5"] == pytest.approx(0.20)
     assert w["E0"] / w["E1"] == pytest.approx(0.25 / 0.15)  # spec ratio kept inside the rest of G2
-    assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0
+    assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0 and w["E10"] == pytest.approx(0.40 / 4)
     assert w["E14"] == pytest.approx(0.045) and w["E16"] == pytest.approx(0.045) and w["E15"] == pytest.approx(0.03)
     assert w["E12"] == pytest.approx(0.025) and w["E13"] == pytest.approx(0.025)
 

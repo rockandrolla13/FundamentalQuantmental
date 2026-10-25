@@ -725,6 +725,37 @@ Choose among the three maps out of sample, not on the fit. Each month `T` is for
 | `rho`, `half_life`, `exp_conv_ret_h` | Residual persistence and expected convergence return |
 | `event_contaminated` | 1 when an event sits inside the last five days |
 
+### 7.7 How much alpha: the risk premium test
+
+The question is not whether the bond survives. The question is whether the spread pays enough for the risk of the total return. This test is estimate E10 of Section 8. The alpha of a bond is the weighted combination of all estimates, with this test as one input (user decision 2026-10-25). Decision page: `2026-10-25-risk-premium-alpha`. Code: `hy/alpha.py` (`credit_excess_states`, `risk_premium_alpha`), `scripts/process.py` (`risk_premium`, step 15).
+
+Assumptions:
+- The yardstick is the high yield index. It is what the money could own instead, and the backtest hedges with it.
+- Rates stay at today's curve. The test measures the credit premium, not a rate view. Return is over a Treasury of the same tenor.
+- Each path takes its expected default share, for the bond and for the index. One issuer's default jump is diversifiable in a book. Its expected cost sits inside the return.
+- No trading cost enters the test (user decision 2026-10-25). The test measures the premium the price carries, not the cost of a trade.
+
+Per macro path m (Section 5.4), with the bond and the index at the same tenor:
+
+```latex
+W(m) = (1 - d_h(m))\,\big[P_H(y_H + s_H(m)) + \text{coupons}\big] + d_h(m)\,100\,R_{PV}, \qquad X(m) = \frac{W(m)}{P_0} - 1 - r_{tsy}
+```
+
+Intuition: what the credit earns over Treasuries in each economy, with the defaults of that economy taken on the way.
+
+The bond's spread moves with the index, `s_H = s_b S_H(m) / S`, less the part of its peer gap that closes by the horizon (Section 7.5). The bond's default share `d_h(m)` is its `PD_h(m)`. A case that runs out of cash inside the horizon defaults at `p_default_given_liq_short`; the rest is the rescue branch. The index's default share is the path's default rate over the horizon.
+
+```latex
+\mu = \sum_m p(m)\,X(m), \qquad ES = ES_{95}(-X), \qquad \lambda = \frac{\max(0, \mu_{index})}{ES_{index}}, \qquad \alpha = \mu_{bond} - \lambda\, ES_{bond}
+```
+
+Intuition: the bond must earn at least what the market pays for the same amount of bad-case loss. A positive alpha means the spread pays more than the market rate for the risk. A negative alpha means the spread looks wide but does not cover the risk.
+
+Rules:
+- Report alpha twice: with the peer gap closing at the engine speed, and with no closure (`q = 0`). When alpha is positive only with closure, the memo says that the alpha rests on convergence.
+- When the index has no tail loss in the scenarios, `λ` is undefined and the test gives no alpha. When the index earns no excess, `λ = 0` and the memo flags it.
+- The size calibration (`hy/calibration.py`) must test this alpha against realised returns before it sizes a position. Until then the memo labels it "not calibrated".
+
 ## 8. Quantamental signals
 
 Seven signals come out of the layers above. Each one is a standardised score per bond with a sign, a horizon, a hedge, and a named failure mode. Positive means long. The composite at the end of this section ranks the universe the way the book force-ranks a portfolio each quarter (p. 369).

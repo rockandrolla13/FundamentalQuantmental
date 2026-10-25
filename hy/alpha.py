@@ -197,6 +197,53 @@ def decision_against_cash(dirty_price: float, coupon: float, years: float, h: fl
             "es95": expected_shortfall(tab["r_net"], q, es_level), "expected_wealth": float((q * tab["wealth"]).sum())}
 
 
+def credit_excess_states(dirty_price: float, coupon: float, years: float, h: float, paths: pd.DataFrame,
+                         recovery_pv_per_1: float, r_tsy: float, cost_in: float = 0.0, cost_out: float = 0.0,
+                         freq: int = 2, es_level: float = 0.95) -> dict:
+    """Total return over a Treasury of the same tenor, by macro path, with rates held (methodology 7.7).
+
+    `paths` has one row per macro path m: p_path, d_h (share of the claim that defaults within h), y_H (Treasury
+    yield of the remaining tenor at H; today's curve, so rates are held), s_H (the spread at H). Per path:
+        W_s = price at H at y_H + s_H, less the exit cost, plus coupons paid in (0, H];  W_d = 100 R_PV
+        W   = (1 - d_h) W_s + d_h W_d;  K = dirty price + entry cost;  X = W / K - 1 - r_tsy
+    `cost_in` and `cost_out` are fractions of price. Returns the path table, mu = sum p X, and es = the
+    expected shortfall of -X in the worst (1 - es_level) of probability.
+    Intuition: what the credit earns above Treasuries in each economy, with the default share taken on the way.
+    The path default share, not a 0 / 1 jump, measures the risk a diversified book carries; the expected default
+    loss sits inside mu either way.
+    """
+    rows = []
+    k = dirty_price + 100.0 * cost_in
+    for r in paths.itertuples(index=False):
+        w_s = bond_price(coupon, years - h, r.y_H + r.s_H, freq) - 100.0 * cost_out + coupons_paid(coupon, years, h, freq)
+        w = (1.0 - r.d_h) * w_s + r.d_h * 100.0 * recovery_pv_per_1
+        rows.append({"macro_path": r.macro_path, "p_path": r.p_path, "d_h": r.d_h, "s_H": r.s_H, "wealth": w,
+                     "x_tsy": w / k - 1.0 - r_tsy})
+    tab = pd.DataFrame(rows)
+    p = tab["p_path"].to_numpy(dtype=float)
+    if not np.isclose(p.sum(), 1.0, atol=1e-6):
+        raise ValueError(f"path probabilities sum to {p.sum()}, not 1")
+    return {"paths": tab, "mu": float((p * tab["x_tsy"]).sum()), "es": expected_shortfall(tab["x_tsy"], p, es_level)}
+
+
+def risk_premium_alpha(mu_bond: float, es_bond: float, mu_index: float, es_index: float) -> dict:
+    """How much alpha: the bond's excess return less the premium its risk needs at the index's price (methodology 7.7).
+
+    lambda = max(0, mu_index) / es_index, the index's expected excess return per unit of tail loss;
+    required = lambda x max(0, es_bond); alpha = mu_bond - required.
+    The price of risk is undefined when the index has no tail loss in the scenarios (es_index <= 0): alpha is NaN.
+    A negative index excess sets lambda to 0 and raises a flag: the scenarios then pay nothing for credit risk.
+    Intuition: the bond must pay at least what the market pays for the same amount of bad-case loss.
+    """
+    if not (es_index == es_index) or es_index <= 0:
+        return {"lambda": float("nan"), "required": float("nan"), "alpha": float("nan"),
+                "flag": "the index has no tail loss in these scenarios: the price of risk is undefined"}
+    lam = max(0.0, mu_index) / es_index
+    req = lam * max(0.0, es_bond)
+    return {"lambda": lam, "required": req, "alpha": mu_bond - req,
+            "flag": "the index earns no excess in these scenarios" if mu_index <= 0 else None}
+
+
 def opportunity_cost(mu: Mapping[str, float], es: Mapping[str, float], es_budget: float) -> dict[str, dict]:
     """Opportunity cost against the best admissible alternative, cash included (RV PDF E60, R87; framework F1 R8).
 
