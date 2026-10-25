@@ -12,14 +12,15 @@ from typing import Sequence
 
 import pandas as pd
 
-from hy.data.adapters import compustat, edgar_filings, reference, trace, treasury_curve
+from hy.data.adapters import compustat, edgar_filings, guarded_fetch, reference, trace, treasury_curve
 from hy.data.config import DataConfig
 from hy.data.pit import DataUnavailable
-from hy.data.source import FORECAST_STATUS_COLUMNS, PANELS
+from hy.data.source import FORECAST_STATUS_COLUMNS, PANELS, SOURCE_METHODS
 from hy.data.records import (BOND_OBS_COLUMNS, AnalystInput, BalanceSheet, Bond, Classification, Curve, Filing, IndexLevel, Issuer,
                              IssuerFacts, IssuerFinancials, MarketValue, ReportedCashFlow, FilingText,
                              check_observations)
 from hy.forecasts import ForecastRow
+from hy.sources import forecast_sources as fs
 
 
 class WarehouseSource:
@@ -209,3 +210,135 @@ class FakeSource:
             raise DataUnavailable("panel", name, "not in the fake source")
         p = self._panels[name]
         return p if columns is None else p[list(dict.fromkeys([*columns, "available_at"]))]
+
+
+class CompositeSource:
+    """One source made of parts. Each data method asks the parts that have it, in order, and returns the first answer;
+    a part that raises DataUnavailable passes the request to the next. When no part answers, the last
+    DataUnavailable stands, as a real gap would. Intuition: supply the data you license, keep the public data for the
+    rest.
+
+    Example: `CompositeSource(MyVendorSource(cfg), PublicSource(cfg, fundamentals=my_vendor))`.
+    """
+
+    def __init__(self, *parts: object) -> None:
+        if not parts:
+            raise ValueError("a composite source needs at least one part")
+        self.parts = parts
+
+    def __getattr__(self, name: str):
+        if name not in SOURCE_METHODS:
+            raise AttributeError(name)
+        methods = [m for m in (getattr(p, name, None) for p in self.parts) if callable(m)]
+
+        def ask(*args, **kwargs):
+            gap = DataUnavailable(name, "-", "no part of the composite source serves this kind")
+            for method in methods:
+                try:
+                    return method(*args, **kwargs)
+                except DataUnavailable as exc:
+                    gap = exc
+            raise gap
+
+        return ask
+
+    def served_by(self) -> dict[str, str]:
+        """Which parts can serve each method, in the order they are asked (class names, or "none")."""
+        return {name: " then ".join(type(p).__name__ for p in self.parts if callable(getattr(p, name, None))) or "none"
+                for name in SOURCE_METHODS}
+
+
+class PublicSource:
+    """The kinds that come from free US public data, with no WRDS: SEC EDGAR filings (facts, filing list, balance
+    sheets and schedules, filing text, first-reported cash flows), the US Treasury par curve, the public macro
+    forecasts (SPF, FOMC SEP, Treasury forwards, SLOOS) and the analyst YAML.
+
+    `fundamentals` serves `financials` (your source); the facts take their LTM figures from its quarters. `market`
+    (optional) serves `hy_index`; the forecast registry then carries the current HY level from it, in place of the
+    TRACE benchmark rows. An issuer needs a CIK for the SEC kinds.
+    """
+
+    # The forecast loaders that read public files; the Treasury forwards and the HY level come from the run's parts.
+    PUBLIC_FORECASTS = tuple(n for n in fs.SOURCES if n not in ("trace_hy_benchmark", "ust_forward"))
+    FETCHING_FORECASTS = ("spf", "fomc_sep", "sloos")
+
+    def __init__(self, cfg: DataConfig, fundamentals: object, market: object | None = None) -> None:
+        self.cfg, self.fundamentals, self.market = cfg, fundamentals, market
+        self._forecast_status: dict[datetime, pd.DataFrame] = {}
+
+    def facts(self, issuer: Issuer, decision_time: datetime) -> IssuerFacts:
+        return edgar_filings.facts_from_financials(issuer, decision_time, self.cfg, self.fundamentals.financials(issuer))
+
+    def filings(self, issuer: Issuer, forms: Sequence[str]) -> list[Filing]:
+        return edgar_filings.filings(issuer, forms, self.cfg)
+
+    def balance_sheet(self, issuer: Issuer, accession: str) -> BalanceSheet:
+        return edgar_filings.balance_sheet(issuer, accession, self.cfg)
+
+    def filing_text(self, issuer: Issuer, accession: str) -> FilingText:
+        return edgar_filings.filing_text(issuer, accession, self.cfg)
+
+    def reported_cash_flow(self, issuer: Issuer, period_end: datetime, decision_time: datetime) -> ReportedCashFlow:
+        return edgar_filings.reported_cash_flow(issuer, period_end, decision_time, self.cfg)
+
+    def curve(self, on: datetime) -> Curve:
+        return treasury_curve.curve(on, self.cfg)
+
+    def curves(self, start: datetime, end: datetime) -> list[Curve]:
+        return treasury_curve.curves(start, end, self.cfg)
+
+    def forecasts(self, decision_time: datetime) -> list[ForecastRow]:
+        t = pd.Timestamp(decision_time).to_pydatetime()
+        guard = {n: {"fetch": guarded_fetch(self.cfg, fs.fetch_bytes)} for n in self.FETCHING_FORECASTS}
+        rows = fs.load_all(t, self.cfg.root, sources=self.PUBLIC_FORECASTS, options=guard).rows()
+        status = [fs.source_status()]
+        for extra, extra_status in (self._ust_rows(t), self._hy_rows(t)):
+            rows += extra
+            status.append(pd.DataFrame([extra_status]))
+        self._forecast_status[t] = pd.concat(status, ignore_index=True)[list(FORECAST_STATUS_COLUMNS)]
+        return rows
+
+    def forecast_status(self, decision_time: datetime) -> pd.DataFrame:
+        t = pd.Timestamp(decision_time).to_pydatetime()
+        if t not in self._forecast_status:
+            self.forecasts(t)
+        return self._forecast_status[t]
+
+    def _ust_rows(self, t: datetime) -> tuple[list[ForecastRow], dict]:
+        """Treasury forward paths (source "ust_forward") from the latest curve public at `t`: the market part's curve
+        when it has one (a curve table), else the public US Treasury curve."""
+        empty = {"source": "ust_forward", "last_vintage": None, "last_available_at": None, "rows": 0,
+                 "rows_after_decision_time": 0}
+        try:
+            c = self._curve(t)
+        except DataUnavailable as exc:
+            return [], {**empty, "status": f"stubbed: {exc}"}
+        rows = [r for r in fs.ust_forward_rows(c.as_row()) if r.available_at <= t]
+        return rows, {**empty, "status": "live", "last_vintage": c.as_of, "last_available_at": c.available_at,
+                      "rows": len(rows)}
+
+    def _curve(self, t: datetime) -> Curve:
+        if self.market is not None and callable(getattr(self.market, "curve", None)):
+            try:
+                return self.market.curve(t)
+            except DataUnavailable:
+                pass
+        return self.curve(t)
+
+    def _hy_rows(self, t: datetime) -> tuple[list[ForecastRow], dict]:
+        """hy_spread and distress_ratio at horizon 0 from `market.hy_index` (method "market_implied")."""
+        empty = {"source": "hy_index", "last_vintage": None, "last_available_at": None, "rows": 0,
+                 "rows_after_decision_time": 0}
+        if self.market is None:
+            return [], {**empty, "status": "stubbed: no market part"}
+        try:
+            lvl = self.market.hy_index(t)
+        except DataUnavailable as exc:
+            return [], {**empty, "status": f"stubbed: {exc}"}
+        rows = [ForecastRow("hy_index", var, 0, lvl.as_of, lvl.available_at, val, method="market_implied")
+                for var, val in (("hy_spread", lvl.spread), ("distress_ratio", lvl.distress)) if val == val]
+        return rows, {**empty, "status": "live", "last_vintage": lvl.as_of, "last_available_at": lvl.available_at,
+                      "rows": len(rows)}
+
+    def analyst_inputs(self, ticker: str) -> AnalystInput:
+        return reference.analyst_inputs(ticker)

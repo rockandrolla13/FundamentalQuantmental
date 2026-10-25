@@ -56,7 +56,7 @@ def _decision_time(as_of: object | None) -> pd.Timestamp:
 
 def latest_filings(
     cik: int | str, as_of: object | None = None, cache_root: Path | None = None, index: pd.DataFrame | None = None,
-    refresh: bool = False,
+    refresh: bool = False, fetch: edgar.Fetch = edgar.fetch_json,
 ) -> dict[str, dict | None]:
     """Latest original 10-Q or 10-K, and the latest 10-K, accepted on or before `as_of` (no look-ahead).
 
@@ -64,7 +64,7 @@ def latest_filings(
     `index` lets a caller pass a filing index (tests); otherwise the EDGAR index is read (cached).
     """
     t = _decision_time(as_of)
-    idx = index if index is not None else edgar.filing_index(cik, cache_root=cache_root, refresh=refresh)
+    idx = index if index is not None else edgar.filing_index(cik, fetch=fetch, cache_root=cache_root, refresh=refresh)
     per = edgar.periodic_filings(idx)
     per = per[per["acceptance"].notna() & (per["acceptance"] <= t)].sort_values("acceptance")
     if per.empty:
@@ -639,24 +639,28 @@ def _short_name(name: str) -> str:
 
 def derive_inputs(
     ticker: str, cache_root: Path, overrides_dir: Path | str | None = "data/analyst_inputs", as_of: object | None = None,
-    allow_wrds: bool = True,
+    allow_wrds: bool = True, issuer_ids: dict | None = None, known_quarters: tuple[list, str] | None = None,
+    fetch: edgar.Fetch = edgar.fetch_json, fetch_raw: Callable[[str], bytes] = xi.fetch_bytes,
 ) -> dict[str, Pair]:
     """Every input of the Section 4.7 case for `ticker` as (value, source), as known at `as_of` (default now).
 
     Order: identifiers and filings, loader quantities, instance tags, prose, defaults, then analyst overrides.
+    `issuer_ids` ({cik, gvkey, conm, source}) and `known_quarters` ((IssuerFinancials known at `as_of`, source label))
+    let another data source supply the identifiers and the quarters; then no Compustat lookup and no loader run.
+    `fetch` and `fetch_raw` read SEC EDGAR (an offline run passes fetches that refuse; the cache still serves).
     """
     t = ticker.upper()
     cache_root = Path(cache_root)
     decision = _decision_time(as_of)
     ov = load_overrides(t, overrides_dir)
-    iss = lookup_issuer(t, cache_root)
+    iss = issuer_ids if issuer_ids is not None else lookup_issuer(t, cache_root)
     cik = iss["cik"]
-    filings = latest_filings(cik, decision, cache_root, refresh=as_of is None)
+    filings = latest_filings(cik, decision, cache_root, refresh=as_of is None, fetch=fetch)
     q_row, k_row = filings["latest"], filings["annual"]
-    q = xi.load_instance(cik, q_row["accession"], cache_root=cache_root)
+    q = xi.load_instance(cik, q_row["accession"], cache_root=cache_root, fetch=fetch, fetch_raw=fetch_raw)
     k = None
     if k_row is not None and k_row["accession"] != q_row["accession"]:
-        k = xi.load_instance(cik, k_row["accession"], cache_root=cache_root)
+        k = xi.load_instance(cik, k_row["accession"], cache_root=cache_root, fetch=fetch, fetch_raw=fetch_raw)
     bs = sc.as_of_date(q)
     head = cache_root / "edgar" / f"CIK{edgar._cik10(cik)}.json"
     sec_name = json.loads(head.read_text()).get("name") if head.exists() else None
@@ -677,7 +681,11 @@ def derive_inputs(
     }
 
     # Loader quantities (Section 3.2 point-in-time store).
-    quarters, loader_file = loader_quarters(t, iss["gvkey"], cache_root, decision, need_through=bs, allow_wrds=allow_wrds)
+    if known_quarters is not None:
+        quarters, loader_file = known_quarters
+    else:
+        quarters, loader_file = loader_quarters(t, iss["gvkey"], cache_root, decision, need_through=bs,
+                                                allow_wrds=allow_wrds)
     inp.update(ltm(quarters))
     inp["interest_rate"] = interest_rate(quarters)
     if quarters:
@@ -689,7 +697,7 @@ def derive_inputs(
     # Instance tags.
     inp["annual_lease_cost"] = annual_lease_cost(q)
     wavg = lease_term_tag(q)
-    text = filing_text(cik, q_row["accession"], cache_root)
+    text = filing_text(cik, q_row["accession"], cache_root, fetch=fetch, fetch_raw=fetch_raw)
     if wavg is not None:
         inp["lease_wavg_term"] = (wavg, f"tag OperatingLeaseWeightedAverageRemainingLeaseTerm1, {label}; check only")
     else:
@@ -703,7 +711,8 @@ def derive_inputs(
     com = parse_commencement(text, bs, fye)
     src_doc = label
     if com is None and k is not None:
-        com = parse_commencement(filing_text(cik, k_row["accession"], cache_root), bs, fye)
+        com = parse_commencement(filing_text(cik, k_row["accession"], cache_root, fetch=fetch, fetch_raw=fetch_raw),
+                                 bs, fye)
         src_doc = f"10-K {sc.as_of_date(k):%b-%Y}"
     if com is not None:
         inp["uncommenced_window"] = (com["window"], f"text {src_doc}: '{_clip(com['sentence'])}'")

@@ -12,7 +12,7 @@ from typing import Sequence
 import pandas as pd
 
 from hy.data.config import CONFIG, DataConfig
-from hy.data.sources import WarehouseSource
+from hy.data.factory import open_view
 from hy.data.view import DataView
 
 # Panels that the warehouse also keeps as a tagged subset (file prefix per neutral name).
@@ -21,7 +21,7 @@ TAGGED = {"bond_panel": "panel", "leverage": "leverage"}
 
 def history_view(cfg: DataConfig | None = None) -> DataView:
     """A view of the whole history: the decision time is now."""
-    return DataView(WarehouseSource(cfg or CONFIG), pd.Timestamp.now())
+    return open_view(pd.Timestamp.now(), cfg)
 
 
 def backtest_panel(name: str, tag: str = "full", columns: Sequence[str] | None = None,

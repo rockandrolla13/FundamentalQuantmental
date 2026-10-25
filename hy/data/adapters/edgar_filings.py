@@ -10,9 +10,9 @@ import pandas as pd
 
 from hy.data.adapters import guarded_fetch
 from hy.data.config import DataConfig
-from hy.data.pit import DataUnavailable
-from hy.data.records import (LADDER_FAMILIES, BalanceSheet, Filing, FilingText, Issuer, IssuerFacts, Ladder,
-                             ReportedCashFlow)
+from hy.data.pit import DataUnavailable, PointInTimeStore
+from hy.data.records import (LADDER_FAMILIES, BalanceSheet, Filing, FilingText, Issuer, IssuerFacts, IssuerFinancials,
+                             Ladder, ReportedCashFlow)
 from hy.sources import clock_inputs as ci
 from hy.sources import edgar
 from hy.sources import schedules as sc
@@ -22,8 +22,32 @@ from hy.sources import xbrl_instance as xi
 
 def facts(iss: Issuer, decision_time: datetime, cfg: DataConfig) -> IssuerFacts:
     """`derive_inputs` as known at `decision_time`; stamped with the latest 10-Q acceptance."""
+    return _facts(iss, lambda: ci.derive_inputs(iss.ticker, cfg.root, as_of=decision_time, allow_wrds=cfg.allow_network,
+                                                **_fetches(cfg)))
+
+
+def facts_from_financials(iss: Issuer, decision_time: datetime, cfg: DataConfig,
+                          financials: Sequence[IssuerFinancials]) -> IssuerFacts:
+    """`derive_inputs` with the identifiers of `iss` and the LTM quarters of `financials` (another source's records,
+    every version; the quarters known at `decision_time` are kept). Nothing here reads Compustat or WRDS; the SEC
+    filings need the issuer's CIK."""
+    if not iss.cik:
+        raise DataUnavailable("facts", iss.ticker, "no CIK: the SEC filings are found by CIK")
+    known = PointInTimeStore(financials).as_known(decision_time)
+    ids = {"cik": iss.cik, "gvkey": iss.gvkey, "conm": iss.name or iss.ticker, "source": "issuer record of the data source"}
+    return _facts(iss, lambda: ci.derive_inputs(iss.ticker, cfg.root, as_of=decision_time, allow_wrds=False,
+                                                issuer_ids=ids, known_quarters=(known, "data source financials"),
+                                                **_fetches(cfg)))
+
+
+def _fetches(cfg: DataConfig) -> dict:
+    """The SEC readers of `derive_inputs`, refusing the network when the run is offline."""
+    return {"fetch": guarded_fetch(cfg, edgar.fetch_json), "fetch_raw": guarded_fetch(cfg, xi.fetch_bytes)}
+
+
+def _facts(iss: Issuer, derive) -> IssuerFacts:
     try:
-        v = ci.derive_inputs(iss.ticker, cfg.root, as_of=decision_time, allow_wrds=cfg.allow_network)
+        v = derive()
     except Exception as exc:  # noqa: BLE001
         raise DataUnavailable("facts", iss.ticker, f"{type(exc).__name__}: {exc}") from exc
     acc = pd.Timestamp(v["q_acceptance"][0]).tz_localize(None).to_pydatetime()
