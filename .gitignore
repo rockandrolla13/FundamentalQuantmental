@@ -6,6 +6,16 @@ docs/writeup/*.aux
 docs/writeup/*.log
 docs/writeup/*.fls
 docs/writeup/*.fdb_latexmk
-data/raw/
+# No trailing slash: this also ignores a worktree symlink at this path (commit 9ce0245 tracked one).
+/data/raw
 docs/writeup/*.out
 docs/writeup/*.toc
+# Source books, papers and drafts the user drops at the project root: never in git (licences).
+/*.pdf
+/*.docx
+/*.md
+!/README.md
+!/CLAUDE.md
+/.~lock.*
+/build/
+docs/high_yield_relative_value.pdf
