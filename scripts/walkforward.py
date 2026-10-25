@@ -654,10 +654,18 @@ def report() -> None:
 
 
 def main() -> None:
+    global TICKERS, PAIRS, FIRST, TRACE_END  # the options below replace this machine's defaults for the whole run
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("what", choices=["run", "outcomes", "report", "all"])
     ap.add_argument("--refresh", action="store_true")
+    ap.add_argument("--tickers", nargs="+", help="issuers to replay (default: this machine's 15)")
+    ap.add_argument("--pairs", nargs="*", help="pairs as A:B (default: this machine's 4)")
+    ap.add_argument("--first", help=f"first quarter end (default {FIRST})")
+    ap.add_argument("--last", help=f"last trade day of the bond data (default {TRACE_END})")
     a = ap.parse_args()
+    TICKERS = [t.upper() for t in a.tickers] if a.tickers else TICKERS
+    PAIRS = [tuple(p.upper().split(":")) for p in a.pairs] if a.pairs is not None else PAIRS
+    FIRST, TRACE_END = a.first or FIRST, a.last or TRACE_END
     if a.what in ("run", "all"):
         run_all(a.refresh)
     if a.what in ("outcomes", "all"):
