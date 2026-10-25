@@ -7,6 +7,9 @@ and then by a recorded decision.
 
     PYTHONPATH=.:scripts python3 scripts/golden_check.py snapshot
     PYTHONPATH=.:scripts python3 scripts/golden_check.py check
+
+Another machine picks its own issuers at the snapshot (`--tickers`, `--pairs`, `--end`); `check` reuses the ones
+the snapshot saved in `golden/_args.json`. The backtest subprocess gets the run's HY_* settings.
 """
 
 from __future__ import annotations
@@ -32,14 +35,22 @@ END = "2026-09-17"
 BACKTEST_JSON = CONFIG.path("backtest", "summary_peer_line_ex_distressed_cost15.json")
 
 
-def run_outputs(out: Path) -> None:
-    """The process for the 8 issuers into `out/process`, and the peer-line backtest summary into `out`."""
+# Settings the backtest subprocess must share with this process, so both read the same source and data root.
+PASSED_ENV = ("HY_SOURCE", "HY_OFFLINE", "SEC_USER_AGENT")
+
+
+def run_outputs(out: Path, tickers=TICKERS, pairs=PAIRS, end: str = END) -> None:
+    """The process for the issuers into `out/process`, and the peer-line backtest summary into `out`."""
+    import os  # noqa: PLC0415
     import process  # noqa: PLC0415 - scripts/ is on the path only here
 
-    process.run(TICKERS, END, PAIRS, out_dir=out / "process", figures=False)
+    process.run(list(tickers), end, [tuple(p) for p in pairs], out_dir=out / "process", figures=False)
+    # The caller's PYTHONPATH stays after the repo root, so a source module named in HY_SOURCE imports there too.
+    path = os.pathsep.join(p for p in (str(ROOT), os.environ.get("PYTHONPATH", "")) if p)
+    env = {"PYTHONPATH": path, "PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "HY_DATA_ROOT": str(CONFIG.root),
+           **{k: os.environ[k] for k in PASSED_ENV if k in os.environ}}
     subprocess.run([sys.executable, str(ROOT / "scripts" / "backtest_peer_line.py"), "--cost-bp", "15"], check=True,
-                   cwd=ROOT, env={"PYTHONPATH": f"{ROOT}", "PATH": "/usr/bin:/bin", "HOME": str(Path.home()),
-                                 "HY_DATA_ROOT": str(CONFIG.root)}, capture_output=True)
+                   cwd=ROOT, env=env, capture_output=True)
     shutil.copy(BACKTEST_JSON, out / BACKTEST_JSON.name)
 
 
@@ -68,6 +79,8 @@ def diff(a, b, path: str = "", out: list | None = None, rel: float = 1e-9) -> li
 def compare(golden: Path, new: Path) -> list[str]:
     problems = []
     for g in sorted(golden.rglob("*.json")):
+        if g.name == "_args.json":  # the snapshot's settings, not an output
+            continue
         n = new / g.relative_to(golden)
         if not n.exists():
             problems.append(f"{g.relative_to(golden)}: missing in the new run")
@@ -80,16 +93,23 @@ def compare(golden: Path, new: Path) -> list[str]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("what", choices=["snapshot", "check"])
+    ap.add_argument("--tickers", nargs="+", default=TICKERS, help="snapshot only (check reuses the snapshot's)")
+    ap.add_argument("--pairs", nargs="*", default=[f"{x}:{y}" for x, y in PAIRS], help="as A:B; snapshot only")
+    ap.add_argument("--end", default=END, help="last trade day; snapshot only")
     a = ap.parse_args()
+    args_file = GOLDEN / "_args.json"
     if a.what == "snapshot":
         if GOLDEN.exists():
             shutil.rmtree(GOLDEN)
         GOLDEN.mkdir(parents=True)
-        run_outputs(GOLDEN)
-        print(f"golden snapshot in {GOLDEN}: {len(list(GOLDEN.rglob('*.json')))} JSON files")
+        run = {"tickers": [t.upper() for t in a.tickers], "pairs": [p.upper().split(":") for p in a.pairs], "end": a.end}
+        run_outputs(GOLDEN, **run)
+        args_file.write_text(json.dumps(run))  # after the run, so compare() reads only the run's outputs
+        print(f"golden snapshot in {GOLDEN}: {len(list(GOLDEN.rglob('*.json'))) - 1} JSON files")
         return
+    run = json.loads(args_file.read_text()) if args_file.exists() else {"tickers": TICKERS, "pairs": PAIRS, "end": END}
     with tempfile.TemporaryDirectory() as tmp:
-        run_outputs(Path(tmp))
+        run_outputs(Path(tmp), **run)
         problems = compare(GOLDEN, Path(tmp))
     if problems:
         print(f"GOLDEN CHECK FAILED: {len(problems)} difference(s)")
