@@ -34,6 +34,13 @@ TABLES_DIR = "tables"
 FINANCIAL_FIELDS = tuple(f.name for f in fields(IssuerFinancials)
                          if f.name not in ("key", "as_of", "available_at", "nonrecurring_items", "maturity_schedule",
                                            "source"))
+# The value of a financials column that a table leaves out: what the warehouse adapter (`hy.sources.financials`) gives
+# when Compustat has no such field. Zero for the revolver, letters of credit, rent, pension, guarantees and the
+# maturity schedule; no cap for the borrowing base; NaN for every field Compustat does supply.
+_WAREHOUSE_ZERO = ("revolver_commitment", "revolver_drawn", "letters_of_credit", "rent_expense", "pension_underfunded",
+                   "guarantees_weak")
+DEFAULT_FINANCIALS = {f: (0.0 if f in _WAREHOUSE_ZERO else float("inf") if f == "borrowing_base" else float("nan"))
+                      for f in FINANCIAL_FIELDS}
 TABLES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "issuers": (("ticker", "issuer_id"), ("cik", "name")),
     "financials": (("issuer_id", "period_end", "available_at", "revenue", "ebitda_reported", "ebitda_adj_company"),
@@ -119,13 +126,16 @@ class TableSource:
         rows = f[f["issuer_id"].astype(str) == str(issuer.gvkey)]
         out = []
         for r in rows.to_dict("records"):
-            vals = {k: _num(r[k]) if k in r else float("nan") for k in FINANCIAL_FIELDS}
-            if "borrowing_base" not in r or pd.isna(r.get("borrowing_base")):
+            # A column you leave out takes the value the warehouse gives for it (DEFAULT_FINANCIALS); an empty cell in
+            # a column you give stays NaN, as a missing value must.
+            vals = {k: _num(r[k]) if k in r else DEFAULT_FINANCIALS[k] for k in FINANCIAL_FIELDS}
+            if pd.isna(vals["borrowing_base"]):
                 vals["borrowing_base"] = float("inf")  # no borrowing base: the revolver is not capped
             spi = _num(r.get("special_items"))
             items = ((NonRecurringItem("special_items", -spi, recurs=False, cash=_bool(r.get("special_items_cash"))),)
                      if np.isfinite(spi) and spi else ())
-            sched = tuple(_num(r.get(f"maturity_y{i}")) for i in range(1, 6))
+            sched = (tuple(_num(r.get(f"maturity_y{i}")) for i in range(1, 6)) if "maturity_y1" in r
+                     else IssuerFinancials.__dataclass_fields__["maturity_schedule"].default)
             src = r.get("source")
             out.append(IssuerFinancials(
                 key=str(issuer.gvkey), as_of=pd.Timestamp(r["period_end"]).to_pydatetime(),

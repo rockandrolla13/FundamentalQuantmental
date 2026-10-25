@@ -258,3 +258,17 @@ def test_check_source_reports_look_ahead():
 
 def test_fact_keys_are_the_keys_the_made_up_world_supplies():
     assert set(FACT_KEYS) <= set(world._facts("AAA").values)
+
+
+def test_a_left_out_financials_column_takes_the_warehouse_value(tmp_path):
+    folder = tmp_path / "t"
+    folder.mkdir()
+    pd.DataFrame([{"ticker": "AAA", "issuer_id": "1"}]).to_csv(folder / "issuers.csv", index=False)
+    pd.DataFrame([{"issuer_id": "1", "period_end": "2026-03-31", "available_at": "2026-05-10", "revenue": 100.0,
+                   "ebitda_reported": 20.0, "ebitda_adj_company": float("nan")}]).to_csv(folder / "financials.csv",
+                                                                                      index=False)
+    tab = TableSource(data_config.DataConfig(), folder=folder)
+    r = tab.financials(tab.issuers(["AAA"])[0])[0]
+    assert (r.revolver_commitment, r.rent_expense, r.borrowing_base) == (0.0, 0.0, float("inf"))  # warehouse values
+    assert np.isnan(r.capex_total) and np.isnan(r.ebitda_adj_company)  # a supplied field stays NaN when missing
+    assert r.maturity_schedule == (0.0,) * 5 and r.nonrecurring_items == ()
