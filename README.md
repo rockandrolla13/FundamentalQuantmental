@@ -45,14 +45,14 @@ The tests need no vendor data. The whole-analyst test runs on made-up data with 
 
 ## Plug in your data
 
-The analyst reads every input through one `DataView(source, decision_time)`. The view returns only what was public by the decision time.
+The analyst reads every input through one `DataView(source, decision_time)`. The view returns only what was public by the decision time. One setting, `HY_SOURCE`, chooses the source.
 
-1. Read `docs/data_contract.md` (PDF: `docs/writeup/data_contract.pdf`). It lists every data kind, every field, its units, and the meaning of `as_of` and `available_at`.
-2. Write one class that implements the protocols in `hy/data/source.py`. `hy/data/sources.py` has two examples: `WarehouseSource` (the local caches) and `FakeSource` (memory).
-3. Pass it to the run: `process.run(tickers, end, pairs, view=DataView(YourSource(...), decision))`.
-4. Point cached runs at your data folder with `HY_DATA_ROOT=/path/to/data`. Set `HY_OFFLINE=1` to forbid any network access.
+1. Follow `docs/production_wiring.md`. It lists the tables to export, their columns and units, and the commands in order.
+2. Export your data into `<HY_DATA_ROOT>/tables/` and set `HY_SOURCE=hy.data.tables:make_source`. The public SEC filings, US Treasury curve and Fed forecasts fill the rest.
+3. Build the panels (`scripts/build_panels.py`), then check the source (`scripts/check_source.py`).
+4. Set `HY_OFFLINE=1` to forbid any network access.
 
-When an issuer lacks quarterly financials, its later steps show as blocked with the reason, and the run continues for the others.
+`docs/data_contract.md` defines every data kind. When an issuer lacks quarterly financials, its later steps show as blocked with the reason, and the run continues for the others.
 
 Vendor data is not in this repository. `data/raw/` is git-ignored.
 

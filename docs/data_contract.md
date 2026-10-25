@@ -207,22 +207,27 @@ The walk-forward scores each prediction against what happened next. `hy.data.out
 
 ## 4. How to plug in a new source
 
-1. Write one class, for example `MySource`, that implements every protocol in `hy/data/source.py`: `IssuerSource`, `FilingSource`, `BondSource`, `MarketSource`, `EquitySource`, `ReferenceSource`, `ForecastSource`, `AnalystSource` and `PanelSource`.
+`docs/production_wiring.md` is the step-by-step guide for another machine: the tables to export, their columns, the commands in order, and the fixes for a failed check. In short:
+
+1. Choose the source with one setting, `HY_SOURCE`. Every script builds its view through `hy.data.factory.open_view`.
+   - `HY_SOURCE=hy.data.tables:make_source` reads one table per kind from `<HY_DATA_ROOT>/tables/` (`hy/data/tables.py`), then the public SEC filings, US Treasury curve and Fed forecasts (`PublicSource`).
+   - `HY_SOURCE=package.module:factory` calls your own factory with the run's `DataConfig`.
+   - Unset, the run reads this machine's WRDS warehouse.
+2. A source of your own implements the protocols in `hy/data/source.py`, or only some of them inside a `CompositeSource`. The composite asks its parts in order; a part that raises `DataUnavailable` passes the request on.
    - Return the record types of `hy/data/records.py` with the units of section 1.
    - Stamp every record with `as_of` and `available_at`. Never stamp a value earlier than its real release.
    - Raise `DataUnavailable` for an item that you do not have. Do not return a zero for a missing amount.
-   - Keep vendor field names inside your class. `FakeSource` in `hy/data/sources.py` is a short model to copy.
-2. Pass it to the view: `DataView(MySource(...), decision_time)`.
-3. Run the process: `process.run(tickers, end, pairs, view=DataView(MySource(...), decision))`. A run at `end` decides at `end` plus one day.
-4. Check the connector:
-   - Run `tests/test_pipeline_fake_source.py`. It shows the shape of every kind and runs the whole analyst on made-up data with the network blocked.
-   - Run the suite: `python3 -m pytest -q`.
-   - Take a golden snapshot on the new machine, `PYTHONPATH=.:scripts python3 scripts/golden_check.py snapshot`, then run `check` after each change. The numbers will differ from this machine's numbers because the data differs. They must not move between your own runs.
-5. Set `HY_DATA_ROOT` for the derived files that stay as files: the backtest summaries (`summary_full.json`, `results_h*.parquet`, `peer_signals_*.parquet`) and the run outputs. Without them, step 14b uses the v0 slope of spec S14b.
+   - Keep vendor field names inside your class.
+3. Build the `bond_panel` and `leverage` panels from your records with `scripts/build_panels.py` (`hy/data/panels.py`, the same rules as the warehouse).
+4. Check the connector with `scripts/check_source.py TICKERS --decision DATE`. It reads every kind through a view and reports gaps, wrong units and look-ahead. A failed required row stops the run of that issuer.
+5. Run the suite, `python3 -m pytest -q`. `tests/test_data_any_source.py` runs the whole analyst on tables selected by `HY_SOURCE` alone.
+6. Take a golden snapshot of your own issuers, `PYTHONPATH=.:scripts python3 scripts/golden_check.py snapshot --tickers ... --pairs A:B --end DATE`, then run `check` after each change. The numbers will differ from this machine's numbers because the data differs. They must not move between your own runs.
+7. `HY_DATA_ROOT` also holds the derived files: the backtest summaries (`summary_full.json`, `results_h*.parquet`, `peer_signals_*.parquet`), the calibration and the run outputs. Without them, step 14b uses the v0 slope of spec S14b.
 
 ## 5. What stays outside the contract
 
-- `scripts/backtest_alpha.py` and `scripts/backtest_clocks.py` build the warehouse panels from TRACE, Compustat and SEC data. They are panel builders for this warehouse. Another machine supplies the panels through `panel()` instead.
+- `scripts/backtest_alpha.py` and `scripts/backtest_clocks.py` build the warehouse panels from TRACE, Compustat and SEC data. Another machine supplies the panels through `panel()` instead, and runs `scripts/backtest_alpha.py --from-panels`.
+- The study scripts (`scripts/wt_*.py`, `s_tests.py`, `s7_sector_tilt.py`, `pull_sector_data.py`) read this machine's warehouse files directly. They are research, not the production run.
 - The pilot subsets (`panel_pilot`, `leverage_pilot`) are warehouse files that `hy.data.history.backtest_panel` reads by tag.
 - `scripts/rv_pair.py` keeps a WRDS query for the benchmark band of its figure. The report is display only.
 - `scripts/walkforward.py` reads 8-K item codes from the EDGAR cache for its event marks. They are display only.
