@@ -1,0 +1,232 @@
+% Methods, estimates and macro scenarios of the HY Analyst. Compile: latexmk -pdf methods_reference.tex
+\documentclass[10pt,a4paper]{article}
+\usepackage[a4paper,margin=18mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,amsmath,booktabs,longtable,array,xcolor,hyperref,enumitem}
+\definecolor{ink}{HTML}{183348}\definecolor{good}{HTML}{2E7D4F}\definecolor{amber}{HTML}{B07D1A}\definecolor{bad}{HTML}{B5403A}
+\hypersetup{colorlinks=true,linkcolor=ink,urlcolor=ink}
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+\setlist{itemsep=1pt,topsep=2pt}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\live}{\textcolor{good}{live}}
+\newcommand{\off}{\textcolor{bad}{weight 0}}
+\title{HY Analyst: every method, every estimate, every macro scenario}
+\author{FundamentalQuantmental. Reference as of 24 October 2026}
+\date{}
+\begin{document}
+\maketitle
+
+\section*{The answer in one box}
+\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{
+\textbf{5 method groups, 6 weight buckets, 18 estimates.}
+\begin{itemize}
+\item Group 1 is the core process (Gatto). Group 2 is the set of methods we built. Group 3 is the credit skills. Group 4 is the books and peers. Group 5 is the macro link.
+\item Group 2 counts as two buckets: the two clocks have their own 20\% share.
+\item 16 estimates carry weight. Two carry weight 0: E4 (default the price assumes) waits for a fitted $\kappa$, and E17 (macro link) waits for its tests.
+\item \textbf{The alpha is the weighted number of all estimates}, in bp a year, before trading costs. It also sets the rank. One estimate, E10, is the risk premium test: does the spread pay enough for the bond's risk, at the price the high yield index pays for risk (Section 6)?
+\item The macro side has two layers: 5 macro paths for the economy, and 4 cases for each company. Each issuer runs through $5 \times 4 = 20$ stories.
+\end{itemize}
+Code: \texttt{hy/groups.py} (estimates and weights), \texttt{scripts/process.py} (\texttt{group\_estimates}), \texttt{hy/macro.py} (paths), \texttt{hy/forward.py} (cases). Methodology: Sections 5, 7 and 8.}}
+
+\section{How the estimates combine}
+Every estimate answers one question: what should this bond earn above a hedge, in bp a year? The estimates come in three types.
+\begin{enumerate}
+\item \textbf{alpha}: the estimate is already in bp a year.
+\item \textbf{score}: the run standardises the score across the issuers, then multiplies it by the spread of E1 across the issuers. Formula: $(x - \bar x)/\mathrm{sd}(x) \times \mathrm{sd}(E1)$. A score says better or worse than the others. The scale says by how much in bp.
+\item \textbf{one\_way}: a scaled score capped at zero. A clean checklist earns no credit. A failed checklist lowers the number.
+\end{enumerate}
+Inside a bucket, the estimates take their v0 weights, renormalised over the estimates present. Across buckets, the user-set shares apply:
+\[
+\alpha_b = \frac{\sum_{j \in b} w_j\,E_j}{\sum_{j \in b,\ E_j\ \text{present}} w_j}, \qquad
+\alpha_{comb} = \frac{\sum_b W_b\,\alpha_b}{\sum_{b\ \text{present}} W_b}, \qquad
+\alpha_{net} = \alpha_{comb} - \text{trading cost}.
+\]
+A missing estimate does not count as zero: the weights renormalise. Trading cost comes off once. The size calibration (\texttt{hy/calibration.py}) then maps $\alpha_{net}$ to a size. On today's data it says ``rank only'': use the number to rank bonds, not to size positions.
+
+\begin{center}
+\begin{tabular}{llrP{8.2cm}}
+\toprule
+Bucket & Name & Share & Why this share \\\midrule
+G1 & Core process (Gatto) & 40\% & User decision 2026-10-22 \\
+G2C & Two clocks & 20\% & User decision 2026-10-22 \\
+G2 & Built methods (rest) & 18\% & Holds the spread level, the strongest tested signal \\
+G3 & Credit skills & 5\% & One-way only: it can only lower the number \\
+G4 & Books and peers & 17\% & User decision 2026-10-22 \\
+G5 & Macro link & 0\% & Not fitted. The user sets the share after tests T1 to T7 pass \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{The 18 estimates}
+``Weight'' is the effective weight in the combined number: bucket share $\times$ the estimate's share inside the bucket. $s$ is the bond's spread near 5 years, $s_{fair}$ the peer fair spread, $S$ the high yield index spread, $h = 0.5$ years the horizon, $D$ the spread duration, $\rho_q = 0.85$ the quarterly persistence of a spread gap.
+
+\subsection*{G1. Core process: Gatto's seven steps, the methodology, the rulebook, the relative value paper (40\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E4 & Default the price assumes & The default chance the spread implies, against our view: $-\text{gap}\times l_{def}$. & 0\% & \off: waits for a fitted $\kappa$ (mapping C2). Shown, not counted \\
+E7 & Earnings quality & Count of earnings-quality flags, add-back flags and the FCF check flag, negated. One-way. & 10\% & \live \\
+E8 & Liquidity and refinancing & Refinancing score under the likely macro path $+ \min(\text{wall cover}, 3) + 1\{\text{no funding gap}\}$. & 10\% & \live \\
+E9 & Market value check & Debt over market total enterprise value, negated. Less debt per dollar of market value is better. & 10\% & \live \\
+E10 & Risk premium alpha & $\mu_{bond} - \lambda\,ES_{bond}$: the expected return over Treasuries less the premium its bad-case loss needs at the index price of risk (Section 6). & 10\% & \live \\
+\bottomrule
+\end{longtable}
+
+\subsection*{G2C. Two clocks (20\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E5 & Two clocks & The bills the company owes against the revenue customers signed for: $-$years of EBITDAR locked in fixed bills (methodology 4.7). & 20\% & \live \\
+\bottomrule
+\end{longtable}
+
+\subsection*{G2. Built methods, the rest (18\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E0 & Spread level (carry) & Extra pay over the market: $(s - S)\times 10^4$, hedge $\beta = 1$. & 8.65\% & \live. Strongest tested signal \\
+E1 & Weighted cases and stories & Per path: carry $+$ convergence $-$ expected loss, weighted by the path probabilities, then divided by $h$. Carry $=(s - \beta S)h$; convergence $= D(1-\rho_q^{4h})(s - s_{fair})$; loss $= PD_h\cdot LGD$. & 5.19\% & \live \\
+E2 & Fair-line convergence & $D(1-\rho_q^{4h})(s - s_{fair})/h$. & 0.69\% & \live. Lowest weight by user decision \\
+E3 & Pair convergence & Convergence of the pair trade, signed by the leg the issuer is on. & 1.73\% & \live \\
+E6 & Health panel & (green bands $-$ red bands) / bands, framework F8. & 1.73\% & \live \\
+\bottomrule
+\end{longtable}
+
+\subsection*{G3. Credit skills (5\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E11 & Watchlist and covenant path & $-$watch tier $-\ 1\{\text{headroom falling}\}$. One-way. The second term is 0 until headroom history is stored. & 5\% & \live, partial \\
+\bottomrule
+\end{longtable}
+
+\subsection*{G4. Books and peers (17\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E12 & Ratio-implied rating gap & $z(\log s) - z(\text{S\&P default risk score})$: the spread is wide for the score (Ganguin and Bilardello ch.~10). & 2.5\% & \live \\
+E13 & Spread per turn & Log spread per turn of leverage minus the peer median, same GICS sector and rating class. 0 when Kricheff's trap guard fires (p.~124). & 2.5\% & \live \\
+E14 & Excess spread to peers (ESP) & Log spread minus the peer median, sector $\times$ rating peers (Dynkin et al.\ 2021, ch.~13). & 4.5\% & \live \\
+E15 & SPiDER & Log spread / (debt / 10-year mean EBITDA), one rank across sectors (Dynkin et al.\ ch.~14). NaN with fewer than 6 annual EBITDA figures. & 3\% & \live \\
+E16 & OneScore & Mean of the within-sector ranks of ESP and the 3-month stock return (Dynkin et al.\ ch.~19). An unlisted issuer uses ESP. & 4.5\% & \live \\
+\bottomrule
+\end{longtable}
+
+\subsection*{G5. Macro link (0\%)}
+\begin{longtable}{lP{3.2cm}P{6.6cm}rP{2.4cm}}
+\toprule
+ID & Name & What it measures, and the formula & Weight & Status \\\midrule\endhead
+E17 & Spread against the issuer-macro downside risk & $z(\log s) - z(\operatorname{logit} p)$, with $p$ the chance of a large EBITDA fall within 4 quarters from leverage, interest cover, rating history and the macro state (methodology 5.2.1). & 0\% & \off: not fitted. NaN until tests T1 to T7 pass \\
+\bottomrule
+\end{longtable}
+
+\section{The process that feeds the estimates}
+\texttt{scripts/process.py} runs every issuer through 15 steps. Each step is done, partial (it ran but needs an analyst input) or blocked.
+\begin{center}
+\begin{tabular}{rlP{9cm}}
+\toprule
+Step & Name & Feeds \\\midrule
+1--3 & Inputs, frame, normalise & Gatto steps 1 to 3. Earnings quality (E7) \\
+4 & Liquidity & Funding gap, refinancing shock (E8) \\
+5 & Capital structure & Leverage, coverage, Kricheff and S\&P ratios (E12, E13, E17) \\
+6 & Two clocks & E5 \\
+7 & Cases under macro paths & The 20 stories (E1, E8) \\
+8 & Valuation & Market value check (E9) \\
+9, 9b & Relative value, the pair & Fair spread, peers (E2, E3, E13 to E16) \\
+10--11 & Expected alpha, gate & E1, E4, the gate (framework F9) \\
+12--13 & Events, health panel & Watchlist (E11), panel (E6), catalysts \\
+14, 14b & Combined view, size calibration & The combination above \\
+15 & Decision against cash & E10 (risk premium test), the best alternative \\
+\bottomrule
+\end{tabular}
+\end{center}
+Methodology Section 8 also designs seven signals, S1 to S7, with weights from the trailing information coefficient. They are a design for the signal layer. The 18 estimates above are what the run computes today.
+
+\section{The macro scenarios}
+\subsection{Layer 1: five macro paths for the economy}
+Each path runs 8 quarters. The forecasters' own uncertainty sets how likely each path is (methodology 5.4, decision page \texttt{2026-10-22-macro-path-construction}).
+\begin{enumerate}
+\item Fit a normal to the GDP growth and CPI quantiles of each forecast: $\sigma = (q_{90}-q_{10})/(2\times1.2816)$.
+\item Standardise against history: $z_G$ for GDP, $z_C$ for CPI. Cut at the 20th and 80th percentiles ($c = 0.8416$). The correlation of GDP and CPI is $-0.2$.
+\item Each region of $(z_G, z_C)$ is one path. Its probability mass is the forecast probability of the path.
+\item Combine the mass with the phase prior by Bayes' rule: $p(m) \propto \pi_{phase}(m)\cdot\text{mass}(m)$.
+\end{enumerate}
+\begin{center}
+\begin{tabular}{lP{5.2cm}rrrrr}
+\toprule
+Path & Region & Prob. & GDP & Policy rate & 10y yield & HY spread \\
+ & & & growth & at q8 & at q8 & \\\midrule
+Soft landing & The rest & 85.9\% & 2.5\% & 3.9\% & 5.2\% & 142 bp \\
+Higher for longer & $z_G \ge -c$, $z_C > c$ & 8.4\% & 2.2\% & 5.5\% & 5.9\% & 168 bp \\
+Disinflation rally & $z_G \ge -c$, $z_C < -c$ & 3.7\% & 2.8\% & 2.1\% & 4.6\% & 110 bp \\
+Recession & $z_G < -c$, $z_C \le c$ & 1.7\% & 0.0\% & 2.6\% & 3.0\% & 369 bp \\
+Stagflation & $z_G < -c$, $z_C > c$ & 0.3\% & $-$0.1\% & 4.4\% & 3.9\% & 376 bp \\
+\bottomrule
+\end{tabular}
+\end{center}
+Values from the last saved run: decision date 18 September 2026, phase ``expansion'', HY index spread today 164 bp. Live sources: SPF (vintage 11 August 2026), FOMC SEP (16 September 2026), Treasury forwards, SLOOS, TRACE high yield benchmark. Stubs (no data): fed funds futures, agency default forecasts, ICE HY OAS, sector decks, sell-side consensus, management guidance.
+
+\textbf{Read this with care.} The recession path has 1.7\%. Gatto's base rate is one recession in five years, about 20\% a year (p.~96). The forecasters' bands are narrow, and the phase vote says expansion, so both push the recession mass down. The open test in the decision page settles it: the realised path must have a lower Brier score than the phase prior alone.
+
+\textbf{How a path reaches the market variables.}
+\begin{itemize}
+\item Policy rate: the FOMC SEP median, shifted by $1.5\,\Delta\text{CPI} + 0.5\,\Delta\text{GDP}$, floored at zero.
+\item Yields: forward curve $+\ b_g\,\Delta\text{GDP} + b_p\,\Delta\text{policy}$. Default betas: 2-year (0.5, 0.9), 10-year (0.6, 0.5).
+\item HY spread, default rate, PMI when the registry has no value: 450 bp $+$ 150 bp per $-1$ sd of GDP; 3.5\% $+$ 1.5 points per $-1$ sd; $50 + 4z_G$. These are logged assumptions.
+\end{itemize}
+
+\subsection{Phase prior (framework F6)}
+Six indicators vote on the phase: \texttt{hy\_oas}, \texttt{distress\_ratio}, \texttt{sloos\_tightening}, \texttt{pmi}, the default-rate forecast, and issuance quality. In the last run three voted ``not late'' and three had no data.
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Phase & Base & Downside moderate & Downside severe & Upside \\\midrule
+Expansion & 0.60 & 0.15 & 0.05 & 0.20 \\
+Late cycle & 0.50 & 0.25 & 0.10 & 0.15 \\
+Downturn & 0.35 & 0.35 & 0.20 & 0.10 \\
+Repair & 0.50 & 0.25 & 0.10 & 0.15 \\
+Recovery & 0.55 & 0.15 & 0.05 & 0.25 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Archetype adjustment: both downside weights $\times1.3$ for commodity (A3) and cyclical (A4) issuers, $\times0.7$ for healthcare (A2) and contracted (A5) issuers, then renormalise. If the combined downside weight exceeds 0.5, the moderate downside becomes the base case (F6.6).
+
+\subsection{Layer 2: four cases for each company}
+Gatto's case method (pp.~285--311), framework F6:
+\begin{center}
+\begin{tabular}{lP{12cm}}
+\toprule
+Case & Construction \\\midrule
+Base & The analyst's view. It must pass the coin-toss test: actuals beat it about half the time (p.~285) \\
+Downside, moderate & The archetype's main risk at the severity of the last cycle. Cyclical issuers repeat their own last recession: TM Corp used $-20\%$ then $-10\%$ sales (pp.~290, 306) \\
+Downside, severe & 1.5 times the moderate revenue fall, one year longer to recover, 10 fewer payable days, margin below the historic trough (p.~386). Takes $f = 0.25$ of the downside weight \\
+Upside & Mirror of the moderate downside, unless a named catalyst exists \\
+\bottomrule
+\end{tabular}
+\end{center}
+\textbf{How a path moves a company.} Base-case growth shifts by $\beta_{sector}\times(\text{path GDP} - 1.8\%)$. Default $\beta$ by archetype: A2 healthcare 0.3, A6 subscription 0.5, A5 contracted 1.0, A7 project 1.2, A4 cyclical 1.5. Default recession sales paths (year 1, year 2): A2 ($-5\%$, $-2\%$), A6 ($-10\%$, $-3\%$), A5 ($-15\%$, $-5\%$), A4 ($-20\%$, $-10\%$), A7 ($-20\%$, $-5\%$). Floating interest follows the path's policy rate. A maturity inside the horizon refinances at the path's forward Treasury plus the fair spread, if access is likely. Otherwise the case records a refinancing failure.
+
+\subsection{Layer 3: survive or default (step 15, shown beside the test)}
+Inside each path, step 15 splits the bond into two states. \emph{Survive}: the bond's spread at the horizon moves with the index, and the peer gap closes at the engine speed. \emph{Default}: the holder gets the recovery, $R = 0.4$, paid after 1 year and discounted at 15\%. This gives 10 states per bond.
+
+\section{The risk premium test, estimate E10 (methodology 7.7)}
+This test is one weighted input of the alpha. Its effective weight is 10\%.
+The question is not whether the bond survives. The question is whether the spread pays enough for the risk of the total return.
+\begin{enumerate}
+\item Run the bond and the high yield index through the same 5 paths. Hold rates at today's curve: the test measures the credit premium. Each path takes its expected default share. The bond's spread moves with the index, less the part of its peer gap that closes.
+\item For each, compute the expected return over a Treasury of the same tenor, $\mu$, and the bad-case loss, $ES_{95}$. No trading cost enters the test.
+\item The index sets the price of risk: $\lambda = \mu_{index}/ES_{index}$.
+\item $\alpha = \mu_{bond} - \lambda\,ES_{bond}$. Positive: the spread pays more than the market rate for the risk. Negative: the spread looks wide but does not cover the risk.
+\item Report $\alpha$ again with no closure of the peer gap. If $\alpha$ is positive only with closure, the memo says that the alpha rests on convergence.
+\end{enumerate}
+A case that runs out of cash inside the horizon defaults at the v0 chance of 0.5. The other half is the rescue branch. The weighted alpha is not yet calibrated against realised returns. Decision page \texttt{2026-10-25-risk-premium-alpha}.
+
+\section{What is weak, and what settles it}
+\begin{enumerate}
+\item \textbf{Case weights.} They come from the F6 table, not from data. The Section 5.2 logistic is not fitted. Test: PD calibration by rating and by cycle phase.
+\item \textbf{Path probabilities.} The recession path has 1.7\%. Test: the Brier score of the realised path against the phase prior.
+\item \textbf{Sizes.} The risk premium alpha is not calibrated yet. Test: refit the size calibration with this alpha as the predictor.
+\item \textbf{Defaults in step 15.} Recovery, delay and discount rate are v0 values. Test: replace them with the claims view and the documents.
+\item \textbf{Macro link (G5).} It is not fitted. Tests T1 to T7 of methodology 5.2.1.
+\end{enumerate}
+\end{document}

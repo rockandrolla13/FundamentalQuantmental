@@ -1,8 +1,9 @@
-"""One analyst, four method groups, one combined estimate of expected alpha (methodology 8; framework F10, F12.1).
+"""One analyst, five method groups (six weight buckets), one combined estimate of expected alpha (methodology 8; framework F10, F12.1).
 
 G1 core process (Gatto's seven steps, methodology, framework F1 to F13, the RV PDF additions), G2 built methods
 (clocks, fair line, pair, stories and cases, alpha, gate, F8 panel), G3 skills (hy-model-standards and the
-private-credit skills adapted to public bonds), G4 books (Kricheff; Ganguin and Bilardello).
+private-credit skills adapted to public bonds), G4 books (Kricheff; Ganguin and Bilardello), G5 macro link (the
+issuer-macro downside model of methodology 5.2.1, estimate E17).
 
 The estimate set E0 to E13, their groups, types and v0 weights follow research/combined_framework_spec.md (S14).
 Every estimate is in bp a year of expected alpha before cost. Types: "alpha" estimates are already in bp a year;
@@ -35,7 +36,9 @@ ESTIMATES = {
     "E7": ("G1", "Earnings quality", "one_way", 0.05),  # spec: G1 and G3; counted in G1's share
     "E8": ("G1", "Liquidity and refinancing", "score", 0.05),
     "E9": ("G1", "Market value check", "score", 0.05),
-    "E10": ("G1", "Excess over cash", "alpha", 0.05),
+    # User decision 2026-10-25 (decision page 2026-10-25-risk-premium-alpha): E10 is the risk premium test of
+    # methodology 7.7, one weighted input of the alpha. It replaces the excess over cash (same step 15 cash flows).
+    "E10": ("G1", "Risk premium alpha", "alpha", 0.05),
     "E11": ("G3", "Watchlist and covenant path", "one_way", 0.05),
     "E12": ("G4", "Ratio-implied rating gap", "score", 0.05),
     "E13": ("G4", "Spread per turn", "score", 0.05),
@@ -45,6 +48,9 @@ ESTIMATES = {
     # User decision 2026-10-22 (decision page 2026-10-22-onescore): E14's share split with OneScore. A private issuer
     # has no OneScore, so scripts/process.py sets its E16 to its E14: ESP then carries the whole 9%.
     "E16": ("G4", "OneScore (ESP and equity momentum)", "score", 0.09),
+    # User decision 2026-10-24 (decision page 2026-10-24-macro-link-method): the issuer-macro downside model of
+    # methodology 5.2.1 is its own method, not an input of E1. NaN until the model is fitted and passes T1 to T7.
+    "E17": ("G5", "Spread against the issuer-macro downside risk", "score", 1.00),
 }
 # User decision 2026-10-22 (decision page 2026-10-22-weights-esp-spider): G1 40%, two clocks 20%, books 17%; the
 # rest split on the backtest: G2 18% (holds spread level, the strongest tested signal), G3 5% (one-way only).
@@ -56,6 +62,9 @@ BUCKETS = {
     "G2": ("Built methods (rest)", 0.18, ("E0", "E1", "E2", "E3", "E6")),
     "G3": ("Credit skills", 0.05, ("E11",)),
     "G4": ("Books and peers", 0.17, ("E12", "E13", "E14", "E15", "E16")),
+    # Share 0 until tests T1 to T7 of methodology 5.2.1 pass; the user sets the live share then. A zero share shows
+    # the method in the memo and leaves the combined number unchanged.
+    "G5": ("Macro link", 0.00, ("E17",)),
 }
 GROUP_NAMES = {k: v[0] for k, v in BUCKETS.items()}
 GROUP_WEIGHTS = {k: v[1] for k, v in BUCKETS.items()}
@@ -161,14 +170,14 @@ def weighted(estimates: Mapping[str, float], weights: Mapping[str, float]) -> di
 
 def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: float,
             decision_time: pd.Timestamp | None = None, calibration_path: Path | None = None) -> dict[str, Any]:
-    """Combined alpha across the five buckets, set against the scenario-weighted alpha (methodology 7.5, 8; spec S14).
+    """Combined alpha across the weight buckets (BUCKETS), set against the scenario-weighted alpha (methodology 7.5, 8; spec S14).
 
     alpha_b = the bucket's weighted mean over its estimates present (v0 weights, renormalised inside the bucket);
     alpha_comb = sum_b W_b alpha_b / sum_b W_b over the buckets with an estimate, W_b the bucket share (BUCKETS).
     After cost subtracts the anchor's round-trip cost once. Returns per-bucket results and the totals.
     alpha_sized (spec S14b) uses the latest calibration available before `decision_time` when the calibration file
     exists (`size_map`), else `SIZED_V0`; `size_use` says "size" or "rank only, minimum size".
-    Intuition: five analysts each give a number; the desk weighs them as the user set and pays the cost once.
+    Intuition: each bucket is one analyst who gives a number; the desk weighs them as the user set and pays the cost once.
     """
     groups = {}
     for g, (name, share, ids) in BUCKETS.items():
@@ -189,12 +198,13 @@ def combine(estimates: Mapping[str, float], cost_bp_yr: float, anchor_bp_yr: flo
     # A fitted map that says "rank only" gives every bond about the same number (its intercept): the sample's average
     # excess return, not a view on this bond. Show no size then, and name that level on its own.
     rank_only = smap["record"] is not None and smap["use"] != "size"
-    agree = sum(1 for v in groups.values() if v["present"] and np.sign(v["alpha_bp_yr"]) == np.sign(comb))
+    voting = [v for v in groups.values() if v["present"] and v["share_set"] > 0]  # a zero-share bucket is shown, not counted
+    agree = sum(1 for v in voting if np.sign(v["alpha_bp_yr"]) == np.sign(comb))
     return {"groups": groups, "combined_before_cost": comb, "combined_after_cost": net, "cost": cost_bp_yr,
             "alpha_sized": float("nan") if rank_only else sized, "size_level_bp_yr": sized if rank_only else None,
             "size_use": smap["use"], "size_source": smap["source"],
             "anchor_before_cost": anchor_bp_yr, "anchor_after_cost": anchor_bp_yr - cost_bp_yr,
-            "groups_agree": agree, "groups_n": sum(1 for v in groups.values() if v["present"])}
+            "groups_agree": agree, "groups_n": len(voting)}
 
 
 def verdict(alpha_bp_yr: float, cost_bp_yr: float, one_way_only: bool = False) -> str:

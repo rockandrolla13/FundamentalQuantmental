@@ -3,35 +3,36 @@
 \usepackage{booktabs,xcolor,hyperref,enumitem,graphicx,float,caption,array}
 \definecolor{good}{HTML}{2E7D4F}\definecolor{amber}{HTML}{B07D1A}\definecolor{bad}{HTML}{B5403A}
 \setlist{itemsep=1pt,topsep=2pt}\emergencystretch=3em
-\title{Issuer memos: one analyst, four groups of methods}
+\title{Issuer memos: one analyst, five groups of methods}
 \author{FundamentalQuantmental HY Analyst: one memo per company, written by the process}
 \date{Data as known on 2026-09-18}
 \begin{document}
 \maketitle
 \noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy
-\textbf{How these memos are made.} One analyst runs every company through four groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Each group gives its own estimate of expected profit above a hedge, in bp a year. The combined estimate weighs five buckets as the user set them (core process 40.0\%, two clocks 20.0\%, built methods (rest) 18.0\%, credit skills 5.0\%, books and peers 17.0\%) and pays trading costs once. Each step is \textcolor{good}{done}, \textcolor{amber}{partial} (it ran but needs an analyst input), or \textcolor{bad}{blocked}. Missing inputs appear as open questions.}}
+\textbf{How these memos are made.} One analyst runs every company through five groups of methods. Group 1 is the core process: Gatto's seven steps, our method, our rulebook and the relative value paper. Group 2 is the set of methods we built: the two clocks, the fair line and the pair, the economic stories, the gate and the health panel. Group 3 applies the lender's checklists (the credit skills) where public filings allow. Group 4 applies two books: Kricheff, and Ganguin and Bilardello (S\&P). Group 5 links the economy to the company: the chance of a large fall in earnings, from the balance sheet and the macro state, set against the spread. It is not fitted yet and has no weight. Each group gives its own estimate of expected profit above a hedge, in bp a year. The alpha of a bond is the weighted estimate of all methods, before trading costs. The weights are the bucket shares the user set (core process 40.0\%, two clocks 20.0\%, built methods (rest) 18.0\%, credit skills 5.0\%, books and peers 17.0\%, macro link 0.0\%). One method in group 1 is the risk premium test: does the spread pay enough for its risk, at the price the high yield index pays for risk. Each step is \textcolor{good}{done}, \textcolor{amber}{partial} (it ran but needs an analyst input), or \textcolor{bad}{blocked}. Missing inputs appear as open questions.}}
 
 \section*{All issuers, ranked by the combined view}
-The combined column is after trading costs; the five bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{Alpha sizes are uncalibrated}: in the backtest, realised alpha was about 0.08 times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
-\begin{center}\scriptsize\setlength{\tabcolsep}{2pt}\begin{tabular}{@{}rlrrrrrrrrll@{}}\toprule
-Rank & Issuer & Combined & Calibrated & G1 (40\%) & G2 clocks (20\%) & G2 rest (18\%) & G3 (5\%) & G4 (17\%) & Cases & Best alt. & Gate \\\midrule
-1 & CRWV & \textbf{+3} & n/a & +249 & -537 & +654 & -374 & +362 & +590 & NCLH & Watch \\
-2 & THC & \textbf{-56} & n/a & -15 & +318 & +32 & +0 & +321 & -236 & CRWV & Pass \\
-3 & CCL & \textbf{-126} & n/a & +68 & +153 & -73 & +0 & +16 & -218 & CRWV & Pass \\
-4 & HCA & \textbf{-155} & n/a & +52 & +343 & -123 & +0 & -269 & -382 & CRWV & Pass \\
-5 & NCLH & \textbf{-193} & n/a & -193 & +178 & +110 & -374 & +94 & -81 & CRWV & Pass \\
-6 & MGM & \textbf{-230} & n/a & +16 & -189 & +29 & +0 & -189 & -266 & CRWV & Pass \\
-7 & WYNN & \textbf{-251} & n/a & -57 & +7 & -109 & +0 & -225 & -406 & CRWV & Pass \\
-8 & ORCL & \textbf{-258} & n/a & +105 & -274 & -250 & -374 & -47 & -260 & CRWV & Pass \\
+``Alpha'' is the weighted estimate of all methods, in bp a year, before trading costs. It ranks the bonds. ``Risk prem.'' is the risk premium test (methodology 7.7) alone: the bond's expected return over Treasuries less the premium its bad-case loss needs at the high yield index's price of risk. It is one weighted input of the alpha. The bucket columns (with their weights) are before costs, in bp a year. ``Cases'' is the weighted cases and stories after costs. ``Best alt.'' is the position the same money would rather hold (cash when nothing in the run beats it). \textbf{Alpha sizes are uncalibrated}: in the backtest, realised alpha was about 0.08 times the predicted alpha, so ``Calibrated'' multiplies the combined number by that slope (decision page 2026-10-22-alpha-backtest-design). The slope is not significant, so the numbers rank the issuers but do not size positions.
+\begin{center}\scriptsize\setlength{\tabcolsep}{2pt}\begin{tabular}{@{}rlrrrrrrrrrrll@{}}\toprule
+Rank & Issuer & Alpha & Risk prem. & Calibrated & G1 (40\%) & G2 clocks (20\%) & G2 rest (18\%) & G3 (5\%) & G4 (17\%) & G5 (0\%) & Cases & Best alt. & Gate \\\midrule
+1 & CRWV & \textbf{+151} & +1,507 & n/a & +245 & -537 & +654 & -374 & +362 & n/a & +590 & MGM & Watch \\
+2 & THC & \textbf{+122} & -3 & n/a & -5 & +318 & +32 & +0 & +321 & n/a & -236 & CRWV & Pass \\
+3 & CCL & \textbf{+50} & +70 & n/a & +75 & +153 & -73 & +0 & +16 & n/a & -218 & CRWV & Pass \\
+4 & HCA & \textbf{+25} & -143 & n/a & +60 & +343 & -123 & +0 & -269 & n/a & -382 & CRWV & Pass \\
+5 & NCLH & \textbf{-36} & +289 & n/a & -222 & +178 & +110 & -374 & +94 & n/a & -81 & CRWV & Pass \\
+6 & MGM & \textbf{-58} & +73 & n/a & +16 & -189 & +29 & +0 & -189 & n/a & -266 & CRWV & Pass \\
+7 & WYNN & \textbf{-80} & -94 & n/a & -59 & +7 & -109 & +0 & -225 & n/a & -406 & CRWV & Pass \\
+8 & ORCL & \textbf{-84} & +38 & n/a & +107 & -274 & -250 & -374 & -47 & n/a & -260 & CRWV & Pass \\
 \bottomrule\end{tabular}\end{center}
 
 \section*{What each part of a memo answers}
 \begin{center}\footnotesize\begin{tabular}{@{}lp{7.2cm}p{6.4cm}@{}}\toprule Memo part & What it answers & Where it comes from \\\midrule
-Top & The call and the combined view of the four groups & Methodology 8; F10, F12.1; decision 2026-10-22-four-group-combination \\
+Top & The call and the combined view of the five groups & Methodology 8; F10, F12.1; decision 2026-10-22-four-group-combination \\
 G1 & The business, earnings, cash, debt, value, the funding gap, the refinancing shock, the decision against cash & Gatto steps 1-7; M4.1-4.3, M6, M7.5; F2-F5, F7; RV PDF (hyrv mapping items 1-4; C2, C3) \\
 G2 & The two clocks, the stories and cases, relative value and the pair, expected profit, the gate, the health panel & M4.7, M5.1-5.4, M7.4-7.5; F6, F8, F9, F10 S4 \\
 G3 & Add-backs, the FCF check, covenant headroom, watchlist, trajectory, memo structure & hy-model-standards; ebitda-addback-treatment; covenant-compliance; borrower-monitoring; credit-memo-standards \\
 G4 & Kricheff's cash bridge, ratio set, snapshot and spread per turn; the S\&P profiles and anchor & Kricheff ch. 9, 10, 21, 24; Ganguin and Bilardello ch. 2-5, 10, App. E \\
+G5 & The issuer's chance of a large EBITDA fall from its balance sheet and the economy, against its spread & M5.2.1; decision 2026-10-24-macro-link-method \\
 End & Coming events, open questions, the record & F11, F12 \\
 \bottomrule\end{tabular}\end{center}
 
@@ -87,35 +88,42 @@ stagflation & 0\% & -0.1\% & 4.4\% & 376 \\
 \end{description}
 \newpage
 \section*{CoreWeave (CRWV)}\pdfbookmark[1]{CRWV}{bm-CRWV}\label{memo-start-CRWV}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Watch. The bond looks cheap by more than the model's noise, every check points the same way, and the expected profit beats trading costs. Before it becomes a trade, an analyst must name a dated event that would close the gap and the level that would prove the view wrong. If the money went elsewhere, the best alternative in this run is NCLH. Position size and hedge: open until the call passes.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Watch. The bond looks cheap by more than the model's noise, every check points the same way, and the expected profit beats trading costs. Before it becomes a trade, an analyst must name a dated event that would close the gap and the level that would prove the view wrong. If the money went elsewhere, the best alternative in this run is MGM. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 1 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: +151 bp a year.} The methods together say the bond pays more than its risk needs. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 3 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: +1,507 bp a year.} The spread pays more than the market rate for this risk. Over Treasuries, the bond is expected to earn +1,606 bp a year. Its risk needs +100 bp a year at the price the high yield index pays for risk (0.10 per unit of bad-case loss). The bond's bad-case loss is 5.3\% of the money over the half-year; the index's is 3.6\%. With no closure of the gap to peers, the alpha is +879 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 1 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +249 & 40\% & +99 & \textcolor{good}{supports owning} \\
+G1. Core process & +245 & 40\% & +98 & \textcolor{good}{supports owning} \\
 G2 clocks. Two clocks & -537 & 20\% & -107 & \textcolor{bad}{against owning} \\
 G2 rest. Built methods (rest) & +654 & 18\% & +118 & \textcolor{good}{supports owning} \\
 G3. Credit skills & -374 & 5\% & -19 & \textcolor{bad}{against owning} \\
 G4. Books and peers & +362 & 17\% & +62 & \textcolor{good}{supports owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+153} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+151} &  \\
 Trading costs &  &  & -149 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{+3} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{+2} &  \\
 Weighted cases and stories alone, after costs &  &  & +590 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 587 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 588 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +249 bp a year before trading costs (costs are 149 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 1 of the issuers on this group alone. Best alternative for the same money: NCLH.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{good}{supports owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +245 bp a year before trading costs (costs are 149 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 1 of the issuers on this group alone. Best alternative for the same money: MGM.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & +183 & 0\% & +0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & -568 & 25\% & -142 & F4; RV PDF E75-E76 \\
 Debt against market value & +41 & 25\% & +10 & F7.7 \\
-Return above cash, repriced in every story & +1,522 & 25\% & +380 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & +1,507 & 25\% & +377 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 739 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 416 bp, so the bond is cheap by 323 bp. The high yield index pays 164 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
@@ -190,8 +198,8 @@ Chance of doing worse than cash & 3.5\% \\
 Average loss in the worst 5\% of outcomes & 22.8\% \\
 Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & +631 \\
 Hedge ratio on the HY index (DTS beta) & 4.74 \\
-Best alternative in this run (worst 5\% loss within the 25\% budget) & NCLH \\
-Return given up against that alternative, bp a year & -1,116 \\
+Best alternative in this run (worst 5\% loss within the 25\% budget) & MGM \\
+Return given up against that alternative, bp a year & -1,450 \\
 \bottomrule\end{tabular}\end{center}
 Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-11-11); Debt due by 0.5 years out
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
@@ -372,6 +380,13 @@ EBITDA / interest (with lease interest) & 1.8x & 9.5 & 3.2x & 1.8x \\
 EBITDA margin & 50\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 8.1. Business risk score 5.8: industry 5, steadiness of sales 5 (year-on-year growth varies by 11.2\%), customer spread 8. The book puts 45\% of the weight on business risk for this class, so the default risk score is 7.0: the \textbf{BB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 149 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-11-11 (estimate).\item Debt due by 0.5 years out:  - \$4.4bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Maintenance covenant levels: none stated in the 10-Q or 10-K text; read the credit agreement exhibit (public bonds are often incurrence-only).\item The funding gap opens only because no revolver capacity is tagged: read the credit facility note before using the gap.\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\end{enumerate}
@@ -384,33 +399,40 @@ Financial risk score 8.1. Business risk score 5.8: industry 5, steadiness of sal
 \section*{Oracle (ORCL)}\pdfbookmark[1]{ORCL}{bm-ORCL}\label{memo-start-ORCL}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 8 of the issuers in this run. 4 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: -84 bp a year.} The methods together say the bond does not pay enough for its risk. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 4 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: +38 bp a year.} The spread pays more than the market rate for this risk. Over Treasuries, the bond is expected to earn +119 bp a year. Its risk needs +80 bp a year at the price the high yield index pays for risk (0.11 per unit of bad-case loss). The bond's bad-case loss is 3.6\% of the money over the half-year; the index's is 3.8\%. With no closure of the gap to peers, the alpha is +116 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 8 of the issuers in this run. 4 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +105 & 40\% & +42 & \textcolor{amber}{leans to owning} \\
+G1. Core process & +107 & 40\% & +43 & \textcolor{amber}{leans to owning} \\
 G2 clocks. Two clocks & -274 & 20\% & -55 & \textcolor{bad}{against owning} \\
 G2 rest. Built methods (rest) & -250 & 18\% & -45 & \textcolor{bad}{against owning} \\
 G3. Credit skills & -374 & 5\% & -19 & \textcolor{bad}{against owning} \\
 G4. Books and peers & -47 & 17\% & -8 & \textcolor{bad}{against owning} \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
 \textbf{Combined, before trading costs} &  &  & \textbf{-84} &  \\
 Trading costs &  &  & -173 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-258} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-257} &  \\
 Weighted cases and stories alone, after costs &  &  & -260 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 2 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 3 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +105 bp a year before trading costs (costs are 173 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 2 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +107 bp a year before trading costs (costs are 173 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 2 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -6 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & -290 & 25\% & -72 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & +516 & 25\% & +129 & F7.7 \\
-Return above cash, repriced in every story & +29 & 25\% & +7 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & +38 & 25\% & +10 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 136 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 168 bp, so the bond is expensive by 31 bp. The high yield index pays 164 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
@@ -667,6 +689,13 @@ EBITDA / interest (with lease interest) & 4.0x & 6.8 & 3.2x & 1.8x \\
 EBITDA margin & 47\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 5.9. Business risk score 5.0: industry 5, steadiness of sales 5 (year-on-year growth varies by 7.8\%), customer spread 5. The book puts 45\% of the weight on business risk for this class, so the default risk score is 5.5: the \textbf{BBB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 173 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-12-12 (estimate).\item Debt due by 1.0 years out:  - \$7.2bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Maintenance covenant levels: none stated in the 10-Q or 10-K text; read the credit agreement exhibit (public bonds are often incurrence-only).\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\item Distressed multiple (F7.3) and the recovery of the bonds if the company defaults (F7.9).\end{enumerate}
@@ -679,33 +708,40 @@ Financial risk score 5.9. Business risk score 5.0: industry 5, steadiness of sal
 \section*{HCA Healthcare (HCA)}\pdfbookmark[1]{HCA}{bm-HCA}\label{memo-start-HCA}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 4 of the issuers in this run. 2 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: +25 bp a year.} The methods together say the bond pays more than its risk needs. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 2 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: -143 bp a year.} The spread does not pay enough for this risk. Over Treasuries, the bond is expected to earn -94 bp a year. Its risk needs +49 bp a year at the price the high yield index pays for risk (0.09 per unit of bad-case loss). The bond's bad-case loss is 2.7\% of the money over the half-year; the index's is 3.4\%. With no closure of the gap to peers, the alpha is +15 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 4 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +52 & 40\% & +21 & \textcolor{amber}{leans to owning} \\
+G1. Core process & +60 & 40\% & +24 & \textcolor{amber}{leans to owning} \\
 G2 clocks. Two clocks & +343 & 20\% & +69 & \textcolor{good}{supports owning} \\
 G2 rest. Built methods (rest) & -123 & 18\% & -22 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
 G4. Books and peers & -269 & 17\% & -46 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+22} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+25} &  \\
 Trading costs &  &  & -176 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-155} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-152} &  \\
 Weighted cases and stories alone, after costs &  &  & -382 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 227 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 230 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +52 bp a year before trading costs (costs are 176 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 4 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +60 bp a year before trading costs (costs are 176 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 4 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -32 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & +216 & 25\% & +54 & F7.7 \\
-Return above cash, repriced in every story & -173 & 25\% & -43 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & -143 & 25\% & -36 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 68 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 75 bp. The high yield index pays 164 bp. What would reveal it, and when: open question.
@@ -940,6 +976,13 @@ EBITDA / interest (with lease interest) & 7.0x & 4.8 & 3.2x & 1.8x \\
 EBITDA margin & 20\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 4.4. Business risk score 4.0: industry 4, steadiness of sales 3 (year-on-year growth varies by 2.1\%), customer spread 5. The book puts 55\% of the weight on business risk for this class, so the default risk score is 4.2: the \textbf{BBB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 176 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-10-27 (estimate).\item Debt due by 1.0 years out:  - \$2.5bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Maintenance covenant levels: none stated in the 10-Q or 10-K text; read the credit agreement exhibit (public bonds are often incurrence-only).\item The funding gap opens only because no revolver capacity is tagged: read the credit facility note before using the gap.\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\end{enumerate}
@@ -952,33 +995,40 @@ Financial risk score 4.4. Business risk score 4.0: industry 4, steadiness of sal
 \section*{Tenet Healthcare (THC)}\pdfbookmark[1]{THC}{bm-THC}\label{memo-start-THC}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 2 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: +122 bp a year.} The methods together say the bond pays more than its risk needs. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 3 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: -3 bp a year.} The spread does not pay enough for this risk. Over Treasuries, the bond is expected to earn +45 bp a year. Its risk needs +48 bp a year at the price the high yield index pays for risk (0.10 per unit of bad-case loss). The bond's bad-case loss is 2.4\% of the money over the half-year; the index's is 3.7\%. With no closure of the gap to peers, the alpha is +43 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 2 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -15 & 40\% & -6 & \textcolor{bad}{against owning} \\
+G1. Core process & -5 & 40\% & -2 & \textcolor{bad}{against owning} \\
 G2 clocks. Two clocks & +318 & 20\% & +64 & \textcolor{good}{supports owning} \\
 G2 rest. Built methods (rest) & +32 & 18\% & +6 & \textcolor{amber}{leans to owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
 G4. Books and peers & +321 & 17\% & +55 & \textcolor{good}{supports owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+118} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+122} &  \\
 Trading costs &  &  & -174 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-56} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-52} &  \\
 Weighted cases and stories alone, after costs &  &  & -236 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 180 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 184 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -15 bp a year before trading costs (costs are 174 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 6 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -5 bp a year before trading costs (costs are 174 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 6 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -7 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & -184 & 25\% & -46 & F7.7 \\
-Return above cash, repriced in every story & -41 & 25\% & -10 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & -3 & 25\% & -1 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 123 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 21 bp. The high yield index pays 164 bp. The bills outlast the signed contracts (section G2.1), so part of the extra spread pays for a renewal bet that the line does not see. What would reveal it, and when: open question.
@@ -1227,6 +1277,13 @@ EBITDA / interest (with lease interest) & 5.1x & 5.8 & 3.2x & 1.8x \\
 EBITDA margin & 20\% & 5.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 5.5. Business risk score 4.0: industry 4, steadiness of sales 3 (year-on-year growth varies by 4.8\%), customer spread 5. The book puts 55\% of the weight on business risk for this class, so the default risk score is 4.7: the \textbf{BBB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 174 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-10-28 (estimate).\item Debt due by 1.0 years out:  - \$0.1bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Maintenance covenant levels: none stated in the 10-Q or 10-K text; read the credit agreement exhibit (public bonds are often incurrence-only).\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\item Distressed multiple (F7.3) and the recovery of the bonds if the company defaults (F7.9).\end{enumerate}
@@ -1239,33 +1296,40 @@ Financial risk score 5.5. Business risk score 4.0: industry 4, steadiness of sal
 \section*{Carnival Corp (CCL)}\pdfbookmark[1]{CCL}{bm-CCL}\label{memo-start-CCL}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 3 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: +50 bp a year.} The methods together say the bond pays more than its risk needs. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 3 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: +70 bp a year.} The spread pays more than the market rate for this risk. Over Treasuries, the bond is expected to earn +120 bp a year. Its risk needs +51 bp a year at the price the high yield index pays for risk (0.10 per unit of bad-case loss). The bond's bad-case loss is 2.6\% of the money over the half-year; the index's is 3.4\%. With no closure of the gap to peers, the alpha is +101 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 3 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & +68 & 40\% & +27 & \textcolor{amber}{leans to owning} \\
+G1. Core process & +75 & 40\% & +30 & \textcolor{amber}{leans to owning} \\
 G2 clocks. Two clocks & +153 & 20\% & +31 & \textcolor{amber}{leans to owning} \\
 G2 rest. Built methods (rest) & -73 & 18\% & -13 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
 G4. Books and peers & +16 & 17\% & +3 & \textcolor{amber}{leans to owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{+48} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{+50} &  \\
 Trading costs &  &  & -174 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-126} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-123} &  \\
 Weighted cases and stories alone, after costs &  &  & -218 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 92 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 95 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +68 bp a year before trading costs (costs are 174 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 3 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{amber}{leans to owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is +75 bp a year before trading costs (costs are 174 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 3 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -0 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & +66 & 25\% & +16 & F7.7 \\
-Return above cash, repriced in every story & +42 & 25\% & +10 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & +70 & 25\% & +18 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 129 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 144 bp, so the bond is expensive by 15 bp. The high yield index pays 164 bp. What would reveal it, and when: open question.
@@ -1505,6 +1569,13 @@ EBITDA / interest (with lease interest) & 6.1x & 5.2 & 3.2x & 1.8x \\
 EBITDA margin & 27\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 5.1. Business risk score 4.5: industry 5, steadiness of sales 3 (year-on-year growth varies by 3.7\%), customer spread 5. The book puts 45\% of the weight on business risk for this class, so the default risk score is 4.8: the \textbf{BBB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 174 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-09-25 (estimate).\item Debt due by 0.5 years out:  - \$0.7bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\item Distressed multiple (F7.3) and the recovery of the bonds if the company defaults (F7.9).\item Add-back table by class C1 to C10: read the company's adjusted EBITDA reconciliation (8-K exhibit 99); Compustat gives one special-items line, so the 5\% test runs on the total.\end{enumerate}
@@ -1517,33 +1588,40 @@ Financial risk score 5.1. Business risk score 4.5: industry 5, steadiness of sal
 \section*{Norwegian Cruise Line Holdings (NCLH)}\pdfbookmark[1]{NCLH}{bm-NCLH}\label{memo-start-NCLH}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 5 of the issuers in this run. 2 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: -36 bp a year.} The methods together say the bond does not pay enough for its risk. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 2 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: +289 bp a year.} The spread pays more than the market rate for this risk. Over Treasuries, the bond is expected to earn +395 bp a year. Its risk needs +106 bp a year at the price the high yield index pays for risk (0.11 per unit of bad-case loss). The bond's bad-case loss is 4.7\% of the money over the half-year; the index's is 3.8\%. With no closure of the gap to peers, the alpha is +155 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 5 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -193 & 40\% & -77 & \textcolor{bad}{against owning} \\
+G1. Core process & -222 & 40\% & -89 & \textcolor{bad}{against owning} \\
 G2 clocks. Two clocks & +178 & 20\% & +36 & \textcolor{good}{supports owning} \\
 G2 rest. Built methods (rest) & +110 & 18\% & +20 & \textcolor{amber}{leans to owning} \\
 G3. Credit skills & -374 & 5\% & -19 & \textcolor{bad}{against owning} \\
 G4. Books and peers & +94 & 17\% & +16 & \textcolor{amber}{leans to owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{-25} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-36} &  \\
 Trading costs &  &  & -168 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-193} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-204} &  \\
 Weighted cases and stories alone, after costs &  &  & -81 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 112 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 124 bp a year lower: the other methods take away from the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -193 bp a year before trading costs (costs are 168 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 8 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -222 bp a year before trading costs (costs are 168 bp a year); 3 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 8 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -13 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & -290 & 25\% & -72 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & -430 & 25\% & -107 & F4; RV PDF E75-E76 \\
 Debt against market value & -459 & 25\% & -115 & F7.7 \\
-Return above cash, repriced in every story & +406 & 25\% & +102 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & +289 & 25\% & +72 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 258 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 201 bp, so the bond is cheap by 57 bp. The high yield index pays 164 bp. What would reveal it, and when: open question.
@@ -1614,14 +1692,14 @@ Market value of the whole company \$25bn (shares \$10bn plus net debt): 9.2x EBI
 We put the same money in the bond nearest five years (62886HBR1, 6.75\% due 2032-02-01, price 95.44 plus 0.85 accrued) or in six-month Treasury bills at 4.20\%. In each story the bond either survives and is repriced, or defaults and returns 35 per 100 (a 40\% recovery paid a year later, valued at 15\% a year). In default the holder loses 64\% of the price paid.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lr@{}}\toprule
 Measure & Value \\\midrule
-Expected return above cash, bp a year & +406 \\
-Chance of a loss over six months & 11.5\% \\
-Chance of doing worse than cash & 11.5\% \\
-Average loss in the worst 5\% of outcomes & 16.1\% \\
-Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & +88 \\
+Expected return above cash, bp a year & +309 \\
+Chance of a loss over six months & 12.1\% \\
+Chance of doing worse than cash & 12.1\% \\
+Average loss in the worst 5\% of outcomes & 25.1\% \\
+Total hedged return: Treasury and DTS beta x HY index hedged out, bp a year & -9 \\
 Hedge ratio on the HY index (DTS beta) & 1.84 \\
 Best alternative in this run (worst 5\% loss within the 25\% budget) & CRWV \\
-Return given up against that alternative, bp a year & +1,116 \\
+Return given up against that alternative, bp a year & +1,214 \\
 \bottomrule\end{tabular}\end{center}
 Catalysts inside the horizon: Next quarterly results (estimated from filing cadence) (2026-11-02); Debt due by 0.5 years out
 \section*{G2. Built methods: two clocks, stories and cases, relative value, the gate}
@@ -1784,6 +1862,13 @@ EBITDA / interest (with lease interest) & n/a & n/a & 3.2x & 1.8x \\
 EBITDA margin & 27\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 7.7. Business risk score 4.5: industry 5, steadiness of sales 3 (year-on-year growth varies by 4.1\%), customer spread 5. The book puts 45\% of the weight on business risk for this class, so the default risk score is 6.3: the \textbf{BB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 168 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-11-02 (estimate).\item Debt due by 0.5 years out:  - \$0.5bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Covenant 'free liquidity': our ratio is only a bound for this test (subsidiary group, narrower debt, or untagged credit lines); read the credit agreement definition.\item The funding gap opens only because no revolver capacity is tagged: read the credit facility note before using the gap.\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\end{enumerate}
@@ -1796,8 +1881,14 @@ Financial risk score 7.7. Business risk score 4.5: industry 5, steadiness of sal
 \section*{MGM Resorts International (MGM)}\pdfbookmark[1]{MGM}{bm-MGM}\label{memo-start-MGM}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 6 of the issuers in this run. 2 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: -58 bp a year.} The methods together say the bond does not pay enough for its risk. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 2 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: +73 bp a year.} The spread pays more than the market rate for this risk. Over Treasuries, the bond is expected to earn +163 bp a year. Its risk needs +90 bp a year at the price the high yield index pays for risk (0.10 per unit of bad-case loss). The bond's bad-case loss is 4.3\% of the money over the half-year; the index's is 3.9\%. With no closure of the gap to peers, the alpha is +138 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 6 of the issuers in this run. 2 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
 G1. Core process & +16 & 40\% & +6 & \textcolor{amber}{leans to owning} \\
@@ -1805,13 +1896,14 @@ G2 clocks. Two clocks & -189 & 20\% & -38 & \textcolor{bad}{against owning} \\
 G2 rest. Built methods (rest) & +29 & 18\% & +5 & \textcolor{amber}{leans to owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
 G4. Books and peers & -189 & 17\% & -32 & \textcolor{bad}{against owning} \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
 \textbf{Combined, before trading costs} &  &  & \textbf{-58} &  \\
 Trading costs &  &  & -172 &  \\
 \textbf{Combined, after trading costs} &  &  & \textbf{-230} &  \\
 Weighted cases and stories alone, after costs &  &  & -266 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 36 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 36 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
@@ -1822,7 +1914,7 @@ Default chance the price assumes (shown, weight 0) & -20 & 0\% & -0 & F9; mappin
 Earnings quality, add-backs, FCF check (can only lower) & -290 & 25\% & -72 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & +116 & 25\% & +29 & F7.7 \\
-Return above cash, repriced in every story & +72 & 25\% & +18 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & +73 & 25\% & +18 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 175 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 201 bp, so the bond is expensive by 27 bp. The high yield index pays 164 bp. What would reveal it, and when: open question.
@@ -2053,6 +2145,13 @@ EBITDA / interest (with lease interest) & 1.7x & 9.6 & 3.2x & 1.8x \\
 EBITDA margin & 14\% & 5.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 8.6. Business risk score 5.0: industry 6, steadiness of sales 3 (year-on-year growth varies by 2.9\%), customer spread 5. The book puts 45\% of the weight on business risk for this class, so the default risk score is 7.0: the \textbf{BB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 172 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-10-29 (estimate).\item Debt due by 1.0 years out:  - \$1.1bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Maintenance covenant levels: none stated in the 10-Q or 10-K text; read the credit agreement exhibit (public bonds are often incurrence-only).\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\item Distressed multiple (F7.3) and the recovery of the bonds if the company defaults (F7.9).\end{enumerate}
@@ -2065,33 +2164,40 @@ Financial risk score 8.6. Business risk score 5.0: industry 6, steadiness of sal
 \section*{Wynn Resorts (WYNN)}\pdfbookmark[1]{WYNN}{bm-WYNN}\label{memo-start-WYNN}
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Recommendation.} Pass. This is a view of the company, not a trade: no gap between price and our view is bigger than the noise; the expected profit does not beat trading costs; the checks point in different directions. If the money went elsewhere, the best alternative in this run is CRWV. Position size and hedge: open until the call passes.}}
 
-\subsection*{The combined view: four groups, one estimate}
-Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the four groups. It ranks 7 of the issuers in this run. 3 of 5 groups point the same way as the combination.
+\subsection*{How much alpha: the weighted estimate of all methods}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Alpha: -80 bp a year.} The methods together say the bond does not pay enough for its risk. This number weighs every method with a value, at the weights the user set. The risk premium test below is one of these methods. It carries 10\% of the weight. 3 of 5 groups point the same way. The number is before trading costs. It is not yet calibrated against realised returns.}}
+
+\subsection*{One input: is there enough risk premium?}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Risk premium test: -94 bp a year.} The spread does not pay enough for this risk. Over Treasuries, the bond is expected to earn -22 bp a year. Its risk needs +72 bp a year at the price the high yield index pays for risk (0.10 per unit of bad-case loss). The bond's bad-case loss is 3.6\% of the money over the half-year; the index's is 3.2\%. With no closure of the gap to peers, the alpha is +70 bp a year. This test is one weighted input (E10) of the alpha above.}}
+
+\subsection*{The combined view: five groups, one estimate}
+Each group of methods estimates the same thing: what the bond should earn above a hedge, in bp a year. The combined estimate weighs the groups. It ranks 7 of the issuers in this run. 3 of 5 groups point the same way as the combination.
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}lrrrl@{}}\toprule
 Group & bp a year & Weight & Adds & Call \\\midrule
-G1. Core process & -57 & 40\% & -23 & \textcolor{bad}{against owning} \\
+G1. Core process & -59 & 40\% & -24 & \textcolor{bad}{against owning} \\
 G2 clocks. Two clocks & +7 & 20\% & +1 & \textcolor{amber}{leans to owning} \\
 G2 rest. Built methods (rest) & -109 & 18\% & -20 & \textcolor{bad}{against owning} \\
 G3. Credit skills & +0 & 5\% & +0 & \textcolor{good}{no objection} \\
 G4. Books and peers & -225 & 17\% & -38 & \textcolor{bad}{against owning} \\
-\textbf{Combined, before trading costs} &  &  & \textbf{-79} &  \\
+G5. Macro link & n/a & 0\% & +0 & \textcolor{gray}{no view} \\
+\textbf{Combined, before trading costs} &  &  & \textbf{-80} &  \\
 Trading costs &  &  & -172 &  \\
-\textbf{Combined, after trading costs} &  &  & \textbf{-251} &  \\
+\textbf{Combined, after trading costs} &  &  & \textbf{-252} &  \\
 Weighted cases and stories alone, after costs &  &  & -406 &  \\
 Sized for a position (rank only, minimum size) &  &  & none &  \\
 \bottomrule\end{tabular}\end{center}
-Against the weighted cases and stories alone, the combination is 154 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 45\%, two clocks 20\%, and 11.7\% each for the rest of the built methods, the credit skills and the books. The backtest alone would have put most weight on the built methods.
+Against the weighted cases and stories alone, the combination is 153 bp a year higher: the other methods add to the case for owning the bond. A group that supports owning must beat the trading costs on its own. The weights are the user's choice: core process 40\%, two clocks 20\%, built methods (rest) 18\%, credit skills 5\%, books and peers 17\%, macro link 0\%. The macro link has no weight until its tests pass. The backtest alone would have put most weight on the built methods.
 \par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Position size.} This number ranks the bond but does not size it. Source: linear size map fitted 2026-08-01 on 217 months, peer carry net, h = 6 months (decision page 2026-10-23-size-calibration). Fitted on past outcomes, every bond maps to about -108 bp a year: the average return of the sample against the index, not a view on this bond. The backtest ranks bonds well but overstates the size of the move; the size calibration refits that link each month from finished outcomes. Decision page: 2026-10-23-size-calibration.}}
 
 \section*{G1. Core process: Gatto's steps, our method and rulebook, the relative value paper}
-\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -57 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 7 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{bad}{against owning}.} This group reads Gatto's seven steps, our method and rulebook, and the relative value paper. Its estimate of expected profit is -59 bp a year before trading costs (costs are 172 bp a year); 2 of 4 of its weighted estimates point the same way. It carries 40\% of the combined view and ranks 7 of the issuers on this group alone. Best alternative for the same money: CRWV.}}
 \begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
 Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
 Default chance the price assumes (shown, weight 0) & -33 & 0\% & -0 & F9; mapping C2 \\
 Earnings quality, add-backs, FCF check (can only lower) & +0 & 25\% & +0 & F3; ebitda-addback-treatment; hy-model-standards \\
 Access to new money and the funding gap & +166 & 25\% & +42 & F4; RV PDF E75-E76 \\
 Debt against market value & -309 & 25\% & -77 & F7.7 \\
-Return above cash, repriced in every story & -85 & 25\% & -21 & RV PDF E50-E60; C1, C3 \\
+Risk premium alpha: does the spread pay for its risk at the index price of risk & -94 & 25\% & -24 & methodology 7.7; RV PDF E50-E60 \\
 \bottomrule\end{tabular}\end{center}
 \subsection*{G1.1 Thesis}
 The bond pays 165 bp over Treasuries at 5 years. Bonds of the same sector, rating and maturity pay 251 bp, so the bond is expensive by 85 bp. The high yield index pays 164 bp. What would reveal it, and when: open question.
@@ -2331,6 +2437,13 @@ EBITDA / interest (with lease interest) & 2.9x & 8.0 & 3.2x & 1.8x \\
 EBITDA margin & 24\% & 3.0 &  &  \\
 \bottomrule\end{tabular}\end{center}
 Financial risk score 7.2. Business risk score 5.5: industry 6, steadiness of sales 5 (year-on-year growth varies by 5.8\%), customer spread 5. The book puts 45\% of the weight on business risk for this class, so the default risk score is 6.4: the \textbf{BB} class. The line from score to spread across the run did not slope upward, so it gives no estimate. The 2005 edition has no modern anchor table; its own weighting table stands in for it.
+\section*{G5. Macro link: the issuer's downside risk in this economy}
+\par\noindent\fcolorbox{gray}{gray!6}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule-1pt}{\sloppy \textbf{Verdict: \textcolor{gray}{no view}.} This group reads the issuer's chance of a large EBITDA fall, given its balance sheet and the economy (method 5.2.1). Its estimate of expected profit is n/a bp a year before trading costs (costs are 172 bp a year); 0 of 0 of its weighted estimates point the same way. It carries 0\% of the combined view and ranks 1 of the issuers on this group alone. The model is not fitted yet. It has no weight until its seven tests pass.}}
+\begin{center}\footnotesize\setlength{\tabcolsep}{3.5pt}\begin{tabular}{@{}p{6.2cm}rrrp{4.2cm}@{}}\toprule
+Estimate & bp a year & Weight in group & Adds & Where it comes from \\\midrule
+\bottomrule\end{tabular}\end{center}
+No estimate (data missing): spread against the issuer-macro downside risk (not fitted yet).
+
 \section*{Coming events, open questions, and the record}
 \begin{itemize}\item Next quarterly results (estimated from filing cadence): 2026-11-05 (estimate).\item Debt due by 1.0 years out:  - \$0.0bn.\end{itemize}
 \textbf{Open questions, most important first:}\begin{enumerate}\item A dated catalyst that would close the gap (G2).\item The observable and level that would prove the call wrong (G8).\item Face amount of each tranche and the secured debt ahead of the bonds (debt note table).\item Claims view: allowed claims by class and the entity map (framework F5).\item Covenant 'a Consolidated First Lien Net Leverage Ratio': our ratio is only a bound for this test (subsidiary group, narrower debt, or untagged credit lines); read the credit agreement definition.\item Revolver commitment, draw, and borrowing base: not tagged; read the credit agreement note.\item F4 points 3 (unencumbered assets) and 6 (sponsor support) are scored 0 until read.\item Recovery, delay and the required return on a defaulted claim are v0 (R = 0.4, tau = 1 year, k = 15\%); the claims view and documents replace them.\item Peer set of at least four issuers of the same archetype (F3.3) for the valuation range (F7.1).\item Distressed multiple (F7.3) and the recovery of the bonds if the company defaults (F7.9).\end{enumerate}

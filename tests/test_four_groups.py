@@ -205,7 +205,9 @@ def test_sp_default_risk_weights_follow_business_risk():
 
 def test_bucket_shares_are_the_users_choice():
     # User decision 2026-10-22 (weights-esp-spider): G1 40%, two clocks 20%, books 17%, G2 18%, G3 5%.
-    assert groups.GROUP_WEIGHTS == pytest.approx({"G1": 0.40, "G2C": 0.20, "G2": 0.18, "G3": 0.05, "G4": 0.17})
+    # Decision 2026-10-24 (macro-link-method): G5 macro link at 0% until tests T1 to T7 of methodology 5.2.1 pass.
+    assert groups.GROUP_WEIGHTS == pytest.approx({"G1": 0.40, "G2C": 0.20, "G2": 0.18, "G3": 0.05, "G4": 0.17,
+                                                  "G5": 0.0})
     assert sum(groups.GROUP_WEIGHTS.values()) == pytest.approx(1.0)
     assert groups.SPEC_GROUP_WEIGHTS == pytest.approx({"G1": 0.20, "G2": 0.65, "G3": 0.05, "G4": 0.10})
 
@@ -215,7 +217,7 @@ def test_effective_weights_keep_relative_weights_inside_a_bucket():
     assert sum(w.values()) == pytest.approx(1.0)
     assert w["E5"] == pytest.approx(0.20)
     assert w["E0"] / w["E1"] == pytest.approx(0.25 / 0.15)  # spec ratio kept inside the rest of G2
-    assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0
+    assert w["E7"] == pytest.approx(0.40 / 4) and w["E4"] == 0.0 and w["E10"] == pytest.approx(0.40 / 4)
     assert w["E14"] == pytest.approx(0.045) and w["E16"] == pytest.approx(0.045) and w["E15"] == pytest.approx(0.03)
     assert w["E12"] == pytest.approx(0.025) and w["E13"] == pytest.approx(0.025)
 

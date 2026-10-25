@@ -271,8 +271,14 @@ def issuer_scenarios(start, drivers: dict, archetype: str, mac: Macro, s_now: fl
         # Hedged convergence: the spread hedge removes the systematic move, so the bond converges on its own
         # residual scaled by the path, (s - s_fair_now) x S(m) / S. Express it as an effective target for hy.alpha.
         target = s_now - (s_now - s_fair_now) * S_m / S
+        # Cases that run out of cash inside the alpha horizon (methodology 7.7; spec: a funding failure is a branch,
+        # not a plug). Step 15 sends them to default at the v0 chance p_default_given_liq_short.
+        hq = max(1, int(round(4 * V0["h_years"])))
+        p_short_h = float(sum(wt * (np.min(grid[(c, p.name)].liquidity[:hq]) < 0)
+                              for c, wt in dict(w[p.name]).items() if (c, p.name) in grid))
         by.append({"macro_path": p.name, "p_path": p.prob, "s_fair": target, "s_fair_path": sf, "pd_12m": pd12,
-                   "pd_source": "engine" if pd_engine > pd_spread else "spread", "index_el": S_m / k})
+                   "pd_source": "engine" if pd_engine > pd_spread else "spread", "index_el": S_m / k,
+                   "p_liq_short_h": p_short_h})
     by = pd.DataFrame(by)
     bond = alpha.BondInputs("5y", oas=s_now, spread_duration=spread_duration, rho_q=V0["rho_q"], beta_mkt=s_now / S,
                             index_spread=S, lgd=lgd if loss_given_default is None else loss_given_default,
