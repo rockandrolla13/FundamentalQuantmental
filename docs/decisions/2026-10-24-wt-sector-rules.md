@@ -264,4 +264,41 @@ study (placebo, Romano-Wolf, specification curve).
 
 ## Results
 
-Running.
+Run 2026-10-25, 1,000 bootstrap draws. Layer 1: 13,899 US firms, 1994Q1-2026Q3, 55 out-of-sample quarters.
+
+**Three rules pass on company results (all US firms). None passes on bond or stock returns.**
+
+| Rule | Claim | EBITDA slope per 1 sd, out of sample | EWC t | Clark-West p | Romano-Wolf p | Cycles | HY issuers |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R6 | Oil up: energy beats consumer discretionary | +3.7% of sales over 4 quarters | 7.9 | 0.002 | 0.011 | 4 of 4 | Strong (t 4.8), RW p 0.07 |
+| R1 | Activity up: tech and financials beat defensives | +1.4% | 5.5 | 0.006 | 0.031 | 4 of 4 | Weak (t 1.7) |
+| R8 | Activity down: utilities beat the market | +1.0% | 5.1 | 0.020 | 0.041 | 4 of 4 | **Passes** (t 5.8, RW p 0.04) |
+
+Near passes (P1, P3 and P4 hold; Romano-Wolf fails): R3 (inflation down, consumer discretionary beats industrials,
+t 3.9, RW p 0.11), R4 (prices paid up, industrials beat consumer discretionary, t 4.4, RW p 0.08), R5 (t 2.4,
+RW p 0.37). On bonds, R4 has t 2.9 and Clark-West p 0.006 but RW p 0.14.
+
+Robustness (share of variants that keep the sign, layer 1): R1 5 of 6, R3 7 of 7, R4 6 of 7, R5, R6 and R8 6 of 6.
+
+The opposite of the claim: R11 (higher 10-year yield, financials beat non-financials) has the wrong sign,
+t -3.9.
+
+Notes:
+1. R1 and R8 use the same signal, and the defensive group in R1 contains utilities. They are not independent.
+2. Financials report no EBITDA, so R1's long group is in effect technology on layer 1.
+3. R6 is partly mechanical: energy revenue moves with the oil price.
+4. The out-of-sample slopes are larger than the in-sample slopes (R1: 0.014 against 0.0095).
+
+## Reading (pattern table)
+
+Fundamentals pass, bond returns fail, for R1, R6 and R8. The signal predicts which sectors' EBITDA will do better,
+and HY bond prices already reflect it in time. These rules are driver shifts for the cases (Section 5.2, door B),
+not alpha. Door B is open for these three relationships. The earlier statement "macro adds nothing beyond the sector"
+held for single sectors against all firms (the earlier study). It does not hold for these sector pairs.
+
+## Decision
+
+1. R1, R6 and R8 become candidate driver shifts in Section 5.2: sector EBITDA growth moves with activity and oil.
+   The medium-term model (`2026-10-24-medium-term-model.md`) estimates the full response path.
+2. No sector rule enters the signals of Section 8.
+3. R3 and R4 stay on watch: three of four rules hold, and the count of tests does not.
