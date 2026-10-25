@@ -30,17 +30,21 @@ Run every command from the repository root.
    The tests need no data. Expect about 600 passes and 1 skip.
 2. Set the four settings (section 3).
 3. Export your data into the tables (section 4). Start with one issuer.
-4. Build the two large panels from your tables (section 5).
+4. Download the SEC files for your issuers (section 3).
+   ```
+   SEC_USER_AGENT="Your Name your@email" python3 scripts/download_sec.py --from-tables --start 2018-01-01
+   ```
+5. Build the two large panels from your tables (section 5).
    ```
    python3 scripts/build_panels.py --start 2010-01-31 --end 2026-08-31
    ```
-5. Check the source. Fix every failed `required` row, then run the check again.
+6. Check the source. Fix every failed `required` row, then run the check again.
    ```
    python3 scripts/check_source.py AAPL F --decision 2026-09-18
    ```
-6. Run the backtests and the size calibration (section 7, rows 1 to 5).
-7. Run the issuer process and the memos (section 7, rows 6 and 7).
-8. Take a golden snapshot. Compare against it after each later change.
+7. Run the backtests and the size calibration (section 7, rows 1 to 5).
+8. Run the issuer process and the memos (section 7, rows 6 and 7).
+9. Take a golden snapshot. Compare against it after each later change.
 
 Time: about one day for the export of one issuer and its bonds. The panels for the whole high yield universe take longer, because they cover every bond since 2008.
 
@@ -54,7 +58,15 @@ Time: about one day for the export of one issuer and its bonds. The panels for t
 | `SEC_USER_AGENT` | `Your Name your@email` | The SEC asks for a name and an email in each request. |
 | `PYTHONPATH` | `.` (some scripts need `.:scripts`) | The repository root on the import path. |
 
-**A machine without internet.** Set `HY_OFFLINE=1`. Supply the Treasury curve as a table. Copy the folders `edgar/` and `forecasts/` under `HY_DATA_ROOT` from a machine with internet access: run `scripts/check_source.py` there once for your tickers, and the code fills both caches. Without the SEC caches, the facts kind fails and step 1 stops for the issuer.
+**Download the SEC files.** `scripts/download_sec.py` fills the SEC cache under `HY_DATA_ROOT` with the code's own loaders: the filing index, the XBRL company facts, and the XBRL instance and text of every original 10-Q and 10-K since `--start`. A rerun fetches the two index files again and skips the filings already in the cache. Each file's outcome goes to `edgar/download_log.csv`.
+
+```
+SEC_USER_AGENT="Your Name your@email" python3 scripts/download_sec.py --from-tables --start 2018-01-01
+```
+
+`--from-tables` takes every issuer with a CIK in `tables/issuers`. `--tickers` and `--ciks` name issuers directly. The SEC refuses a request without a name and an email (HTTP 403), so the script stops when `SEC_USER_AGENT` is not set. Time: each filing takes four requests, and the loaders keep under the SEC limit of 10 a second. Expect about 2 seconds a filing, so about 1 minute for an issuer with 8 years of quarterly filings and about 8 hours for 500 issuers.
+
+**A machine without internet.** Run `scripts/download_sec.py` on a machine that reaches sec.gov, then copy the folder `edgar/` under `HY_DATA_ROOT`. Supply the Treasury curve as a table. Copy the folder `forecasts/` too: run `scripts/check_source.py` once on the machine with internet, and the code fills it. Then set `HY_OFFLINE=1`. Without the SEC cache, the facts kind fails and step 1 stops for the issuer.
 
 ## 4. The tables
 
@@ -250,7 +262,7 @@ The snapshot saves its tickers, pairs and end date. `golden_check.py check` reru
 | `issuer` | missing `cik` | Add the SEC CIK to `issuers`. The SEC kinds need it. |
 | `financials` | fewer than 4 quarters | Export more quarters. Check that `issuer_id` matches `issuers`. |
 | `financials` | expect USD millions | Divide amounts in dollars by 1,000,000. |
-| `facts` | unavailable, HTTP or NetworkDisabled | Allow access to `data.sec.gov` and `www.sec.gov`, or copy the `edgar/` cache. Set `SEC_USER_AGENT`. |
+| `facts` | unavailable, HTTP or NetworkDisabled | Run `scripts/download_sec.py` for the issuer, then look up its rows in `edgar/download_log.csv`. Set `SEC_USER_AGENT`. |
 | `facts` | missing keys | A custom facts source left out a key of `hy.data.source.FACT_KEYS`. Add the key; its value may be None. |
 | `observations` | expect yield decimal | Divide yields in percent by 100. |
 | `observations` | no observations in the last 180 days | Check the `date` range and `available_at`. |

@@ -63,6 +63,10 @@ python3 -m pytest -q
 The tests need no data. Expect about 600 passes and 1 skip.
 \item Set the four settings (section 3).
 \item Export your data into the tables (section 4). Start with one issuer.
+\item Download the SEC files for your issuers (section 3).
+\begin{lstlisting}
+SEC_USER_AGENT="Your Name your@email" python3 scripts/download_sec.py --from-tables --start 2018-01-01
+\end{lstlisting}
 \item Build the two large panels from your tables (section 5).
 \begin{lstlisting}
 python3 scripts/build_panels.py --start 2010-01-31 --end 2026-08-31
@@ -93,7 +97,15 @@ Time: about one day for the export of one issuer and its bonds. The panels for t
 \bottomrule
 \end{longtable}
 
-\textbf{A machine without internet.} Set \code{HY\_\allowbreak{}OFFLINE=1}. Supply the Treasury curve as a table. Copy the folders \code{edgar/\allowbreak{}} and \code{forecasts/\allowbreak{}} under \code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT} from a machine with internet access: run \code{scripts/\allowbreak{}check\_\allowbreak{}source.py} there once for your tickers, and the code fills both caches. Without the SEC caches, the facts kind fails and step 1 stops for the issuer.
+\textbf{Download the SEC files.} \code{scripts/\allowbreak{}download\_\allowbreak{}sec.py} fills the SEC cache under \code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT} with the code's own loaders: the filing index, the XBRL company facts, and the XBRL instance and text of every original 10-Q and 10-K since \code{-{}-start}. A rerun fetches the two index files again and skips the filings already in the cache. Each file's outcome goes to \code{edgar/\allowbreak{}download\_\allowbreak{}log.csv}.
+
+\begin{lstlisting}
+SEC_USER_AGENT="Your Name your@email" python3 scripts/download_sec.py --from-tables --start 2018-01-01
+\end{lstlisting}
+
+\code{-{}-from-tables} takes every issuer with a CIK in \code{tables/\allowbreak{}issuers}. \code{-{}-tickers} and \code{-{}-ciks} name issuers directly. The SEC refuses a request without a name and an email (HTTP 403), so the script stops when \code{SEC\_\allowbreak{}USER\_\allowbreak{}AGENT} is not set. Time: each filing takes four requests, and the loaders keep under the SEC limit of 10 a second. Expect about 2 seconds a filing, so about 1 minute for an issuer with 8 years of quarterly filings and about 8 hours for 500 issuers.
+
+\textbf{A machine without internet.} Run \code{scripts/\allowbreak{}download\_\allowbreak{}sec.py} on a machine that reaches sec.gov, then copy the folder \code{edgar/\allowbreak{}} under \code{HY\_\allowbreak{}DATA\_\allowbreak{}ROOT}. Supply the Treasury curve as a table. Copy the folder \code{forecasts/\allowbreak{}} too: run \code{scripts/\allowbreak{}check\_\allowbreak{}source.py} once on the machine with internet, and the code fills it. Then set \code{HY\_\allowbreak{}OFFLINE=1}. Without the SEC cache, the facts kind fails and step 1 stops for the issuer.
 
 \section{The tables}
 
@@ -341,7 +353,7 @@ The snapshot saves its tickers, pairs and end date. \code{golden\_\allowbreak{}c
 \code{issuer} & missing \code{cik} & Add the SEC CIK to \code{issuers}. The SEC kinds need it.\\
 \code{financials} & fewer than 4 quarters & Export more quarters. Check that \code{issuer\_\allowbreak{}id} matches \code{issuers}.\\
 \code{financials} & expect USD millions & Divide amounts in dollars by 1,000,000.\\
-\code{facts} & unavailable, HTTP or NetworkDisabled & Allow access to \code{data.sec.gov} and \code{www.sec.gov}, or copy the \code{edgar/\allowbreak{}} cache. Set \code{SEC\_\allowbreak{}USER\_\allowbreak{}AGENT}.\\
+\code{facts} & unavailable, HTTP or NetworkDisabled & Run \code{scripts/\allowbreak{}download\_\allowbreak{}sec.py} for the issuer, then look up its rows in \code{edgar/\allowbreak{}download\_\allowbreak{}log.csv}. Set \code{SEC\_\allowbreak{}USER\_\allowbreak{}AGENT}.\\
 \code{facts} & missing keys & A custom facts source left out a key of \code{hy.data.source.FACT\_\allowbreak{}KEYS}. Add the key; its value may be None.\\
 \code{observations} & expect yield decimal & Divide yields in percent by 100.\\
 \code{observations} & no observations in the last 180 days & Check the \code{date} range and \code{available\_\allowbreak{}at}.\\
