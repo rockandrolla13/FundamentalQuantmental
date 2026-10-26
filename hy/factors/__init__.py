@@ -32,4 +32,5 @@ REGISTRY: dict[int, str] = {
     8: "hy.factors.f08_lever_event_risk",
     9: "hy.factors.f09_profitability_change",
     11: "hy.factors.f11_delta_implied_vol",
+    16: "hy.factors.f16_downside_risk",
 }
