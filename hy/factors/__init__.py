@@ -42,4 +42,5 @@ REGISTRY: dict[int, str] = {
     18: "hy.factors.f18_equity_credit_discordance",
     19: "hy.factors.f19_owner_cash_flow",
     21: "hy.factors.f21_refinancing_headroom",
+    22: "hy.factors.f22_curve_shape",
 }
