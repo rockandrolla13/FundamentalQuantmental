@@ -21,4 +21,7 @@ Evaluation uses hy.signals.rank_ic and hy.signals.passes_cycle_test over hy.back
 
 from __future__ import annotations
 
-REGISTRY: dict[int, str] = {}
+REGISTRY: dict[int, str] = {
+    3: "hy.factors.f03_residual_equity_momentum",
+    5: "hy.factors.f05_flow_pressure_reversal",
+}
