@@ -39,4 +39,5 @@ REGISTRY: dict[int, str] = {
     15: "hy.factors.f15_pca_ou_reversal",
     16: "hy.factors.f16_downside_risk",
     17: "hy.factors.f17_return_skewness",
+    19: "hy.factors.f19_owner_cash_flow",
 }
