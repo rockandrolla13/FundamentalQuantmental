@@ -25,7 +25,9 @@ REGISTRY: dict[int, str] = {
     1: "hy.factors.f01_ipca",
     2: "hy.factors.f02_spread_to_d2d",
     3: "hy.factors.f03_residual_equity_momentum",
+    4: "hy.factors.f04_bond_momentum",
     5: "hy.factors.f05_flow_pressure_reversal",
+    6: "hy.factors.f06_issuer_curve_residual",
     8: "hy.factors.f08_lever_event_risk",
     9: "hy.factors.f09_profitability_change",
 }
