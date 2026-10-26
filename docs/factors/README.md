@@ -16,6 +16,8 @@ Each page fits on about one printed page (60 to 100 lines). It uses these headin
 9. **Open questions.** Choices the source leaves open, with the default we pick and why.
 
 ## Rules
+- The built code always lives in `hy/factors/fNN_<slug>.py`, with tests in `tests/test_factor_fNN.py`. Where a page names another module under "Code placement", that was the first proposal. The module in `hy/factors/` wins, and `hy.factors.REGISTRY` lists it.
+- The repo holds implementation and unit tests only. Evaluation runs (IC, cycle test, portfolios) happen on the production machine.
 - Separate what the source says from what we decide. Label our choices "Our choice".
 - Never invent a number. Cite the source page for every number.
 - Simplified Technical English. Short sentences, active voice, no semicolons.
