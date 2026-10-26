@@ -47,4 +47,5 @@ REGISTRY: dict[int, str] = {
     23: "hy.factors.f23_margin_squeeze",
     24: "hy.factors.f24_cell_percentile",
     26: "hy.factors.f26_index_trend",
+    30: "hy.factors.f30_hy_vix_gap",
 }
