@@ -88,12 +88,13 @@ Chapter 18 instead combines ESP and EMC with equal weights at the bond level (PD
 
 **EMC (ch. 15).**
 - Q5 minus Q1: 6.34% a year, IR 1.56, 1993–2017 (Table 15.1, PDF p. 515).
-- By quality: Aaa–A 3.9% (IR 0.83), Baa 8.8% (IR 1.87). For HY the text says 19.9% a year, IR 1.74 (PDF pp. 515–516). The OCR of Table 15.2 reads 15.7. Check the print before you quote the HY figure.
+- By quality: Aaa–A 3.9% (IR 0.83), Baa 8.8% (IR 1.87). HY 15.9% a year, volatility 9.11%, IR 1.74 (Table 15.2, PDF p. 516, read from the page image). The text above the table says 19.9%. That is a misprint, because 15.9 over 9.11 gives the printed IR.
 - The signal decays fast (PDF p. 516).
 - Sector timing with EMC (ch. 16): +4.04% a year over the US HY index, 2007–2017, before costs (PDF p. 550).
 
 **OneScore (ch. 19).**
-- Top minus bottom OneScore outperforms in every IG sector over 2016–2020 (PDF p. 629). Table 19.2 is not legible.
+- Top minus bottom OneScore outperforms in every IG sector over 2016–2020 (PDF p. 629). All sectors: 4.00%/yr, volatility 0.83%/yr, IR 4.84 over 5 years to February 2020 (Table 19.2, PDF p. 630, read from the page image).
+- DTS-matched OneScore earns 27 to 89 bp a month in each of eight drawdown episodes from 1997 to March 2020, and 31 bp in other months (Table 19.3, PDF p. 631).
 - In drawdowns, raw EMC is contra-cyclical and raw ESP is pro-cyclical (PDF p. 632).
 - With the DTS adjustment, both make money in every drawdown episode (PDF p. 632).
 - ESP correlation with the index falls from 34% to −6% in drawdowns, and from 44% to −22% in other periods (PDF p. 634).
@@ -139,7 +140,8 @@ The book has no DTS chapter and no liquidity chapter. DTS comes from Ben Dor et 
 - All results are before transaction costs, except where ch. 18 adds them.
 - Barclays index data uses OAS and market weights. Our panel uses TRACE G-spread and equal weights.
 - The book does not print an ESP formula, so the ESP rebuild rests on text and a figure.
-- Rotated tables (13.5, 13.8, 14.2, 14.7, 14.8, 14.10, 19.2, 19.3, 19.4) are not legible in the text layer. This card quotes their figures only where the text repeats them.
+- Rotated tables (13.5, 13.8, 14.2, 14.7, 14.8, 14.10) are not legible in the text layer. This card quotes their figures only where the text repeats them. Tables 19.2, 19.3 and 19.4 were read from rotated page images.
+- Ch. 18 states that the ESP regression uses three ratios: financial leverage, net debt over EBITDA, and interest coverage (PDF p. 594). Financials use long-term debt over long-term assets (note 5, PDF p. 622). Ch. 13 names market leverage only. Ch. 18 describes the production scorecard.
 - The text layer gives the page numbers of the chapter 16, 17, 20 and 21 conclusions. Check them against the PDF before you cite them in a memo.
 
 ## Section touched
