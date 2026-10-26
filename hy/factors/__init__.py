@@ -34,5 +34,6 @@ REGISTRY: dict[int, str] = {
     10: "hy.factors.f10_market_neutral_carry",
     11: "hy.factors.f11_delta_implied_vol",
     12: "hy.factors.f12_etf_pressure",
+    14: "hy.factors.f14_abnormal_volume",
     16: "hy.factors.f16_downside_risk",
 }
