@@ -36,6 +36,7 @@ REGISTRY: dict[int, str] = {
     12: "hy.factors.f12_etf_pressure",
     13: "hy.factors.f13_realized_illiquidity",
     14: "hy.factors.f14_abnormal_volume",
+    15: "hy.factors.f15_pca_ou_reversal",
     16: "hy.factors.f16_downside_risk",
     17: "hy.factors.f17_return_skewness",
 }
