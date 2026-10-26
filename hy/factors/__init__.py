@@ -22,6 +22,10 @@ Evaluation uses hy.signals.rank_ic and hy.signals.passes_cycle_test over hy.back
 from __future__ import annotations
 
 REGISTRY: dict[int, str] = {
+    1: "hy.factors.f01_ipca",
+    2: "hy.factors.f02_spread_to_d2d",
     3: "hy.factors.f03_residual_equity_momentum",
     5: "hy.factors.f05_flow_pressure_reversal",
+    8: "hy.factors.f08_lever_event_risk",
+    9: "hy.factors.f09_profitability_change",
 }
