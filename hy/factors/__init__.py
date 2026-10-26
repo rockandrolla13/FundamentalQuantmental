@@ -31,6 +31,7 @@ REGISTRY: dict[int, str] = {
     7: "hy.factors.f07_merton_ml_forecast",
     8: "hy.factors.f08_lever_event_risk",
     9: "hy.factors.f09_profitability_change",
+    10: "hy.factors.f10_market_neutral_carry",
     11: "hy.factors.f11_delta_implied_vol",
     16: "hy.factors.f16_downside_risk",
 }
