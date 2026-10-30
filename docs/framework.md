@@ -351,6 +351,8 @@ One row per metric. Each has a formula, a unit, a direction, default bands, and 
 
 ### Leverage and coverage, going-concern view
 
+Every leverage metric clips above at 20x. A negative denominator gives 20x when there is debt to carry, else 0.
+
 | Metric | Formula | Unit | Better when | Default bands | Consumer |
 | --- | --- | --- | --- | --- | --- |
 | `lev_gc_total` | `total_debt / ebitda_adj_analyst` | x | Lower | Rank; red above the covenant maximum less the cushion | Section 7.2 |

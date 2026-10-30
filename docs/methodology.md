@@ -251,6 +251,10 @@ LTV_k = \frac{\sum_{j:\, rank_j \le rank_k} F_j}{TEV}, \qquad Cov = \frac{EBITDA
 | `lev_adj_k` | `lev_face_k` with `debt_adj` | The version used in the fair spread model |
 | `net_lev` | `(debt - cash) / ebitda_adj` | Cash is a claim only if unrestricted |
 
+A leverage ratio clips above at 20x. A negative denominator gives 20x when there is debt to carry, else 0. Intuition: a negative ratio otherwise ranks the worst earner as the least levered. See `docs/decisions/2026-10-30-negative-ebitda-leverage.md`.
+
+Two features wait on a test and do not enter the pipeline yet: debt to revenue, and a negative book equity flag. See `docs/decisions/2026-10-30-revenue-leverage-and-negative-equity.md`.
+
 ### 4.4 Qualitative risk flags (Chapter 6)
 
 Score each of the eight risks in Figure 6.2 (p. 158) on 0, 1, or 2. Add management, sponsor, and strategy items. Store the vector, not only the sum, because the fair spread model learns a weight per flag.
