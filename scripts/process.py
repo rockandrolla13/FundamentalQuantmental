@@ -491,7 +491,7 @@ def covenant_block(blk, liq: dict, ltm: dict, view: DataView) -> dict:
     for kind, c in found.items():
         name = c["name"].lower()
         if kind == "max_leverage":
-            actual = (debt - (cash if "net" in name and cash == cash else 0.0)) / eb if eb else np.nan
+            actual = state.net_lev(debt, cash if "net" in name and cash == cash else 0.0, eb) if eb else np.nan
             basis = "net debt / EBITDA" if "net" in name else "debt / EBITDA"
         elif kind == "min_coverage":
             den = ic + (due_12m if "debt service" in name else 0.0)
@@ -571,7 +571,7 @@ def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), 
     cov = (eb - capex) / intr if eb and intr and capex is not None else None
     fccr = (eb + rent - maint) / (intr + rent) if eb and intr and maint is not None else None
     s.outputs = {"debt_m": _f(r.extra["debt"], 0), "lease_debt_m": _f(r.extra["lease_debt"], 0),
-                 "ebitda_ltm_m": _f(eb, 0), "rent_m": _f(rent, 0), "lev_gc_total": _f(r.extra["debt"] / eb) if eb else None,
+                 "ebitda_ltm_m": _f(eb, 0), "rent_m": _f(rent, 0), "lev_gc_total": _f(state.lev_gross(r.extra["debt"], eb)) if eb else None,
                  "lev_lease_adj": _f(r.lev_lease_adj), "net_lev": _f(r.extra["net_lev"]),
                  "coverage": _f(cov), "fccr": _f(fccr), "cash_interest_ltm_m": _f(intr, 0), "bonds": rows}
     ltm = blk.get("_ltm", {})

@@ -66,7 +66,7 @@ def issuer_block(ticker: str, decision: pd.Timestamp, start: str, end: str, view
         duration_gap=m.get("duration_gap", float("nan")),
         rating=(inputs.get("rating") or (None, ""))[0],
         extra={"debt": debt, "debt_source": debt_src, "ebitda_source": inputs["ltm_ebitda"][1], "lease_debt": lease, "ebitda_ltm": ebitda, "rent": rent, "cash": cash,
-               "net_lev": (debt - cash) / ebitda if ebitda else float("nan")})
+               "net_lev": state.net_lev(debt, cash, ebitda) if ebitda else float("nan")})
 
     ok = [b for b in view.bonds(issuer) if not b.convertible and b.fixed and b.seniority in ("senior_unsecured", "secured")]
     m_ok = pd.DataFrame([{"cusip": b.cusip, "coupon": b.coupon, "maturity": pd.Timestamp(b.maturity), "seniority": b.seniority,

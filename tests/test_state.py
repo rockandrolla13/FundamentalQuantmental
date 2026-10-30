@@ -309,6 +309,39 @@ def test_issuer_leverage_is_lease_adjusted():
     assert st.issuer_net_leverage(100.0, 20.0, 30.0, 50.0, 10.0) == pytest.approx(90.0 / 60.0)
 
 
+def test_negative_ebitda_reads_as_the_cap_not_as_low_leverage():
+    # The sign trap: debt / negative EBITDA is a negative ratio, which ranks below every healthy issuer.
+    from hy import books
+    from hy import state as st
+    t = [_tr("a", 1, 1000.0)]
+    for lev in (st.lev_gross(1000.0, -50.0), st.net_lev(1000.0, 100.0, -50.0), st.lev_lease_adj(1000.0, 10.0, -50.0),
+                st.lev_face_k(t, "a", -50.0), st.lev_mkt_k(t, "a", -50.0), st.issuer_leverage(1000.0, 0.0, -50.0, 0.0),
+                st.issuer_net_leverage(1000.0, 0.0, 100.0, -50.0, 0.0)):
+        assert lev == st.LEV_CAP
+    # No net debt and no earnings: nothing to lever, and the two negatives must not multiply into a positive ratio.
+    assert st.net_lev(100.0, 300.0, -50.0) == 0.0
+    assert st.issuer_net_leverage(100.0, 0.0, 300.0, -50.0, 0.0) == 0.0
+    # Monotone: a thin positive EBITDA can never read worse than a negative one.
+    assert st.lev_gross(1000.0, 1.0) == st.LEV_CAP
+    assert st.lev_gross(1000.0, 50.0) == st.LEV_CAP
+    # Rent can lift a negative EBITDA above zero: EBITDAR is the denominator, so the ratio stays a real number.
+    assert st.issuer_leverage(100.0, 0.0, -10.0, 60.0) == pytest.approx(2.0)
+    # Net cash on positive EBITDA stays negative, and zero EBITDA stays undefined.
+    assert st.net_lev(100.0, 300.0, 50.0) == pytest.approx(-4.0)
+    assert np.isnan(st.lev_gross(100.0, 0.0))
+    # The guard treats the negative EBITDA issuer as it treats the +20x issuer.
+    same = dict(fcf_to_debt=0.03, tev_to_debt=1.2, lev_peers=[], fcf_peers=[])
+    assert books.spt_trap_guard(st.issuer_leverage(1000.0, 0.0, -50.0, 0.0), **same)["trap"]
+    assert books.spt_trap_guard(st.issuer_leverage(1000.0, 0.0, 50.0, 0.0), **same)["trap"]
+
+
+def test_lev_cap_is_the_panel_cap():
+    from hy import state as st
+    from hy.sector import drivers
+    from hy.sources import trace_panel
+    assert st.LEV_CAP == trace_panel.LEV_CAP == drivers.LEV_CAP
+
+
 def test_issuer_analysis_uses_issuer_leverage(monkeypatch):
     import sys
     from pathlib import Path
