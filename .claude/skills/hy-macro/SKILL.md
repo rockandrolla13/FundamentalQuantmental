@@ -35,6 +35,28 @@ Every row carries `as_of`, `available_at`, and `source`. The last column shows w
 | `path_mass` | Five masses from the Section 5.4 registry, with vintage | Optional |
 | `prior_posterior` | Path posterior of the last read | Optional |
 
+## Where each input comes from
+
+Derive each input as this table states. Use the first source that you can read. Use one source for all fields of a row, and name that source in the read. If no listed source is available, the row is `not_available`.
+
+| Input | Source, in order | Derivation | `available_at` | Status in this repo |
+| --- | --- | --- | --- | --- |
+| `hy_oas` | 1. ICE BofA US High Yield Index OAS (H0A0), licensed. 2. `trace_hy_benchmark`, `load_trace_hy` | `level`: value at the last trade date before `decision_time`. `median_5y`: median of the series over the prior five years. `change_3m`: `level` minus the value three months earlier | Last trade date + 1 day | Source 1 is a stub. Source 2 works with WRDS or its cache. It is a median G-spread, not an OAS (`hy.state.hy_index_level`) |
+| `distress_ratio` | 1. Share of ICE index par above 1,000 bp, licensed. 2. `trace_hy_benchmark`, `load_trace_hy` | `level`: share of bonds with a spread above 1,000 bp. `median_5y`: as for `hy_oas` | Last trade date + 1 day | Source 1 is a stub. Source 2 works with WRDS or its cache (`hy.state.distress_ratio`) |
+| `sloos_tightening` | Fed SLOOS, series `SUBLPDCILS_N.Q`, `load_sloos` | Net share of domestic banks that tighten C&I standards for large and middle-market firms. Take the last two surveys released | Release date + 1 day (`sloos_timing`) | Works. Public |
+| `pmi` | 1. ISM Manufacturing PMI, licensed. 2. Philadelphia Fed Manufacturing Business Outlook Survey, column `GAC` | `level`: latest monthly value released | Release date + 1 day | No loader. `scripts/wt_tests.py` reads source 2 from `data/raw/macro/bos_dif.csv`. Git ignores that path |
+| `default_rate` | Moody's Default Report, then S&P default outlook, both licensed | `fcst`: baseline forecast of the US speculative-grade default rate, 12 months ahead. `ttm`: the trailing twelve-month rate from the same report | Report release date + 1 day | Stub (`load_agency_default_forecasts`). Blank until you supply the report figures |
+| `issuance_quality` | New-issue statistics of a vendor that you name. The repo names none | `ccc_share`: CCC share of new high yield bond par. `covlite_share`: cov-lite share of new leveraged loans. Compare the latest quarter with the median of the four quarters before it | Vendor release date + 1 day | No loader and no source. Blank until you name a vendor |
+| `prior_phase`, `prior_count` | Your last read | Copy `phase` and `n` from that read | Date of that read | Nothing saves them. Keep each read |
+| `path_mass` | `hy.macro.build_paths(...).mass` | The forecast registry supplies the GDP and CPI quantiles (`spf`, `spf_prob`) | Latest `available_at` of the rows used | Works when the registry has rows |
+| `prior_posterior` | Your last read | Copy the posterior column | Date of that read | Nothing saves it. Keep each read |
+
+Three limits apply to these sources:
+
+- `scripts/scenarios.py` approximates `median_5y` with one snapshot per year. The table states the full rule. Report which form you use.
+- A TRACE G-spread is wider than an OAS for a callable bond. Compare a level only with a median from the same source.
+- These rows have no decision page yet: the `GAC` proxy, the 12-month `fcst` horizon, and the `issuance_quality` window. Treat them as v0.
+
 ## Steps
 
 Each step lists its input and its output.
@@ -50,7 +72,7 @@ If a row passes but has a blank `as_of` or `source`, use its vote and list the g
 | `hy_oas` | `level > median_5y` and `change_3m > 0` |
 | `distress_ratio` | `level > median_5y` |
 | `sloos_tightening` | Both of the last two quarters are above 0. Fewer than two quarters vote `not_late` |
-| `pmi` | `level < 50` |
+| `pmi` | `level < 50`. For the `GAC` proxy, `level < 0`, because that index has its neutral point at 0 |
 | `default_rate` | `fcst > ttm` |
 | `issuance_quality` | `ccc_share > ccc_median` and `covlite_share > covlite_median` |
 

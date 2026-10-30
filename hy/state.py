@@ -32,11 +32,24 @@ LEASE_MULTIPLE = 8.0  # Section 4.3, pp. 267-268
 # loaded; tests/test_state.py keeps those defaults equal to these.
 HY_INDEX_RULE = {"min_price": 80.0, "max_yield": 0.25, "min_years": 1.0, "max_years": 15.0}
 COVENANT_CUSHION_RANGE = (0.15, 0.30)  # Section 4.6, p. 356
+LEV_CAP = 20.0  # leverage ceiling, equal to the panel's (hy.sources.trace_panel); tests/test_state.py keeps them equal
 
 
 def _safe_div(num: float, den: float) -> float:
     """Return num / den; nan when den is zero, so a missing base never reads as zero."""
     return num / den if den != 0 else float("nan")
+
+
+def _capped_lev(num: float, den: float) -> float:
+    """A leverage ratio (Section 4.3; decision page 2026-10-30-negative-ebitda-leverage), clipped above at LEV_CAP.
+
+    den < 0: LEV_CAP when there is debt to carry, else 0. den = 0: NaN, as `_safe_div`.
+    Intuition: debt over negative earnings is a negative ratio, and a negative ratio ranks as the lowest leverage.
+    The clip keeps a thin positive EBITDA from reading worse than a negative one.
+    """
+    if den < 0:
+        return LEV_CAP if num > 0 else 0.0
+    return min(_safe_div(num, den), LEV_CAP)
 
 
 # ---------------------------------------------------------------- 4.1 Profitability
@@ -272,7 +285,7 @@ def lev_face_k(tranches: Sequence[Tranche], key: str, ebitda_adj: float) -> floa
 
     Intuition: turns of EBITDA the company must be worth for tranche k to be whole.
     """
-    return _safe_div(debt_through(tranches, key), ebitda_adj)
+    return _capped_lev(debt_through(tranches, key), ebitda_adj)
 
 
 def lev_mkt_k(tranches: Sequence[Tranche], key: str, ebitda_adj: float) -> float:
@@ -285,7 +298,7 @@ def lev_mkt_k(tranches: Sequence[Tranche], key: str, ebitda_adj: float) -> float
     """
     tk = _find(tranches, key)
     senior = sum(t.face for t in tranches if t.rank < tk.rank)
-    return _safe_div(senior + tk.price / 100.0 * tk.face, ebitda_adj)
+    return _capped_lev(senior + tk.price / 100.0 * tk.face, ebitda_adj)
 
 
 def ltv_k(tranches: Sequence[Tranche], key: str, tev: float) -> float:
@@ -314,7 +327,7 @@ def lev_lease_adj(debt: float, rent: float, ebitda_adj: float, multiple: float =
     Intuition: capitalise rent as debt and add it back to EBITDA, so lessees and owners compare.
     Use annual rent with annual EBITDA.
     """
-    return _safe_div(debt + multiple * rent, ebitda_adj + rent)
+    return _capped_lev(debt + multiple * rent, ebitda_adj + rent)
 
 
 def debt_adj(debt: float, pension_underfunded: float = 0.0, guarantees_weak: float = 0.0) -> float:
@@ -330,7 +343,7 @@ def net_lev(debt: float, cash: float, ebitda_adj: float) -> float:
 
     Intuition: unrestricted cash can repay debt today.
     """
-    return _safe_div(debt - cash, ebitda_adj)
+    return _capped_lev(debt - cash, ebitda_adj)
 
 
 def lev_gross(debt: float, ebitda_adj: float) -> float:
@@ -338,7 +351,7 @@ def lev_gross(debt: float, ebitda_adj: float) -> float:
 
     Intuition: the structural exposure if the cash leaves before default.
     """
-    return _safe_div(debt, ebitda_adj)
+    return _capped_lev(debt, ebitda_adj)
 
 
 def fccr(ebitda_adj: float, cash_interest: float, mandatory_amort: float) -> float:
@@ -715,19 +728,23 @@ def ltm_figures(quarters: Sequence) -> dict:
 # VICI leases), so the two differ by design and must never be mixed.
 
 
+def _lease_adjusted(debt: float, leases: float, cash: float, ebitda: float, rent: float) -> float:
+    """(debt + lease liabilities - cash) / (EBITDA + rent) under the `_capped_lev` rule. A missing lease, cash or rent
+    counts as zero. NaN without an EBITDA."""
+    if not ebitda or ebitda != ebitda:
+        return float("nan")
+    zero = lambda x: 0.0 if x is None or x != x else float(x)  # noqa: E731
+    return _capped_lev(float(debt) + zero(leases) - zero(cash), float(ebitda) + zero(rent))
+
+
 def issuer_leverage(debt: float, leases: float, ebitda: float, rent: float) -> float:
     """Issuer leverage (Section 4.3 lease adjustment; framework F5 going-concern view):
     (debt + lease liabilities) / (EBITDA + rent). Missing leases or rent count as zero, which gives debt / EBITDA.
-    NaN without an EBITDA. Intuition: a lease is debt the issuer pays as rent; count both, or count neither."""
-    lease = 0.0 if leases is None or leases != leases else float(leases)
-    r = 0.0 if rent is None or rent != rent else float(rent)
-    if not ebitda or ebitda != ebitda:
-        return float("nan")
-    return (float(debt) + lease) / (float(ebitda) + r)
+    NaN without an EBITDA. EBITDA + rent below zero reads as `LEV_CAP`. Intuition: a lease is debt the issuer pays as
+    rent; count both, or count neither."""
+    return _lease_adjusted(debt, leases, 0.0, ebitda, rent)
 
 
 def issuer_net_leverage(debt: float, leases: float, cash: float, ebitda: float, rent: float) -> float:
     """Issuer leverage net of cash: (debt + lease liabilities - cash) / (EBITDA + rent)."""
-    c = 0.0 if cash is None or cash != cash else float(cash)
-    lev = issuer_leverage(debt, leases, ebitda, rent)
-    return lev - c / (float(ebitda) + (0.0 if rent is None or rent != rent else float(rent))) if lev == lev else lev
+    return _lease_adjusted(debt, leases, cash, ebitda, rent)

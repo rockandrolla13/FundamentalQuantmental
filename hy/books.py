@@ -75,8 +75,8 @@ def kricheff_ratios(ebitda: float, capex: float, maint_capex: float, cash_intere
     """
     ev = market_cap + debt - cash if market_cap == market_cap else float("nan")
     return {"cash_cov": _div(ebitda, cash_interest), "after_capex_cov": _div(ebitda - capex, cash_interest),
-            "after_maint_capex_cov": _div(ebitda - maint_capex, cash_interest), "lev_gross": _div(debt, ebitda),
-            "lev_net": _div(debt - cash, ebitda), "fcf_to_debt": _div(fcf, debt), "ebitda_to_debt": _div(ebitda, debt),
+            "after_maint_capex_cov": _div(ebitda - maint_capex, cash_interest), "lev_gross": state.lev_gross(debt, ebitda),
+            "lev_net": state.net_lev(debt, cash, ebitda), "fcf_to_debt": _div(fcf, debt), "ebitda_to_debt": _div(ebitda, debt),
             "ev_to_ebitda": _div(ev, ebitda), "equity_cushion": 1.0 - _div(debt, ev) if ev == ev else float("nan")}
 
 
