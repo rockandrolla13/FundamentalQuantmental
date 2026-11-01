@@ -332,6 +332,130 @@ Test of the split: across issuers with material RPO, regress log spread on the t
 
 Inputs to Section 7: `duration_gap`, `renewal_dependent_ebitda_years`, and `coverage_contracted` enter the forward block of the fair spread model with a positive sign on spread for the first two and a negative sign for the third. Inputs to Section 9: `revenue_runoff` and the largest contract expiry date are event dates for renewal risk.
 
+#### 4.7.1 Proposed revision (proposed, not fitted)
+
+Status: proposed on 2026-11-01, and revised after a citation audit and a method audit on the same day. Nothing below is fitted. Decision page: `2026-11-01-clocks-residual-timing`. Review report: `research/notes/clocks-systematic-review.md`, with the audit record in its Section 10. Human gates 1 to 4 of the review stay open.
+
+Role: this subsection proposes six methods. They change no code, no weight, and no E5 setting. The text of Section 4.7 above stays in force until a test below passes and the user accepts the change. Inputs, with their `as_of` and `available_at` rules and their have or need status against `docs/data_contract.md`, sit on the decision page.
+
+**What the sources say.** The literature gives three messages.
+
+- The cost clock holds three kinds of claim. Leases are debt-like and purchase commitments are not (card `sp-global-2019-ratios-and-adjustments`, paras. 10 and 26). At equal reported leverage, more lease goes with a wider offering spread, in samples that pool ratings (cards `kraft-2011-rating-agency-adjustments-bond-yields`, `gordon-wang-zhao-2024-operating-lease-loan-contracts`). Purchase obligations served as hedges in one steel test (card `almeida-hankins-williams-2017-supply-contracts-risk-management`). In manufacturing firms, users have a lower raw mean default probability, 0.016 against 0.033. Medians are zero, users are larger, and the paper has no default test (card `moon-phillips-2021-purchase-contracts-capital-structure`). In the model of Becker et al. (Proposition 1), rejection lowers the liquidation threshold and raises the insolvency threshold. The paper tests leverage and loan flows, not default or recovery (card `becker-josephson-xu-2023-executory-contract-rejection`).
+- A wide residual is not mispricing by default. This step is our inference. Expected loss dominates spread variation at B and below, and the split is near even at Ba, in working paper results on spreads (card `nozawa-2017-credit-spread-variance-decomposition`). In non-callable speculative grade bonds, the median liquidity part over the swap rate is 24% and 23%. The source says that this fraction moves with the benchmark (card `dick-nielsen-feldhutter-lando-2012-corporate-bond-liquidity`). Structural residual changes share one factor, and distress coefficients differ by about two times inside HY (card `he-khorrami-song-2022-commonality-credit-spread-changes`).
+- In the price evidence, a due date widens spreads in proportion to illiquidity. Nagler reads changes in yield spreads on S&P 500 firms near BBB (card `nagler-2020-bond-rollover-channel`). Valenzuela reads non-US bonds, and the interaction holds before and in the crisis (card `valenzuela-2016-rollover-spreads`). No opened source compares calm and stress in US high yield.
+
+No opened source tests RPO, lease tail, or purchase obligations against bond spreads.
+
+**What our data says.** The split test above does not test the revenue clock. `hy/sources/clock_facts.py` rule 3 spreads all RPO over 2 years, so `revenue_runoff` is year 2 for every issuer. The test has no control variable. The two shares and the share due within 2 years add to one, so each coefficient is a contrast with the near share. `dgap`, `renew`, and the two shares carry the same limit.
+
+Four further facts bear on the result:
+
+1. Its t values come from a same-month level regression with `h - 1` Newey-West lags. Under persistence that we assume, that rule rejects a true zero at about 0.42 (report Section 7.1). The AR(1) of the slopes is not on file. So the wrong sign may not differ from zero.
+2. `hy/sources/schedules.py` reads lease ladders only under ASC 842 tags. So no operating rent sits in the file before an issuer's first such filing, and `e5` steps up at adoption. Panel `leverage`, the implied class, and `lev_lease_adj` on panel debt may break at adoption too (card `palazzo-yang-2019-leverage-operating-leases`).
+3. The 99% run-off rule reads disclosure format and an assumed tail. So a filed run-off by that rule would not repair the revenue clock.
+4. After February 2017, the rating class is a leverage cell (decision page `2026-10-22-esp-peer-groups`).
+
+E5 reads no RPO, so its record stands (decision page `2026-10-22-alpha-backtest-design`). Its IC after cost is -0.082 (t -4.5) and -0.114 (t -4.7), at a hedge of beta = 1. No DTS hedge rerun is on file. Its IC beyond spread is -0.011 and -0.032, neither significant. A skip-month test shows the shared-price bias in the peer gap, which is S1 as built. Its plain IC after cost falls from +0.054 to zero at 3 months. Its IC beyond spread falls by about 35%, 17%, and 9% at 3, 6, and 12 months (decision page `2026-10-23-peer-fair-spread`). No test on file supports the phrase "risk measures" above.
+
+**What this means for the result above.** The result tests one thing across issuers with RPO of at least 25% of LTM revenue. It asks whether long-dated debt and long-dated rent plus purchases, as shares of all ladder obligations, line up with log spread. It does not test whether obligations outlast contracts. So it neither rejects nor supports the two-clock idea. The reason offered above, that large, long-lease issuers are stronger credits, is untested. On lease length, safer new tenants sign slightly longer leases (card `brueckner-rosenthal-2026-tenant-risk-lease-length`, establishment data). On lease intensity, high-rent firms are small and less profitable (card `dogan-2016-operating-leases-operating-leverage`, equities). Neither sample is bond issuers. Replace that sentence when test M2.1 has run. Candidate explanations are hypotheses. The review report lists them in order, with the test that settles each.
+
+**Proposed specification.** The methods are ranked. Run order follows dependencies. The cost clock of Method 1 comes before Method 2, and Method 2 before Method 3. The `lambda` build of Method 3 comes before Method 4. M6.1 comes before the `gcc_us` arm of Method 4. M6.1 and M6.5 can run first. M6.2 waits for band levels. Each test reads pass, fail, or untestable, with a stated minimum detectable effect. Errors use pooled OLS with clusters by issuer and month, and a permutation null across issuers. The t rule of the split test is not used.
+
+*Method 1. Rebuild the clocks from filed schedules.* Assumptions: a filing states what the market could read at its acceptance time. Finance leases count as debt, unless the debt tag family already holds them. Purchase lines past year one are frequently minimums. Lease ladders before ASC 842 come from older stems and Compustat `mrc1` to `mrc5`, with a `lease_regime` flag. A filer whose filed windows cover under 50% of RPO leaves the revenue tests. EBITDAR at or below 0 reads the cap of `2026-10-30-negative-ebitda-leverage`.
+
+```latex
+A^{k}_{i,t} = \frac{\sum_{\tau} \big(1 - F^{RPO}_{i,t}(\tau)\big)\, o^{k}_{i,t,\tau}}{EBITDAR_{i,t}}, \quad k \in \{debt,\ lease\}, \qquad X_{i,t} = \frac{\sum_{\tau} \max\big(0,\ PO_{i,t,\tau} - (1-d)\,COGS_{i,t}\big)}{EBITDAR_{i,t}}, \quad d = 0.30
+```
+
+Intuition: weight each fixed charge by the share of signed revenue already gone at its due date, in years of today's cash. A purchase counts only where it exceeds what a lower cost base can use. `F^RPO` is the filed cumulative share. Every RPO test runs at tails of 1, 2, and 5 years, and a result counts only if its sign holds at all three. `d` is Our choice, v0. Outputs: `amt_debt_after`, `amt_lease_after`, `amt_purch_after`, `amt_debt_near`, `amt_lease_near`, `amt_debt_far`, `amt_lease_far`, `purch_overhang`, `pc_cogs_1y`, `lease_regime`, `debt_includes_leases`, `lev_ex_lease`, `lease_step`, `rent_excess`, `rent_ratio`, `lease_tail_years`, `rent_option_gap`, `rpo_share_12m`, `rpo_share_24m`, `t50`, `sens_tail`, `revenue_runoff_filed`, `rpo_timing_source`, `rpo_scope_flag`, `rpo_regime`, `rpo_intensity`, `rpo_drift_pos`, `rpo_drift_neg`, `ob_sales`, `ob_beyond_fy_share`, `sigma_debt`, `sigma_obligations`, `sigma_rpo`, `n_instruments`.
+
+*Method 2. Test a clock feature against the residual.* Assumptions: a slope is a partial effect, not a cause. Cross-fit models read all periods, so this is a research test and it feeds no live score. Folds split by issuer (Our choice, v0). `X` holds the fields that exist at panel level, so the claim reads "beyond the panel-level `X`". A rating feed is a required input after February 2017.
+
+```latex
+\hat U_{i,t} = \log s_{i,t} - \hat\ell^{(-k)}(X_{i,t}, \bar X_i), \quad \hat V_{i,t} = c_{i,t} - \hat m^{(-k)}(X_{i,t}, \bar X_i), \quad \tilde U_{i,t} = \hat U_{i,t} - \overline{\hat U}_{t}, \quad \tilde V_{i,t} = \hat V_{i,t} - \overline{\hat V}_{t}, \quad \hat\theta = \frac{\sum_{i,t} \tilde V_{i,t}\tilde U_{i,t}}{\sum_{i,t} \tilde V_{i,t}^2}
+```
+
+Intuition: ask whether the clock surprise lines up, inside each month, with the spread surprise, after fundamentals and the issuer's usual level. Issuer means are correlated random effects (card `fuhr-papies-2024-panel-dml`). Partial R-squared is scored on a held-out fold, and it reads against a permutation null. An inside-issuer arm with `clock_overlap` is exploratory and decides nothing, because de facto seniority and curve shape are rival readings. Data rules come first. They are a gap between signal price and return price, filters with past data only, a path grid with its non-standard error, and Benjamini-Hochberg control over a frozen family. `realised_excess_return` divides by the price that supplies `g_spread`. A skip-month test on file shows this bias in the peer gap. The 8-day gap and OneScore are not measured. Outputs: `theta`, `theta_ci`, `theta_within`, `ar1_slope`, `perm_pct`, `mde`, `outcome`, `partial_r2`, `v_var`, `x_fields`, `theta_overlap`, `n_straddle_issuers`, `theta_cds`, `theta_ife`, `lib_bias`, `ic_gapped`, `nse`, `bh_pass`.
+
+*Method 3. Explain the residual in layers, then classify what is left.* Assumptions: as built, `eps` is the peer gap of Section 7.2. So the cohort layer does not apply until `f_t` exists. In liquid investment grade bonds, reversal ends after a few trades and within a day. No opened source tests this in HY, so the one-week skip is Our choice, v0. Risk and liquidity premia move slowly, an argued point that the source does not test directly.
+
+```latex
+\varepsilon_{b,t} = \mathbf{1}[f_t\ \text{fitted}]\,c_{g(b),t} + \bar\phi_{g,w,t}\,\lambda_{b,t} + \psi_t' x^{fwd}_{i,t} + \nu_{b,t}, \qquad \lambda_{b,t} = \sum_{j=1}^{4}\frac{L^{j}_{b,t} - \mu^{j}_{t}}{\sigma^{j}_{t}}
+```
+
+Intuition: take out the pay for trade friction, then forward facts, and take out what a cohort shares once a fitted model exists. What stays is a candidate for mispricing. `mu`, `sigma`, and `phi` use an expanding window, so `lambda` stays point in time. Features enter by walk-forward. When `f_t` exists, read the first component on a correlation matrix, against its value after a shuffle of months per cohort.
+
+A classifier then reads the signal that S1 keeps, on five rows. They are delay against survival, the worst 20% of default risk, the worst 20% of `lambda`, same-firm equity, and alpha against the yield gap. A flat row needs its 90% interval inside a stated bound, so a failed rejection casts no vote. A column needs at least 3 votes. Mispricing also needs rows 1 and 5, with no row against it. A tie reads `unresolved`, and so does a noisy panel. A long-run pair test splits the same gap into expected loss and expected return, against the same statistic for the whole spread on our panel. Outputs: `resid_clean`, `resid_var_explained`, `pc1_share`, `pc1_excess`, `partial_r2_liq`, `partial_r2_fwd`, `lambda_b`, `z_skip`, `lag_decay_by_class`, `resid_class`, `class_votes`, `return_share`, `return_share_spread`, `rho_state`.
+
+*Method 4. Read clock risk through the market state.* Assumptions: old maturity dates are plausibly exogenous to a later shock. Sector-by-date effects absorb the market level and the sector shock. Sources support a liquidity state for the debt term, in samples near BBB or non-US. The lease term reads a demand state, because rent does not roll in a capital market, and it is our extension with no prior sign. The RPO term stays out until a scope flag exists.
+
+```latex
+\Delta\log s_{b,t} = a_b + g_{sec(i),t} + \beta_1 \Delta MS_t\,Due^{debt}_{i,t-1} + \beta_2 \Delta DS_{sec(i),t}\,Due^{lease}_{i,t-1} + \beta_4 \Delta MS_t\,(-\sigma^{debt}_{i,t-1}) + \gamma' Z_{b,t} + e_{b,t}
+```
+
+Intuition: a due debt amount matters when the market state makes it expensive to replace, and due rent matters when demand falls. `MS` is the median `lambda` with the issuer's own bonds left out. A pass needs the same sign under a state not built from panel trades or spreads: HY new-issue volume or bank lending standards. `gcc_us` and `distress` are arms that carry the label "built from the outcome". Bonds with under 12 months to maturity leave the outcome. A stale-ladder event study sets exposure from a filing at least 12 months old, at named shock dates. It reads month 0 to 6 and month 7 to 36. A forward risk test regresses log spread risk targets, the change in log leverage, and default within 24 months on a listed set of clock amounts. It reads beyond spread level and leverage, past Benjamini-Hochberg. Outputs: `due_debt_12m`, `due_debt_12m_bond`, `due_debt_24m`, `callable_12m`, `due_lease_12m`, `beta_due_debt`, `beta_due_debt_check`, `beta_due_lease`, `beta_sigma_debt`, `partial_r2_due`, `mass_zero_by_cell`, `event_b_w1`, `event_b_w2`, `stale_decay`, `kappa_sv`, `kappa_widen_1m`, `kappa_widen_12m`, `kappa_lev`, `auc_gain_default`.
+
+*Method 5. Measure where clock risk pays, net of cost.* Assumptions: DTS is the unit of spread risk, unverified for B in stress and for CCC. Whether debt due soon earns compensation is open. The one bond source is a conference draft with a median rating of A-, and its table cannot separate compensation from mispricing. A report by cell is not a signal.
+
+```latex
+\pi^{x}_{t+h} = \sum_{b \in H_{x}} w_{b,t}\, r^{DTS}_{b,t+h} - \sum_{b \in L_{x}} w_{b,t}\, r^{DTS}_{b,t+h} - C_{t}, \qquad w_{b,t} = \frac{1}{n_{leg}\,DTS_{b,t}}, \qquad C_{t} = 2\,TO_{t}\,h_{t} + C^{Delay}(TO_{t},\ g_{t})
+```
+
+Intuition: measure what a book earns at equal spread risk from issuers with more clock exposure, then take off the cost to get there. Each leg has a DTS of 1. `TO` is the sum of absolute weight changes per leg, from 0 to 200%, averaged across the legs (card `dickerson-nozawa-robotti-2025-factor-delays`, eq. 7). The primary test is one pooled HY sort on refinancing intensity at 12 months, on names the book may hold, under the DTS hedge. Cells and sectors are a report with shrinkage and no pass. A stated rule caps DTS at the index share in a cell where pay is not shown. It allows 1.25 times that share where it is (Our choice, v0). Outputs: `refi_intensity_3y`, `pi_net`, `pi_net_t`, `pi_net_perm`, `pi_net_within`, `ic_beyond_cell`, `turnover_cell`, `half_spread_cost`, `delay_cost`, `alpha_mktb`, `alpha_def_liq`, `premium_type`, `carry_ok`, `coverage_share`, `flag_gap`.
+
+*Method 6. Set the band target from one credit state factor.* Assumptions: the source factor is a nonlinear function of log US EBP and the VIX. The source chose it from 2,058 forms on data through 2024. No number from the source transfers, because its statistic and its panel differ. In-sample global fit sits in stress windows, and the source has no cost test. The signal is contrarian. Only a direct, real-time, net comparison counts.
+
+```latex
+rx_{p,t+3} = b_p\big(\gamma_v' X_t\big) + u_{p,t+3}, \qquad X_t = \{1,\ \log EBP_t\} \otimes \{1,\ VIX_t,\ VIX_t^2\}, \qquad DTS^{target}_t = DTS^{lo}_t + \big(DTS^{hi}_t - DTS^{lo}_t\big)\,\operatorname{rank}_{\le t}\big(\gamma_{v(t)}' X^{clip}_t\big)
+```
+
+Intuition: credit premium and volatility together may say how much the market pays for credit risk next quarter. The target rises when pay is high, and the book walks toward it one step at a time. The HY spread version is our own extension, with no source test. A selected-form arm picks the form inside each vintage. A rival arm uses issuer quality (card `greenwood-hanson-2013-issuer-quality-bond-returns`). Outputs: `gcc_us`, `gcc_vintage`, `gcc_rank`, `dts_target_gcc`, `oos_r2`, `oos_r2_source_form`, `oos_cw_t`, `oos_r2_ex_stress`, `turnover_added`, `net_excess_gcc`, `overlay_net`.
+
+**Reading the level coefficient.** Section 4.7 reads a level coefficient on a maturity share. No opened source regresses spread level on a maturity share in a monthly cross-section. Nagler's term is a rollover rate in a regression of spread changes. Valenzuela's term is a main effect beside an interaction, at zero illiquidity. Coyle's term is mean maturity on new issue spreads. So we leave the coefficient unread until Method 2 runs. Selection is our hypothesis.
+
+**Sources that disagree: rent.** S&P treats rent as debt-like. Dogan shows that it behaves as a fixed cost, with a response of -0.02 to a fall in sales. In the model of Becker et al., rejection can remove it in Chapter 11. The first two fit the going concern, and the third fits distress. Choice: keep both views, as framework rule R3 requires.
+
+**Sources that disagree: bonds and loans.** Kraft and Gordon et al. find that bond spreads price lease amounts at issue. Gordon et al. find that loans price lease expense, and that the liability adds nothing. Altamuro et al. find that lease-adjusted ratios fit loans better, except in retail. Bonds and loans differ in access to data and in contract terms. Choice: use the bond evidence for bond tests, and report expense and liability side by side.
+
+**What each method would change, if its tests pass.** No change takes effect before that.
+
+| Method | Section 7 | Section 8 | Section 9 |
+| --- | --- | --- | --- |
+| 1 Rebuild | 7.2: replace the three signed clock inputs of the forward block with `amt_debt_after`, `amt_lease_after`, `purch_overhang`, and `rpo_intensity`, after M2.2 fixes a sign for each. An unsigned feature stays out of `f_t`, so the monotone test of `CLAUDE.md` holds | No signal. E5 stays as the user set it | 9.1: add a contract expiry row that reads `t50`, as a date with no price claim. 9.3: add `rent_option_gap` beside jump-to-default |
+| 2 Test | 7.2: a clock feature stays in `x` only if it passes M2.2. `clock_overlap` stays out, because arm B is exploratory | S1, ESP, OneScore: restate each on-file result in gapped form. A clock signal needs M2.5 | 9.2: none |
+| 3 Layers | 7.2: add `lambda_b` to the liquidity block. When `f_t` exists, add rating-by-maturity-by-date effects to it. 7.3: add `resid_clean`, `resid_class`. 7.5: add `rho_state`. 7.6: list the new fields. Section 11: keep `cds_5y` as a credit anchor, and do not read the basis as HY liquidity | S1 entry: the mispricing label needs `resid_class`. Otherwise the memo says "premium trade", "unmodelled fact", or "unresolved". A fail changes no weight by itself | 9.4: the band rule may read `rho_state` |
+| 4 Market state | 7.2: a debt clock enters `f_t` only as an interaction with the state. 7.3: a wide S1 gap in stress may hold rollover stress | Conviction book: add a clock line to the thesis tracker row | 9.1: add `due_debt_12m`, `sigma_debt`, and the two post-event windows to the maturity row. 9.2: add a clock term to the spread channel, with a probability integral transform check. 9.4: size the wall limit by the state, and add a lease limit only if M4.2 passes |
+| 5 Pay | 7.7: none | Report `premium_type` and `carry_ok` beside the force rank, with no weight. Add the delay term to each signal cost test | 9.3: add the delay term to exit cost. 9.4: the stated rule sets location inside the DTS band |
+| 6 Band target | 7.1: none | Conviction book layer 1: add arms E and F beside the odds gap and the static band | 9.2: the spread channel may read `gcc_us` as a path state. 9.4: no volatility scale |
+
+**Tests.** Each test names the result that rejects the proposal. The signal bar is a positive rank IC beyond spread after costs in at least 3 of the 4 cycles 2008, 2015, 2020, 2022. It reads the DTS hedge. The project bar stays the floor. An RPO feature can reach 2 windows at most. So it cannot pass that bar, and it can earn no signal weight. M1.8 is the one route to 3 windows, through a labelled proxy. Numbers we set are Our choice, v0. The decision page holds all tests and their untestable branches.
+
+| Test | Question | The proposal fails if |
+| --- | --- | --- |
+| M1.2 | Does the wrong sign come from share arithmetic? | With `lev_ex_lease` in `X`, the 90% interval of the slope on `amt_lease_after` lies below 0 under the primary learner. Its lower bound is at or below half of the on-file slope per one sd |
+| M1.3 | Are purchases different from rent? | The lease slope does not exceed the `pc_cogs_1y` slope, by the permutation null |
+| M1.4 | Does filed RPO timing add an edge? | `dgap` and `renew`, rebuilt with filed windows, do not reach an IC beyond spread above 0 with t above 2 at 6 months, at all three tails. This is the reversal test of `2026-10-22-alpha-backtest-design`. A pass lifts no signal weight |
+| M1.5 | Does the result depend on the RPO filter? | A sign flips across lines of 10%, 25%, 50%, and 100% of LTM revenue, and both slopes clear the permutation null |
+| M1.7 | Do bonds respond when leases reach the balance sheet? | Log spread change around the first ASC 842 10-Q stays inside the permutation null |
+| M1.8 | Does a backlog proxy reach the signal bar? | It misses the signal bar. No revenue clock then earns weight |
+| M1.9 | Do the clocks mark known failures? | WeWork and the named cases do not sit in the worst decile 24 months before the event |
+| M2.1 | Does the -2.07 reflect issuer traits? | Its 90% interval lies below 0 once `X` enters, with a lower bound at or below -1.035, under the primary learner |
+| M2.2 | Does a clock feature explain the residual? | Held-out partial R-squared stays below 1 percentage point or inside the permutation null, or the declared sign fails in 2 or more of 4 windows |
+| M2.5 | Is a clock feature a signal? | It misses the signal bar in gapped form, past Benjamini-Hochberg |
+| M3.1 | Does the cohort step remove the common part, once `f_t` exists? | `pc1_excess` stays at or above 10 points |
+| M3.3 | Does the cleaned gap rank at least as well? | On common rows at 6 months with a skip, `resid_clean` has a lower IC beyond spread than `eps`, with a difference t at or below -1. Or it misses the signal bar |
+| M3.4 | Does S1 hold mispricing? | `resid_class` reads risk, liquidity, or `unresolved` |
+| M4.1 | Does the debt clock act through the state? | `beta_due_debt` fails the permutation null, or it has the wrong sign in 2 or more of 4 windows. So does a sign that differs under the check state, or a partial R-squared below 1 percentage point beyond the state times the panel fields |
+| M4.3 | Do old dates carry the effect? | At 15%, L = 2, matched, the stress coefficient is at or below 0, or it fails the permutation null. Placebo months that leave a band of half of it also fail |
+| M4.5 | Are the clocks a risk measure? | No clock amount forecasts a spread risk target past Benjamini-Hochberg, and default AUC gain stays below 0.02. Then drop the phrase "risk measures" from Section 4.7 |
+| M5.1 | Does US HY pay for clock exposure after cost? | The pooled net premium fails the permutation null, or it is positive in fewer than 3 of 4 windows |
+| M5.3 | Is the premium more than factor exposure? | The alpha on own market, default, and liquidity factors has t below 2. Then the premium reads as compensation, beta, or none |
+| M6.1 | Does the factor forecast out of sample? | Out-of-sample R-squared at 3 months is at or below 0, or its Clark-West t is at or below 1.65 |
+| M6.2 | Does the target beat the static band after cost? | Arm F loses to arm C in 2 or more of 4 windows, or it adds more than 10 points of one-way turnover a year |
+| M6.5 | Does the factor add on its own? | A stand-alone overlay on HY index excess return does not beat a static position over all months |
+
+**Decision for the user.** The evidence questions the 20% Two clocks bucket. The decision page sets out the reasons and the choices. This subsection changes nothing in `hy/groups.py`.
+
 ## 5. Forward estimates
 
 Forward estimates turn the issuer state into paths of EBITDA, debt, liquidity, and covenant headroom under named scenarios. The book builds a management case, a base case, and one or more downside cases (p. 285), then assigns a probability to each case by judgement (p. 311). This section keeps the scenario structure and makes the probabilities a function of the macro state. The outputs are forward features that the fair spread model consumes.
