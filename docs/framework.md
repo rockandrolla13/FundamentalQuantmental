@@ -99,6 +99,7 @@ Each test sets one flag. The flags are inputs to the fair spread model and to th
 | EQ8 Big bath | A write-down in the quarter of a CEO change or a guidance cut, then a margin rebound | Future costs booked today (p. 202) |
 | EQ9 Gap | `addback_gap` above 0.10 | Company adjustments aggressive; above 0.20 is red |
 | EQ10 Control | Going-concern language, material weakness, auditor change, or restatement | Red. Stop and re-read every number |
+| EQ11 Deferred revenue (proposed, memo only) | Current deferred revenue falls by more than 2% of average assets in the year. The 2% is the source's mean absolute change, and it is our default | Margin flattered by release of old deferrals. Do not extrapolate it. It stays outside `eq_score` until M1.10 of `2026-11-01-clocks-residual-timing` passes (Prakash and Sinha 2009 draft, pp. 10, 15, 20) |
 
 Output: `ebitda_adj_analyst`, the add-back table with class and decision per item, `eq_flags[]`, and `eq_score` equal to the count of flags with EQ10 counted twice.
 
@@ -182,6 +183,7 @@ Size each class by the rule in the table. Keep the book figure beside the allowe
 | Guarantees | One claim at each guarantor entity for the full amount, capped at one recovery in total; a double dip when the structure allows it (Chapter 17) | At the rank of the guarantee at that entity |  |
 | Rejected real property leases | `C_j = U_j + max(Rent_j(1 year), min(0.15 × RemainingRent_j, Rent_j(3 years)))`, with rent undiscounted and unaccelerated and `U_j` the unpaid pre-petition rent. Only rejected leases create a claim. Reduce by expected re-letting (p. 433, pp. 553–554) | General unsecured | §502(b)(6), §365 |
 | Assumed leases | No damage claim. Cure amounts are administrative. The lease continues at contract rent | Administrative for the cure | §365(b) |
+| Purchase obligations (proposed, memo only) | Read the filing's description and code it with `hy.clocks.purchase_essentiality`. Essential: expect assumption, so the contract continues at its price and the cure is administrative. Non-essential: expect rejection, so a damage claim less mitigation. This is a conjecture of Andrade et al. (2014 draft, pp. 3-6), with case evidence and no recovery test | Administrative for the cure if assumed. General unsecured if rejected | §365 |
 | Equipment and aircraft leases | Not under the real property cap. Equipment rejection damages are contract damages less mitigation. Aircraft and vessel financings have their own cure-or-surrender regime; treat them as secured | Secured or general unsecured by instrument | §1110 |
 | Pensions | Single-employer plan: the termination liability on the insurer's assumptions, not the accounting deficit. Multi-employer: withdrawal liability | General unsecured, with the 180-day contribution slice as priority | §507(a)(5) |
 | Retiree medical | Modifiable in the case; claim small relative to the accounting liability | General unsecured | §1114 |

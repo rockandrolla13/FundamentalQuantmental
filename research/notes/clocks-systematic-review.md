@@ -99,11 +99,11 @@ A paper with no opened copy gets no card and supports no claim. The last column 
 
 | Paper | Reason | What it could settle |
 | --- | --- | --- |
-| Jung, Scarlat (2024), ASC 842 leases and bond yields | Only the abstract opens on IDEAS. The open route is SSRN. He et al. report its result at second hand (p. 3) | By its title, may test ASC 842 against bond yields |
-| Andrade, Henry, Nanda (2011), operating leases and purchase obligations in credit prices | SSRN only. CiteSeerX and Wayback returned 404 | By its title, may test the split |
-| Lim, Mann, Mihov (2017), operating leases and credit capacity | Publisher access only | By its title, may test bond and loan pricing of leases against debt |
+| Jung, Scarlat (2024), ASC 842 leases and bond yields. **Opened after the audit: see Section 11** | Only the abstract opens on IDEAS. The open route is SSRN. He et al. report its result at second hand (p. 3) | By its title, may test ASC 842 against bond yields |
+| Andrade, Henry, Nanda (2011), operating leases and purchase obligations in credit prices. **A 2014 draft opened after the audit: see Section 11** | SSRN only. CiteSeerX and Wayback returned 404 | By its title, may test the split |
+| Lim, Mann, Mihov (2017), operating leases and credit capacity. **Opened after the audit: see Section 11** | Publisher access only | By its title, may test bond and loan pricing of leases against debt |
 | Barber, Hollie, Lee et al. (2026), Barber, Hollie, Yu (2020), deferred revenue and debt pricing | SSRN only, not attempted further | By their titles, may test contract liabilities in debt pricing |
-| Bhojraj, Bloomfield, Jang et al. (2020), cost structure and CDS spreads | Journal, with an SSRN copy only | By its title, may test operating leverage in CDS |
+| Bhojraj, Bloomfield, Jang et al. (2020), cost structure and CDS spreads. **Opened after the audit: see Section 11** | Journal, with an SSRN copy only | By its title, may test operating leverage in CDS |
 | Ayres, Blank (2024), operating leverage and the cost of debt | SSRN only | By its title, may test operating leverage in debt cost |
 | Xu, An, de Jong et al. (2025), inflexibility and credit spreads | OUP returned 403 | By its title, may test cost inflexibility in spreads |
 | Correia (2024), lease reporting and credit markets | Seminar listings only. No file found | By its title, may test lease reporting in credit markets |
@@ -551,3 +551,19 @@ Two audits ran on the first draft of this report, the decision page, the methodo
 3. **Timing.** No opened source reads calm against stress in US high yield. The primary market state is our design, with no source test.
 4. **Where to take risk.** Sectors get a report. Capital structure position waits for `bond_terms`. Rating cells after February 2017 need a feed.
 5. **Depth of the audits.** The auditors spot-checked some cards, and they list which. The lead read pp. 1-7 and the named tables of the new drafts, as each card states. This stage ran no market test.
+
+## 11. Update after the audit, 2026-11-01
+
+The user supplied full text for papers that this review listed as unopened or never reached. The search, screen, and audit above did not change. No agent audited this section. The decision page addendum holds the tables, the limits, and the tests.
+
+**Opened and read:** Andrade, Henry, Nanda (2014 draft), Jung and Scarlat (2024), Lim, Mann, Mihov (2017), Sengupta and Wang (2011), Prakash and Sinha (2009 draft), Bhojraj et al. (2021). **Read by an agent, with 5 citations checked against the text:** Oliveira et al. (2017), Baker et al. (w27707), Culp et al. (w20776).
+
+**What changes in Section 1.**
+
+1. Purchases. The class split now has a price source. Essential purchases price near leases and non-essential purchases near zero, in a pooled CDS sample. In speculative grade alone, the source cannot reject equal lease and purchase effects. So the split is a test for HY, and not a result.
+2. The lease claim. At equal leverage, a contractual lease dollar prices near a debt dollar in three sources on levels. That answer is firmer than the answer in Section 1, and it still says nothing on returns.
+3. The revenue clock. Section 1 said to rebuild the clock only where filed windows support it. `delta_drc` adds a second route, which reaches all four windows, with a stock return result. It does not replace filed windows.
+
+4. Timing on the cost clock. Fixed cost times a macro forecast predicts next-quarter CDS changes in investment grade. The source finds no predictability in speculative grade, so this result does not transfer to our market.
+
+**What does not change.** No opened source shows that the clocks earn a return in US HY. The wrong sign on file stays unexplained. The 20% E5 question in Section 8 stays with the user.

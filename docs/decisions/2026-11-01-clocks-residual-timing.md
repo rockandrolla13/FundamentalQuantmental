@@ -33,7 +33,7 @@ Page numbers and copy details are on each card. The review report holds the full
 8. A chosen variable can take the wrong sign. Cash has +3.12 (t 3.48) in OLS and -4.42 (t -2.31) when instrumented, in column 2. Column 3 has +3.25 (t 3.83) and -2.64 (t -1.71) (Acharya et al., pp. 36-37). The transfer to leases is our proposal.
 9. Backlog has weak disclosure rules, and firms often count cancellable orders (Toynbee 2017, pp. 4, 11). Its level goes with higher ratings: `LN_OB` 0.221 (se 0.063) (Habib et al., p. 12). Habib et al. also report slopes on the two parts of the sales gap. Read by arithmetic, those slopes lower the rating on both sides of zero, and the authors' text says otherwise (pp. 4, 8, 12).
 10. ASC 606 is a dated break too. Loan cost rises by 21.6 bp (se 8.1) for firms with a material impact (Lee et al., p. 18). The rise fades by 2020 to 2021 (p. 22). That paper tests adoption and not RPO timing.
-11. No opened source tests RPO, lease tail, or purchase obligations against bond spreads. Jung and Scarlat (2024) may test ASC 842 against bond yields, by its abstract. It stays unopened, so it supports no claim. Andrade et al. (2011) stays unopened too.
+11. No opened source tests RPO or lease tail against bond spreads. Jung and Scarlat (2024) and a 2014 draft of Andrade et al. were opened after the audit. See the addendum.
 
 **The residual.**
 
@@ -668,6 +668,83 @@ Each vintage reads only data available at its date. Do not use the published ser
 | Tenor premium (Jankauskas) | A blog post with no HY split, and it needs `s_el` | Section 7.1 is fitted |
 
 Origin card items 1 and 5 enter Method 1. Item 2, `duration_gap_pv`, stays a check in M1.9.
+
+## Addendum, 2026-11-01: papers opened after the review
+
+The user supplied full text after the audit. Status: proposed. No test ran. No weight, no E5 setting, and no Section 4.7 rule changes. The human gates stay open. A new agent or the user did not audit this addendum.
+
+### What the sources say
+
+| Source | Sample | Outcome | Result |
+| --- | --- | --- | --- |
+| Andrade, Henry, Nanda (2014 draft), Table 3 col 3 | 372 firms, 2,846 firm-quarters, 2004Q1 to 2006Q1 | Log 5-year CDS | Debt 3.25 (t 9.35), leases 2.68 (t 5.15), purchases 0.90 (t 3.00). Leases less debt -0.57 (t -1.03). Leases less purchases 1.78 (t 3.11) |
+| Same, Table 4 col 3, speculative grade, 541 observations | As above | Log CDS | Debt 3.02 (t 4.47), leases 2.76 (t 2.85), purchases 1.67 (t 2.10). The source cannot reject equal lease and purchase effects (p. 22) |
+| Same, Table 5 col 2, pooled | As above | Log CDS | Purchases 0.61, essential term 1.89 (t 2.91), non-essential term -0.56 (t -1.25). Sums: 2.50 against leases 2.58, and 0.05 |
+| Lim, Mann, Mihov (2017), Table 3 | 3,399 new bonds, 1995 to 2011 | Offering spread | Debt 2.051 (t 14.19), S&P leases 1.804 (t 9.02), equality F 0.95 (p 0.329). Moody's leases 1.228 (t 10.65), F 19.11 (p 0.000) |
+| Sengupta, Wang (2011), Tables 3, 5, 6 | 1,712 firm-years, 173 new issues, 1999 to 2001. Rated BA or above, for yields | Rating, yield | Leases on rating -4.849 (t -9.44). On yield 2.209 (t 1.70) and 2.999 (t 2.19). Off and on balance sheet lease coefficients do not differ by Wald test |
+| Jung, Scarlat (2024), Tables 2, 3 | 206 firms, 6,403 bond-days, 2019Q1. Mean yield 3.963% | Yield, 3 days after the first ASC 842 earnings date | GAP x Post 0.367 (t 3.91). Undervalued 0.594 (t 4.41). Overvalued -0.070 (t -0.53) |
+| Prakash, Sinha (2009 draft), Tables 2, 3, 4 | 6,684 firm-years, 1,999 firms, 2002 to 2007. No negative equity. Over 75% NASDAQ | Next-year margin, stock return | `delta_drc` on margin 2.709 (t 5.89). Interaction with margin -3.846 (t 5.24 as printed). Decile rank on size-adjusted stock return 0.090 (t 3.91). No bond test |
+| Bhojraj, Bloomfield, Jang, Yehuda (2021), Tables 3, 4, 6, 7 | 462 firms, 15,398 firm-quarters, 2001 to 2017. Median market value $8.1bn | Next-quarter CDS change, on cost elasticity x change in the anxious index | Interaction -1.470 (t 2.13) with all controls. Investment grade hedge t 2.68. **Speculative grade hedge t 0.21: the source finds no predictability in HY** |
+| Oliveira et al. (2017), Baker et al. (w27707), Culp et al. (w20776) | See cards | No bond return test | They supply field definitions only |
+
+Limits of the table:
+
+1. None of these sources tests bond returns. Prakash and Sinha test stock returns. Bhojraj et al. test forward CDS changes, and their result is absent in speculative grade. The text extraction of Bhojraj et al. drops minus signs, so we take signs from the authors' text and not from the tables.
+2. Scale. Yield is in percentage points and GAP is a fraction of assets. So 1% of assets as undervalued lease moves yield by about 0.6 bp (0.594 x 0.01 x 100, our arithmetic). The source's text says "36 basis points" per "100-point" increase. So this size may be below a TRACE cost.
+3. Jung and Scarlat read a probit coefficient of 10.875 as "10.87 %" per 1% of GAP. A probit coefficient is not a probability change. We do not use this number.
+4. Jung and Scarlat, Table 1 Panel A, print `Size` with a mean of 0.435. The Appendix defines it as log total assets. These do not agree. We did not resolve this.
+5. Andrade et al. coded essentiality by judgement, and the coded data is not in our file. The draft states a period of 2003-2005 on p. 19, and 2004 to 2006 elsewhere. Page 23 labels both essentiality distributions speculative grade.
+6. Prakash and Sinha is a 2009 working draft. We did not find whether a journal version changes the result. Their sample is pre-ASC 606.
+
+### What the data says
+
+Nothing new. No test ran. The on-file recontract coefficient of -2.07 stays as it is. It reads a share of obligations, in 2018 to 2026, inside an RPO filter. The three lease sources read amounts in other periods. So they do not refute it, and they do not explain it. They raise the priority of M1.2, because share arithmetic is one way to reach a negative slope on a claim that prices near debt per dollar.
+
+### What we decide
+
+1. **Cost clock: report by class.** `hy.clocks.obligation_class` and the `renewal_<class>_amount` metrics split the cost clock into debt, lease, and three purchase groups. `obligation_kind` and E5 stay as they are.
+2. **Cost clock: amounts.** `sp_present_value` gives the contractual lease value before ASC 842, with the rule that the sources share. `moodys_lease` adds the floor. `amt_lease_after` stays the test variable, and these fields supply its pre-2019 input.
+3. **Do not discount purchases yet.** The pooled source says about one third of a lease per unit. Its speculative grade column cannot reject equality, and HY is our market. So purchases stay at face in E5 until M1.3b reads.
+4. **Revenue clock: add `delta_drc`.** It is the first revenue field in this project that can reach all four windows. It also has a named mechanism and a return result on stock.
+5. **Revenue clock: add `durable_share` and `dropped_share`.** They give a contract-life reading from named customers, where no RPO exists. Reading a dropped name as non-renewal is our extension, because the name can also fall below 10%.
+6. **Cost clock: add `cost_elasticity` as a level and control.** It measures fixed cost from cash, for every issuer, with no disclosed schedule. Lower elasticity goes with higher default probability: mean EDF 0.910 in the lowest quintile and 0.420 in the highest (Bhojraj et al., Table 1 Panel C). Do not build the timing trade for HY, because the source's speculative grade hedge has t 0.21. M1.13 tests the level, and it reports the interaction only.
+7. **No signal weight for any of these.** Rule 4 of this page holds.
+8. **Reject** Baker's churn and similarity measures, because they need card data and the paper tests no credit outcome. Reject Beyhaghi et al. and Borochin and Yang for the clocks. The review track file `fulltext/feature_extraction_2026-11-01.md`, outside git, holds each verdict.
+
+### Inputs
+
+| Input | Contract field | `as_of` | `available_at` | Status |
+| --- | --- | --- | --- | --- |
+| Lease ladder before ASC 842 | As in Method 1 | Balance-sheet date | 10-K acceptance time, with `datadate` + 90 days as a floor | need |
+| Current rent | 3.2 `rent_expense` | Quarter end | First moment this version was public | have |
+| Discount rate | Baa yield, Our choice, v0. Report at the swap rate less 10 bp and at 10% too | Decision date | Date + 1 | need in the panel |
+| Reported lease liability | XBRL `OperatingLeaseLiability`, current and non-current | First ASC 842 10-Q | EDGAR acceptance time | need |
+| Purchase text | 3.6 `text`, the contractual obligations table and its note | 10-K date | Acceptance time | have the text, need the parser. `purchase_essentiality` is the first form |
+| Current deferred revenue | Compustat `drc`. XBRL `DeferredRevenueCurrent`, then `ContractWithCustomerLiabilityCurrent`, tags to confirm | Fiscal year end | 10-K acceptance time, with `datadate` + 90 days as a floor | need |
+| Cash operating costs, sales | `compustat_quarterly` `saleq`, `recchy`, `oancfy`, `xidocy`, `xintq`, `txtq`, `txdcy`, `txachy`, `txbcoy` (Bhojraj et al., p. 83) | Quarter end | 10-Q acceptance time. The source assumes 2 months | need the cash fields. 20 quarters at least, so it starts about 5 years into each issuer's file |
+| Anxious index | Philadelphia Fed Survey of Professional Forecasters | Survey quarter | Release date | need. Public, and not built from spreads, so it can also serve Method 4 |
+| Total assets | `compustat_annual` `at`, outside the contract | Fiscal year end | As above | need. Use the Method 1 revenue twin scale where assets are absent |
+| Customer lists | 3.3 `customer_shares` for XBRL years. Compustat segment file before them | Fiscal year end | Acceptance time | have per filing, need the history and name matches |
+| SG&A, revenue | `hy/sources/xbrl.py` tags | Quarter end | Acceptance time | have |
+
+### Tests
+
+Each test follows rules 1 to 9 of this page. All thresholds are Our choice, v0. Read each on HY issuers, and report a pooled column beside it.
+
+| Test | Claim | Pass | Fail | Untestable |
+| --- | --- | --- | --- | --- |
+| M1.3b Essentiality | Purchases split by what they buy, in HY | Essential slope exceeds non-essential slope, permutation p below 0.05, and the 90% interval of the non-essential slope holds 0 | The essential slope does not exceed the non-essential slope. Then essentiality stays a memo row | Under 30 issuers per group in the median month, or the coder agrees with under 80% of 50 filings coded by hand. Audit before any return is read |
+| M1.7b Lease surprise | HY bonds moved on the surprise | Slope on `undervalued` clears the permutation null in the 3 days around the first ASC 842 earnings date. A placebo one year earlier stays flat. Estimated lease at the bond's own yield, as in the source | No response. The footnote was then priced, which fits Kraft (p. 20) | `mde` above the size of interest. First compute `mde` at 0.6 bp per 1% of assets. Under 30 issuers |
+| M1.10 Deferred revenue | `delta_drc` carries over to HY bonds | Two steps. Step 1: the slope on next-year margin is positive in HY, with controls of the source. Step 2: the signal bar. Report 2018 and 2019 apart, with an ASC 606 flag | Either step fails. Then `delta_drc` stays a memo input to EQ11 | Under 60 issuers in the median month. The field is sparse outside software and health, by the source Panel C |
+| M1.11 Customers | Durable and dropped customers explain the residual | The M2.2 bar in a pilot of 30 issuers first, then the panel. The spread change in the 3 months after a dropped name clears the permutation null | Below either bar | Name matches fail on over 20% of pilot rows |
+| M1.13 Cost elasticity | Fixed cost explains the HY residual | `cost_elasticity` meets the M2.2 bar with a declared negative sign on spread. Report beside it `lev_ex_lease` and the rank correlation with `dur_obligations`, `fixed_charge_years`, and `sigma_sales`. Report the interaction with the change in the anxious index, with no pass or fail in HY | Below the bar. It then stays a memo row | Under 60 issuers with 20 clean quarters in the median month |
+| M1.12 No-RPO proxies | `rev_abs_growth` and `sga_sales` explain the residual | The M2.2 bar. No declared sign, so they report only | Below the bar | Not applicable |
+
+**Sign table additions for Method 2.** `amt_purch_essential` has a declared positive sign. `amt_purch_non_essential`, `delta_drc` on spread level, `durable_share`, and `rev_abs_growth` have none, and they report only. `cost_elasticity` has a declared negative sign on spread level, from the source's EDF sort. `dropped_share` has a declared positive sign, as our extension. `delta_drc` has a declared positive sign on bond return, transferred from stock return, and the transfer is our inference.
+
+**Overlap.** E5 reads the same totals. `delta_drc` overlaps `rpo_drift`, because both read a change in contracted revenue, and M1.10 reports their rank correlation. `durable_share` overlaps `cust_top1`. `lease_renewal_gap` may overlap `rent_excess`.
+
+**Source cards.** `bhojraj-bloomfield-jang-yehuda-2021-cost-structure-cds`, `andrade-henry-nanda-2014-leases-purchase-obligations`, `jung-scarlat-2024-asc842-bond-yields`, `lim-mann-mihov-2017-operating-leases-credit-capacity`, `sengupta-wang-2011-off-balance-sheet-debt`, `prakash-sinha-2009-deferred-revenues-matching`, `oliveira-kadapakkam-beyhaghi-2017-customer-distress`, `baker-baugh-sammon-2020-customer-churn`, `culp-nozawa-veronesi-2018-option-based-credit-spreads`.
 
 ## The tests that settle it
 

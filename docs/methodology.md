@@ -344,7 +344,7 @@ Role: this subsection proposes six methods. They change no code, no weight, and 
 - A wide residual is not mispricing by default. This step is our inference. Expected loss dominates spread variation at B and below, and the split is near even at Ba, in working paper results on spreads (card `nozawa-2017-credit-spread-variance-decomposition`). In non-callable speculative grade bonds, the median liquidity part over the swap rate is 24% and 23%. The source says that this fraction moves with the benchmark (card `dick-nielsen-feldhutter-lando-2012-corporate-bond-liquidity`). Structural residual changes share one factor, and distress coefficients differ by about two times inside HY (card `he-khorrami-song-2022-commonality-credit-spread-changes`).
 - In the price evidence, a due date widens spreads in proportion to illiquidity. Nagler reads changes in yield spreads on S&P 500 firms near BBB (card `nagler-2020-bond-rollover-channel`). Valenzuela reads non-US bonds, and the interaction holds before and in the crisis (card `valenzuela-2016-rollover-spreads`). No opened source compares calm and stress in US high yield.
 
-No opened source tests RPO, lease tail, or purchase obligations against bond spreads.
+No opened source tests RPO or lease tail against bond spreads. One opened draft tests purchase obligations against CDS spreads (card `andrade-henry-nanda-2014-leases-purchase-obligations`). See the addendum at the end of this subsection.
 
 **What our data says.** The split test above does not test the revenue clock. `hy/sources/clock_facts.py` rule 3 spreads all RPO over 2 years, so `revenue_runoff` is year 2 for every issuer. The test has no control variable. The two shares and the share due within 2 years add to one, so each coefficient is a contrast with the near share. `dgap`, `renew`, and the two shares carry the same limit.
 
@@ -435,6 +435,11 @@ Intuition: credit premium and volatility together may say how much the market pa
 | M1.2 | Does the wrong sign come from share arithmetic? | With `lev_ex_lease` in `X`, the 90% interval of the slope on `amt_lease_after` lies below 0 under the primary learner. Its lower bound is at or below half of the on-file slope per one sd |
 | M1.3 | Are purchases different from rent? | The lease slope does not exceed the `pc_cogs_1y` slope, by the permutation null |
 | M1.4 | Does filed RPO timing add an edge? | `dgap` and `renew`, rebuilt with filed windows, do not reach an IC beyond spread above 0 with t above 2 at 6 months, at all three tails. This is the reversal test of `2026-10-22-alpha-backtest-design`. A pass lifts no signal weight |
+| M1.3b | Does essentiality split purchases in HY? | The essential slope does not exceed the non-essential slope, by the permutation null, on HY issuers |
+| M1.7b | Did HY bonds respond to the lease surprise? | The slope on the undervalued part stays inside the permutation null in the 3 days around the first ASC 842 earnings date |
+| M1.10 | Does the deferred revenue change reach the signal bar? | `delta_drc` does not forecast next-year margin in HY, or it misses the signal bar |
+| M1.11 | Do customer lists explain the residual? | `durable_share` and `dropped_share` miss the M2.2 bar in the pilot |
+| M1.13 | Does cost elasticity explain the HY residual? | `cost_elasticity` misses the M2.2 bar with a negative sign on spread |
 | M1.5 | Does the result depend on the RPO filter? | A sign flips across lines of 10%, 25%, 50%, and 100% of LTM revenue, and both slopes clear the permutation null |
 | M1.7 | Do bonds respond when leases reach the balance sheet? | Log spread change around the first ASC 842 10-Q stays inside the permutation null |
 | M1.8 | Does a backlog proxy reach the signal bar? | It misses the signal bar. No revenue clock then earns weight |
@@ -455,6 +460,17 @@ Intuition: credit premium and volatility together may say how much the market pa
 | M6.5 | Does the factor add on its own? | A stand-alone overlay on HY index excess return does not beat a static position over all months |
 
 **Decision for the user.** The evidence questions the 20% Two clocks bucket. The decision page sets out the reasons and the choices. This subsection changes nothing in `hy/groups.py`.
+
+
+**Addendum, 2026-11-01: papers opened after the review.** Status: proposed, not fitted. Full text: the addendum on the decision page. It changes no weight and no E5 setting.
+
+1. Per dollar, a contractual lease prices near a debt dollar in three opened sources on spread or yield levels, none of them on returns. The negative recontract coefficient above reads a share, so these sources do not refute it. They do raise the priority of M1.2.
+2. Purchase commitments split by what they buy. Essential purchases price near leases and non-essential purchases near zero, in a pooled CDS sample of 2004 to 2006. In speculative grade alone, the source cannot reject equal lease and purchase effects, and it reports no essentiality split. So purchases stay in the cost clock at face until M1.3b reads.
+3. The revenue clock gains a route to 4 windows. `delta_drc` exists from about 2001, against 2018 for RPO. The source tests stock returns only, on a sample with no negative equity firms.
+4. Fixed cost has a measure from cash. `cost_elasticity` needs no disclosed schedule. Its timing trade with the anxious index works in investment grade CDS, and the source finds no predictability in speculative grade (t 0.21). So we test it as a level, and we do not build the trade for HY.
+5. The lease surprise is one event in 2019. It tests whether the market read the footnote. It cannot be a recurring signal.
+
+New fields in `hy/clocks.py`: `obligation_class`, `sp_present_value`, `moodys_lease`, `lease_renewal_gap`, `executory_leverage`, `lease_gap`, `purchase_essentiality`, `cost_elasticity`, `customer_persistence`, `delta_drc`, `rev_abs_growth`, `sga_sales`. They report only.
 
 ## 5. Forward estimates
 
