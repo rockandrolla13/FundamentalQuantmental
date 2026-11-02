@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "skills": {
+    "i-have-adhd": {
+      "source": "ayghri/i-have-adhd",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/i-have-adhd/SKILL.md",
+      "computedHash": "e12ff08dfe4b5baae7065c2f05a5738b8a55f3ccbed82ba45f5496c8e83b2a25"
+    },
+    "research-summarizer": {
+      "source": "LeoYeAI/openclaw-master-skills",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/research-summarizer/SKILL.md",
+      "computedHash": "299629fc1b45cbd71ada94e873cf1cd5eb7a72c259b2e27d0d97e428f6bcf1a8"
+    }
+  }
+}
