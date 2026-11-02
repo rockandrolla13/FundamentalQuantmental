@@ -33,6 +33,7 @@ Build a best-in-class high yield bond analyst. The system finds mispriced bonds 
 - Notebooks explore. Code lives in `hy/`. A result counts only when a test or a script reproduces it.
 
 ## Style
+- Always use the `i-have-adhd` skill in every reply to the user. Lead with the next action. Ask each question as a yes-or-no or a pick-one, with a recommendation and the effect of each answer.
 - Write all prose in ASD-STE100 Simplified Technical English: short sentences, active voice, imperative for instructions, no -ing verb forms, no slashes.
 - No filler. Only the context the reader needs to act.
 - Apply the Communication Style rules below to every report: memos, write-ups, decision pages, research cards, and the prose that scripts such as `scripts/memo.py` generate. Where these rules and STE differ, follow the stricter rule.
