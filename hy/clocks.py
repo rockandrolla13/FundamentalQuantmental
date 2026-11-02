@@ -369,15 +369,61 @@ def collateral_weighted(pool: Mapping[str, float], by_type: Mapping[str, float])
 def peer_shock(pool: Mapping[str, float], failed_by_type: Mapping[str, float]) -> float:
     """log(1 + seat-weighted failed operators of the pool's asset types), with the natural log.
 
-    Benmelech and Bergman (w15708) state a log form and then use mixed scales, so fit our own slope. Do not reuse theirs."""
+    Benmelech and Bergman (2011) state a log form, give no base, and print effects on mixed scales. So fit our own slope.
+    The first failed buyer is about 19.5 bp in base 10 and 44.8 bp in natural log, on their coefficient of 64.666."""
     v = collateral_weighted(pool, failed_by_type)
     return float(np.log1p(v)) if v == v and v >= 0 else float("nan")
+
+
+def industry_distress(peer_returns: Sequence[float], cut: float = -0.30, min_peers: int = 5) -> float:
+    """1 if the median peer stock return is at or below `cut`, else 0 (Acharya et al. 2007, Distress1, p. 802).
+
+    The caller leaves the issuer out of `peer_returns`. Peers are the 3-digit SIC group in the source. NaN below
+    `min_peers` valid returns. Intuition: when an industry is in distress, its natural buyers cannot pay, so recovery
+    falls. The source tests recovery only, in 1982 to 1999."""
+    v = [x for x in peer_returns if x == x]
+    if len(v) < min_peers:
+        return float("nan")
+    return 1.0 if float(np.median(v)) <= cut else 0.0
+
+
+def competition_flag(hhi: float, hhi_all_industries: Sequence[float]) -> float:
+    """1 if the industry concentration is in the lowest yearly quartile, else 0 (Valta 2012, `Competition`, p. 664).
+
+    The source uses the fitted Hoberg-Phillips SIC-3 index and tests loan spreads. A bond test is still open. NaN when
+    the inputs are missing. Intuition: rivals limit how far a borrower can pass on a cost shock."""
+    v = [x for x in hhi_all_industries if x == x]
+    if hhi != hhi or not v:
+        return float("nan")
+    return 1.0 if hhi <= float(np.quantile(v, 0.25)) else 0.0
+
+
+BORROWING_BASE_FACTORS = {  # low, high share of PV-10 by reserve class. Gilje et al. (2020), Fig. 3, p. 1319
+    "producing": (0.90, 0.95),
+    "nonproducing": (0.65, 0.75),
+    "undeveloped": (0.25, 0.50),
+    "unproved": (0.0, 0.0),
+}
+
+
+def borrowing_base_collateral(pv10_by_class: Mapping[str, float]) -> tuple[float, float]:
+    """Low and high lendable value of an E&P reserve book: sum of factor x PV-10 (Gilje et al. 2020, Fig. 3, p. 1319).
+
+    An unknown class raises an error, because a silent zero would understate nothing and hide a typing fault. Intuition:
+    banks lend against producing wells, and much less against undrilled ones, so the base resets on what is in the ground."""
+    lo = hi = 0.0
+    for k, v in pv10_by_class.items():
+        f = BORROWING_BASE_FACTORS[k]
+        lo, hi = lo + f[0] * v, hi + f[1] * v
+    return lo, hi
 
 
 def soft_revenue(run_rate: float, churn: float, horizon: int = 25) -> np.ndarray:
     """Revenue grid with no contracts: today's run rate decays by `churn` a year, R0 (1 - churn)^t. Our extension.
 
-    It gives a revenue clock to issuers with no RPO, and `mismatch` accepts the grid. Gourio and Rudanko (w17191) set 0.15
+    It gives a revenue clock to issuers with no RPO, and `mismatch` accepts the grid. Read `coverage_contracted`,
+    `breakeven_margin`, and `max_cum_shortfall` on it. Do not read `revenue_runoff`, because a slow decay never reaches 99%
+    inside the grid. A well decline rate can stand in for `churn` in E&P (our extension). Gourio and Rudanko (w17191) set 0.15
     from anecdote and test no credit outcome, so `churn` is a stated assumption. Report the result at several values. Each
     year is the mean over the year, so the first year is below the run rate. Intuition: customers leave at a rate, and
     fixed charges do not."""

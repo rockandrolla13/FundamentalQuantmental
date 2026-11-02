@@ -80,3 +80,6 @@ Intuition: the markup compares the lease rate with the cost to buy the aircraft 
 Intuition: an obligation past the contract end hurts less when another user can take the asset.
 
 4. Test. On sectors where the score exists, regress log spread on the lease tail and on `recontract_bite`. Re-marketability matters when the coefficient on `recontract_bite` is above 0 with the lease tail in the model. This paper predicts longer operating leases on less liquid assets, so a raw lease tail mixes two effects with opposite signs for credit risk.
+
+## Update, 2026-11-02
+Do not ship `recontract_bite` with a fixed sign. Benmelech and Bergman (2009 draft, p. 6) cite evidence that airlines renegotiate leases down when fleet value is poor. Split the test by distress (M1.15). `remarket_score` now has two forms: `redeploy_operators_5` for aircraft and `redeploy_r` for any industry.

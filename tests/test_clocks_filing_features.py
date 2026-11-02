@@ -192,3 +192,29 @@ def test_soft_revenue_gives_a_clock_with_no_rpo():
     fast = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 10.0, 100.0)]}, clocks.soft_revenue(100.0, 0.40), 0.3).metrics
     slow = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 10.0, 100.0)]}, clocks.soft_revenue(100.0, 0.10), 0.3).metrics
     assert fast["coverage_contracted"] < slow["coverage_contracted"]  # higher churn leaves less cash behind the same debt
+
+
+def test_industry_distress():
+    assert clocks.industry_distress([-0.5, -0.4, -0.35, -0.2, -0.1]) == 1.0
+    assert clocks.industry_distress([-0.5, -0.4, -0.25, -0.2, -0.1]) == 0.0
+    assert math.isnan(clocks.industry_distress([-0.5, -0.4]))  # under the five peer floor
+
+
+def test_competition_flag():
+    universe = [0.05, 0.10, 0.20, 0.30, 0.40]
+    assert clocks.competition_flag(0.05, universe) == 1.0
+    assert clocks.competition_flag(0.30, universe) == 0.0
+    assert math.isnan(clocks.competition_flag(float("nan"), universe))
+
+
+def test_borrowing_base_collateral():
+    lo, hi = clocks.borrowing_base_collateral({"producing": 100.0, "undeveloped": 100.0, "unproved": 100.0})
+    assert (lo, hi) == pytest.approx((115.0, 145.0))
+    with pytest.raises(KeyError):
+        clocks.borrowing_base_collateral({"probable": 100.0})
+
+
+def test_soft_revenue_decay_stays_on_the_grid_and_coverage_is_readable():
+    m = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 5.0, 100.0)]}, clocks.soft_revenue(100.0, 0.15), 0.3).metrics
+    assert m["revenue_runoff"] == 25.0  # never reaches 99% inside the grid, which the docstring warns about
+    assert m["coverage_contracted"] > 1.0

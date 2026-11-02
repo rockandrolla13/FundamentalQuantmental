@@ -123,3 +123,6 @@ Notes on the tests:
 
 ## Section touched
 `docs/methodology.md` Section 7.1 (anchor spread and κ_t), Section 7.3 (log residual), Section 7.5 (residual reversion and half-life), and Section 8 S1 (fair value residual). Estimate E4 "Default the price assumes" in `hy/groups.py`. No decision page yet. A sprint that runs tests 1 to 4 should add one and settle the κ mapping.
+
+## Update, 2026-11-02
+The authors call the default barrier "very simplistic" and name off-balance sheet obligations. Adding `O_t` to the barrier is our extension. Recovery depends on seniority and industry membership. Industry demeaning leaves inferences, if anything, stronger (unreported).

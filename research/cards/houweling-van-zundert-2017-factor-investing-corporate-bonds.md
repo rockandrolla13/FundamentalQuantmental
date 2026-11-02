@@ -155,3 +155,6 @@ Intuition: the break-even cost is the one-way cost per unit of turnover that tak
 
 ## Section touched
 `docs/methodology.md` Section 8 (Quantamental signals: candidate low-risk, size and credit momentum signals, and the composite weights) and Section 7.4 (a bond-only value regression with a ΔS term beside ESP and SPiDER). Cross-reference: `israel-palhares-richardson-2018-common-factors.md` and `deutsche-bank-factor-investing-corporate-credit.md`. No decision page yet. A sprint that builds L1 and V3 and runs the tests above should add one.
+
+## Update, 2026-11-02
+An agent reports that HY value falls to 2.43% and momentum to 1.65% when sector-neutral, and neither stays significant (Table 8). Correia et al. report the opposite, unreported and mostly IG. **We decide:** follow this paper for HY, and run M2.8.

@@ -91,3 +91,6 @@ What we could adopt:
 
 ## Section touched
 `docs/methodology.md` Section 7.4 (spread per unit of risk, peer signals) and Section 8 (Quantamental signals). Decision page `docs/decisions/2026-10-22-onescore.md`.
+
+## Update, 2026-11-02
+The paper has no sector control and no HY table. Sales revisions are its only revenue variable (5.7%, t 7.28). Weighting them by uncontracted revenue is our extension.
