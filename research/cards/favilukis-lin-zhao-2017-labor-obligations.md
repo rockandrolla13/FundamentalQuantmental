@@ -47,3 +47,5 @@ Aggregate US, 1948 to 2014, Moody's Baa less Aaa (pp. 9-10, 12). Firms in many c
 
 ## Update, 2026-11-02: AER 2020 version
 AER 110(6), 1673-1712. An agent read it. Table 2D: `LS` on EDF 0.71 (se 0.08), labor growth -0.45 (se 0.06). Table 4: 5-year CDS on `LS` 1.78 (se 0.38), on labor growth -0.37 (se 0.17). Table 3 shows labor growth -0.08 (se 0.06) and its interaction with rigidity -0.21 (se 0.04), so the effect sits in rigid firms, and the draft's Table 4 and A1 conflict is settled in print. It has no firm bond spread test, no US firm regression, no industry effects, and no lagged default control at firm level. US `XLR` coverage is 7% (n. 15). The user lifted the coverage gate on 2026-11-02. **We decide:** labor stays out of `O_t`, because the margin is after labor. Use `stress_margin` and `labor_share`, with non-positive denominators reading 1. Chen et al. (2010) give an opposite sign for union voice.
+
+**Status, 2026-11-02:** the user closed labor for the clocks. This card is a record only, and its decisions no longer apply.

@@ -574,9 +574,9 @@ The user added papers at the project root. The decision page, Addendum 2, holds 
 
 **What changes in Section 1.**
 
-1. The cost clock is not only filed schedules. Fixed cost also shows in labor and in how hard an asset is to resell.
+1. The cost clock is not only filed schedules. Fixed cost also shows in how hard an asset is to resell.
 2. The revenue clock can run with no RPO, by a stated decay. This is our proposal, and no source tests it on credit.
-3. Two old leads return. The labor gate is lifted by the user, and the resale lead has a score for any industry.
+3. The resale lead returns, with a score for any industry. The user closed the labor lead on 2026-11-02.
 
 **What does not change.** No opened source shows that the clocks earn a return in US HY. The wrong sign on file stays unexplained. The 20% E5 question stays with the user. Chen et al. (unions), Ivashina et al., and Jankowitsch et al. are now opened, so read those lines of Section 4 as closed.
 

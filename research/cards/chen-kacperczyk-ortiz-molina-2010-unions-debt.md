@@ -26,3 +26,5 @@ Yield spread on workers covered in the industry at t-1, with rating dummies, lev
 
 ## Use for the two clocks
 **Source says:** union voice protects creditors against owner risk. **Data says:** nothing yet. **We decide:** keep `union_cic` apart from `labor_share`. Do not pool one labor sign.
+
+**Status, 2026-11-02:** the user closed labor for the clocks. This card is a record only, and its decisions no longer apply.
