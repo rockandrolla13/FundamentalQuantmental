@@ -321,6 +321,75 @@ def cost_elasticity(costs: Sequence[float], sales: Sequence[float], lag: int = 4
     return float(((dr - dr.mean()) * (dc - dc.mean())).sum() / var) if var > 0 else float("nan")
 
 
+def labor_share(labor_expense: float, ebitda: float) -> float:
+    """Labor expense over labor expense plus EBITDA, clipped to [0, 1] (Favilukis et al., 2017 draft, p. 13).
+
+    A non-positive denominator reads 1, by the same logic as the negative EBITDA leverage cap: the worst issuers must not
+    read as low labor risk. The clip is our rule. Intuition: wages are a claim that ranks ahead of the bond in practice,
+    so the larger their share of value added, the less cash the bond has behind it. NaN when labor expense is NaN."""
+    if labor_expense != labor_expense or ebitda != ebitda:
+        return float("nan")
+    denom = labor_expense + ebitda
+    return 1.0 if denom <= 0 else float(np.clip(labor_expense / denom, 0.0, 1.0))
+
+
+def stress_margin(margin: float, labor_to_revenue: float, revenue_fall: float, labor_elasticity: float) -> float:
+    """Cash margin after a revenue fall, when other costs flex fully and labor flexes by `labor_elasticity`. Our extension.
+
+    m - (L / R) x (1 - rho) / (1 - x). Use this for labor in the Section 4.7 downside. Do not add a labor line to the
+    obligations, because the EBITDAR margin is already after labor, so a line would count labor twice."""
+    if not 0.0 <= revenue_fall < 1.0:
+        return float("nan")
+    return margin - labor_to_revenue * revenue_fall * (1.0 - labor_elasticity) / (1.0 - revenue_fall)
+
+
+def float_unhedged(floating_debt: float, pay_fixed_notional: float, total_debt: float) -> float:
+    """Share of debt that floats after pay-fixed swaps. Our extension of Campello et al. (w16622), who count gross notional.
+
+    Intuition: `interest` uses one fixed rate, so this field shows how far that rate can move. Swaps to floating do not
+    reduce it. NaN unless total debt is positive."""
+    if not total_debt > 0:
+        return float("nan")
+    return float(np.clip((floating_debt - pay_fixed_notional) / total_debt, 0.0, 1.0))
+
+
+def collateral_weighted(pool: Mapping[str, float], by_type: Mapping[str, float]) -> float:
+    """Value-weighted mean of a per-type score over a collateral pool (Benmelech and Bergman, w13874 and w15708).
+
+    `pool` maps an asset type to its weight, seats x count for aircraft. `by_type` maps a type to its score: other
+    operators with at least 5 of the type for redeployability, or failed operators for a peer shock. The caller removes
+    the issuer and bankrupt operators from the counts. A type with no score makes the result NaN, because a missing type
+    is not a zero. Our extension applies the same form to vessels, rigs, and rail cars."""
+    total = float(sum(pool.values()))
+    if not total > 0 or any(k not in by_type for k in pool):
+        return float("nan")
+    return float(sum(w * by_type[k] for k, w in pool.items()) / total)
+
+
+def peer_shock(pool: Mapping[str, float], failed_by_type: Mapping[str, float]) -> float:
+    """log(1 + seat-weighted failed operators of the pool's asset types), with the natural log.
+
+    Benmelech and Bergman (w15708) state a log form and then use mixed scales, so fit our own slope. Do not reuse theirs."""
+    v = collateral_weighted(pool, failed_by_type)
+    return float(np.log1p(v)) if v == v and v >= 0 else float("nan")
+
+
+def soft_revenue(run_rate: float, churn: float, horizon: int = 25) -> np.ndarray:
+    """Revenue grid with no contracts: today's run rate decays by `churn` a year, R0 (1 - churn)^t. Our extension.
+
+    It gives a revenue clock to issuers with no RPO, and `mismatch` accepts the grid. Gourio and Rudanko (w17191) set 0.15
+    from anecdote and test no credit outcome, so `churn` is a stated assumption. Report the result at several values. Each
+    year is the mean over the year, so the first year is below the run rate. Intuition: customers leave at a rate, and
+    fixed charges do not."""
+    if not 0.0 <= churn < 1.0 or not run_rate >= 0:
+        return np.full(horizon, np.nan)
+    if churn == 0.0:
+        return np.full(horizon, float(run_rate))
+    decay = np.log(1.0 - churn)
+    t = np.arange(horizon, dtype=float)
+    return run_rate * ((1.0 - churn) ** (t + 1) - (1.0 - churn) ** t) / decay
+
+
 def delta_drc(drc: float, drc_prior: float, assets: float, assets_prior: float) -> float:
     """Change in the current deferred revenue liability over average assets (Prakash and Sinha 2009 draft, p. 13).
 

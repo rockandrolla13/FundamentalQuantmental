@@ -153,3 +153,42 @@ def test_cost_elasticity_needs_enough_clean_history():
     assert math.isnan(clocks.cost_elasticity([50.0] * 10, sales[:10]))  # 6 changes, under the floor
     assert math.isnan(clocks.cost_elasticity([50.0] * 44, [100.0] * 44))  # no sales variation
     assert math.isnan(clocks.cost_elasticity([-1.0] * 44, sales))  # negative costs cannot enter a log
+
+
+def test_labor_share_caps_the_worst_issuers():
+    assert clocks.labor_share(60.0, 40.0) == pytest.approx(0.6)
+    assert clocks.labor_share(100.0, -120.0) == 1.0  # non-positive denominator must not read as safe
+    assert clocks.labor_share(100.0, -50.0) == 1.0  # share above 1 clips
+    assert math.isnan(clocks.labor_share(float("nan"), 40.0))
+
+
+def test_stress_margin_matches_worked_case_and_limits():
+    assert clocks.stress_margin(0.20, 0.35, 0.20, 0.5) == pytest.approx(0.20 - 0.04375)
+    assert clocks.stress_margin(0.20, 0.35, 0.20, 1.0) == pytest.approx(0.20)  # labor fully flexible
+    assert clocks.stress_margin(0.20, 0.35, 0.0, 0.0) == pytest.approx(0.20)  # no revenue fall
+    assert math.isnan(clocks.stress_margin(0.20, 0.35, 1.0, 0.5))
+
+
+def test_float_unhedged():
+    assert clocks.float_unhedged(600.0, 200.0, 1000.0) == pytest.approx(0.4)
+    assert clocks.float_unhedged(100.0, 300.0, 1000.0) == 0.0  # over-hedged does not go negative
+    assert math.isnan(clocks.float_unhedged(1.0, 0.0, 0.0))
+
+
+def test_collateral_weighted_and_peer_shock():
+    pool = {"737": 300.0, "A320": 100.0}
+    assert clocks.collateral_weighted(pool, {"737": 10.0, "A320": 2.0}) == pytest.approx(8.0)
+    assert math.isnan(clocks.collateral_weighted(pool, {"737": 10.0}))  # a missing type is not zero
+    assert clocks.peer_shock(pool, {"737": 1.0, "A320": 1.0}) == pytest.approx(math.log(2.0))
+    assert clocks.peer_shock(pool, {"737": 0.0, "A320": 0.0}) == 0.0
+
+
+def test_soft_revenue_gives_a_clock_with_no_rpo():
+    g = clocks.soft_revenue(100.0, 0.20, horizon=40)
+    assert g[0] < 100.0 and g[1] == pytest.approx(g[0] * 0.8)
+    assert g.sum() == pytest.approx(100.0 * (1.0 - 0.8 ** 40) / -math.log(0.8))
+    assert clocks.soft_revenue(100.0, 0.0, horizon=3).tolist() == [100.0, 100.0, 100.0]
+    assert math.isnan(clocks.soft_revenue(100.0, 1.0, horizon=3)[0])
+    fast = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 10.0, 100.0)]}, clocks.soft_revenue(100.0, 0.40), 0.3).metrics
+    slow = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 10.0, 100.0)]}, clocks.soft_revenue(100.0, 0.10), 0.3).metrics
+    assert fast["coverage_contracted"] < slow["coverage_contracted"]  # higher churn leaves less cash behind the same debt
