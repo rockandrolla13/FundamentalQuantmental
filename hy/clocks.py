@@ -422,8 +422,8 @@ def soft_revenue(run_rate: float, churn: float, horizon: int = 25) -> np.ndarray
     """Revenue grid with no contracts: today's run rate decays by `churn` a year, R0 (1 - churn)^t. Our extension.
 
     It gives a revenue clock to issuers with no RPO, and `mismatch` accepts the grid. Read `coverage_contracted`,
-    `breakeven_margin`, and `max_cum_shortfall` on it. Do not read `revenue_runoff`, because a slow decay never reaches 99%
-    inside the grid. A well decline rate can stand in for `churn` in E&P (our extension). Gourio and Rudanko (w17191) set 0.15
+    `breakeven_margin`, and `max_cum_shortfall` on it. Do not read `revenue_runoff`, because a decay has no contract end, so that
+    field moves with the grid length. A well decline rate can stand in for `churn` in E&P (our extension). Gourio and Rudanko (w17191) set 0.15
     from anecdote and test no credit outcome, so `churn` is a stated assumption. Report the result at several values. Each
     year is the mean over the year, so the first year is below the run rate. Intuition: customers leave at a rate, and
     fixed charges do not."""

@@ -216,5 +216,6 @@ def test_borrowing_base_collateral():
 
 def test_soft_revenue_decay_stays_on_the_grid_and_coverage_is_readable():
     m = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 5.0, 100.0)]}, clocks.soft_revenue(100.0, 0.15), 0.3).metrics
-    assert m["revenue_runoff"] == 25.0  # never reaches 99% inside the grid, which the docstring warns about
+    long = clocks.mismatch({"Debt principal": [clocks.Bucket(0.0, 5.0, 100.0)]}, clocks.soft_revenue(100.0, 0.15, 40), 0.3, horizon=40)
+    assert long.metrics["revenue_runoff"] > m["revenue_runoff"]  # run-off moves with the grid, which the docstring warns about
     assert m["coverage_contracted"] > 1.0
