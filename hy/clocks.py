@@ -10,10 +10,16 @@ Conventions: time `t` is in years from the as-of date; amounts in USD millions; 
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+
+# Moody's lease multiple as Lim, Mann, Mihov (2017) state it. Same value as hy.state.LEASE_MULTIPLE; a test holds them equal.
+MOODYS_RENT_MULTIPLE = 8.0
+# Obligation classes of Section 4.7.1. Andrade, Henry, Nanda (2014 draft) price each one apart.
+OBLIGATION_CLASSES = ("debt", "lease", "purchase_essential", "purchase_moderate", "purchase_non_essential")
 
 
 @dataclass(frozen=True)
@@ -160,6 +166,254 @@ def obligation_kind(name: str) -> str:
     return "refinance" if any(k in n for k in ("debt", "principal", "interest")) else "recontract"
 
 
+def obligation_class(name: str) -> str:
+    """Section 4.7.1 class of an obligation line. It reports only, and `obligation_kind` stays as the Section 4.7 split.
+
+    Finance leases go to debt, because a finance lessor is roughly a secured lender (card gavazza-2010). A purchase
+    line with no essentiality label reads "purchase_moderate": Andrade et al. pool moderate and missing in one group.
+    Intuition: three claims with one name in the old split can price differently per dollar."""
+    n = name.lower()
+    if any(k in n for k in ("debt", "principal", "interest", "finance lease", "capital lease")):
+        return "debt"
+    if any(k in n for k in ("purchase", "take-or-pay", "take or pay")):
+        if "non-essential" in n or "non essential" in n or "nonessential" in n:
+            return "purchase_non_essential"
+        return "purchase_essential" if "essential" in n else "purchase_moderate"
+    return "lease"
+
+
+def sp_tail_years(amounts: Sequence[float]) -> float:
+    """Whole years after the stated ladder: the closest integer to thereafter / last stated year, at least 1.
+
+    S&P method as Andrade et al. (2014 draft, p. 16) and Lim et al. (2017) state it. `tail_years_run_rate` keeps the
+    fraction for the time grid. NaN when no positive last stated year exists, because the rule then has no rate."""
+    if len(amounts) < 2 or amounts[-1] <= 0:
+        return 0.0
+    if amounts[-2] <= 0:
+        return float("nan")
+    return float(max(1, int(np.floor(amounts[-1] / amounts[-2] + 0.5))))
+
+
+def sp_present_value(amounts: Sequence[float], rate: float) -> float:
+    """Present value of a filed ladder: stated years, then the "thereafter" line at a constant yearly amount.
+
+    `amounts` holds the stated years, then "thereafter". Payments fall at year end (Andrade et al., p. 16). It serves
+    leases and purchase commitments. The discount rate is a choice, and each source differs: swap rate less 10 bp
+    (Andrade et al.), firm bond yield (Jung and Scarlat, Appendix). Intuition: a dollar of rent due in 12 years is not a
+    dollar of debt today."""
+    if len(amounts) < 2 or rate <= -1:
+        return float("nan")
+    stated = np.asarray(amounts[:-1], dtype=float)
+    pv = float((stated / (1.0 + rate) ** np.arange(1, len(stated) + 1)).sum())
+    n = sp_tail_years(amounts)
+    if n != n:
+        return float("nan")
+    if n == 0:
+        return pv
+    years = np.arange(len(stated) + 1, len(stated) + int(n) + 1)
+    return pv + float(((amounts[-1] / n) / (1.0 + rate) ** years).sum())
+
+
+def moodys_lease(pv_contract: float, rent: float, multiple: float = MOODYS_RENT_MULTIPLE) -> float:
+    """The higher of the contractual present value and `multiple` x current rent (Lim et al. 2017, p. 102).
+
+    Use it before ASC 842 only, by the framework F8 rule. Intuition: the contract value holds only signed payments, and
+    the multiple reads rent as if it never ends. NaN when an input is NaN."""
+    return float(max(pv_contract, multiple * rent)) if pv_contract == pv_contract and rent == rent else float("nan")
+
+
+def lease_renewal_gap(pv_contract: float, rent: float, ebitdar: float, multiple: float = MOODYS_RENT_MULTIPLE) -> float:
+    """(Moody's lease - contractual present value) / EBITDAR. Our extension, with no source test.
+
+    Intuition: rent that the business needs after the signed term ends, in years of today's cash. NaN at EBITDAR <= 0."""
+    if not ebitdar > 0:
+        return float("nan")
+    return (moodys_lease(pv_contract, rent, multiple) - pv_contract) / ebitdar
+
+
+def executory_leverage(debt: float, pv_leases: float, pv_purchases: float, market_equity: float) -> dict[str, float]:
+    """Three leverage parts over one denominator (Andrade et al. 2014 draft, pp. 16-17). The parts add to total leverage.
+
+    Intuition: compare the three claims per unit of leverage, on the Merton firm value. Issuers with no listed equity
+    read NaN. Each part shares a denominator, so test the parts with the placebo of Method 2, data rule 7."""
+    total = market_equity + debt + pv_leases + pv_purchases
+    if not total > 0:
+        nan = float("nan")
+        return {"bs_debt": nan, "op_leases": nan, "purchase_obligations": nan}
+    return {"bs_debt": debt / total, "op_leases": pv_leases / total, "purchase_obligations": pv_purchases / total}
+
+
+def lease_gap(actual: float, estimated: float, assets: float) -> dict[str, float]:
+    """Lease liability that the prior footnote did not show, over assets (Jung and Scarlat 2024, Appendix).
+
+    `gap` is actual less estimated. `undervalued` and `overvalued` are its two parts, both at or above 0. Intuition: only
+    a surprise can move a price, and the source finds a yield rise on the undervalued part only."""
+    if not assets > 0:
+        nan = float("nan")
+        return {"gap": nan, "undervalued": nan, "overvalued": nan}
+    gap = (actual - estimated) / assets
+    return {"gap": gap, "undervalued": max(gap, 0.0), "overvalued": max(-gap, 0.0)}
+
+
+_TERMINABLE = re.compile(r"\b(can|may) (now )?terminate\b")
+_NON_ESSENTIAL = re.compile(r"raw material|commodit|capital project|capital expenditure|construction")
+_ESSENTIAL = re.compile(r"network|telecommunication|transport services|pipeline|software")
+
+
+def purchase_essentiality(text: str, retail: bool = False) -> str:
+    """Code a filing's purchase obligation text as "essential", "non_essential", or "moderate".
+
+    Keyword form of the coding principles of Andrade et al. (2014 draft, p. 18). The authors coded by judgement, so this
+    coder is our extension. Commodities and capex are non-essential. Specialized inputs are essential. Retail inventory
+    is essential. The earlier mention wins when text lists several. A right to terminate reads non-essential (our
+    reading of the Chiron example). The coder matches 9 of the 10 printed examples of the source Appendix B, in sample.
+    A test names the miss. Run an audit of hand-coded filings before a result reads this field."""
+    t = " ".join(text.lower().split())
+    if _TERMINABLE.search(t):
+        return "non_essential"
+    non, ess = _NON_ESSENTIAL.search(t), _ESSENTIAL.search(t)
+    if non and (not ess or non.start() < ess.start()):
+        return "non_essential"
+    if ess:
+        return "essential"
+    return "essential" if retail and "inventory" in t else "moderate"
+
+
+def customer_persistence(
+    history: Sequence[Mapping[str, float]], min_share: float = 0.10, min_years: int = 3
+) -> dict[str, float]:
+    """Durable, new, and dropped customer shares from annual customer lists, oldest first. Revenue clock input.
+
+    A durable customer holds at least `min_share` in at least `min_years` filings and in the latest one (Oliveira et al.
+    2017, pp. 134-135). `dropped_share` is the prior-year share of customers absent from the latest list. Absence can
+    mean a lost contract, or a customer below 10% (Oliveira et al.). Reading it as non-renewal is our extension. An empty
+    latest list is NaN, because not disclosed is not zero. Names must already be matched by the caller."""
+    latest = {k: v for k, v in history[-1].items() if v == v} if history else {}
+    if not latest:
+        nan = float("nan")
+        return {"durable_share": nan, "new_share": nan, "dropped_share": nan, "n_durable": nan}
+    counts = {k: sum(1 for y in history if y.get(k, 0.0) >= min_share) for k in latest}
+    durable = [k for k, v in latest.items() if v >= min_share and counts[k] >= min_years]
+    prior = history[-2] if len(history) > 1 else {}
+    return {
+        "durable_share": float(sum(latest[k] for k in durable)),
+        "new_share": float(sum(v for k, v in latest.items() if k not in prior)) if prior else float("nan"),
+        "dropped_share": float(sum(v for k, v in prior.items() if k not in latest and v == v)) if prior else float("nan"),
+        "n_durable": float(len(durable)),
+    }
+
+
+def cost_elasticity(costs: Sequence[float], sales: Sequence[float], lag: int = 4, min_obs: int = 20) -> float:
+    """Slope of log change in cash operating costs on log change in sales, over year-on-year quarters.
+
+    Bhojraj et al. (2021, eq. 1, p. 83) use 40 quarters, and report similar results at 20 and 32. Both series run oldest
+    first. Pass only quarters public at the decision time. A slope near 1 means costs flex with sales. A slope near 0
+    means costs are fixed. Intuition: this is the cost clock in one number, measured from cash and not from any disclosed
+    schedule. NaN below `min_obs` valid changes, or with no variation in sales."""
+    c, r = np.asarray(costs, dtype=float), np.asarray(sales, dtype=float)
+    if len(c) != len(r) or len(c) <= lag:
+        return float("nan")
+    ok = (c[lag:] > 0) & (c[:-lag] > 0) & (r[lag:] > 0) & (r[:-lag] > 0)
+    if int(ok.sum()) < min_obs:
+        return float("nan")
+    dc, dr = np.log(c[lag:][ok] / c[:-lag][ok]), np.log(r[lag:][ok] / r[:-lag][ok])
+    var = float(((dr - dr.mean()) ** 2).sum())
+    return float(((dr - dr.mean()) * (dc - dc.mean())).sum() / var) if var > 0 else float("nan")
+
+
+def labor_share(labor_expense: float, ebitda: float) -> float:
+    """Labor expense over labor expense plus EBITDA, clipped to [0, 1] (Favilukis et al., 2017 draft, p. 13).
+
+    A non-positive denominator reads 1, by the same logic as the negative EBITDA leverage cap: the worst issuers must not
+    read as low labor risk. The clip is our rule. Intuition: wages are a claim that ranks ahead of the bond in practice,
+    so the larger their share of value added, the less cash the bond has behind it. NaN when labor expense is NaN."""
+    if labor_expense != labor_expense or ebitda != ebitda:
+        return float("nan")
+    denom = labor_expense + ebitda
+    return 1.0 if denom <= 0 else float(np.clip(labor_expense / denom, 0.0, 1.0))
+
+
+def stress_margin(margin: float, labor_to_revenue: float, revenue_fall: float, labor_elasticity: float) -> float:
+    """Cash margin after a revenue fall, when other costs flex fully and labor flexes by `labor_elasticity`. Our extension.
+
+    m - (L / R) x (1 - rho) / (1 - x). Use this for labor in the Section 4.7 downside. Do not add a labor line to the
+    obligations, because the EBITDAR margin is already after labor, so a line would count labor twice."""
+    if not 0.0 <= revenue_fall < 1.0:
+        return float("nan")
+    return margin - labor_to_revenue * revenue_fall * (1.0 - labor_elasticity) / (1.0 - revenue_fall)
+
+
+def float_unhedged(floating_debt: float, pay_fixed_notional: float, total_debt: float) -> float:
+    """Share of debt that floats after pay-fixed swaps. Our extension of Campello et al. (w16622), who count gross notional.
+
+    Intuition: `interest` uses one fixed rate, so this field shows how far that rate can move. Swaps to floating do not
+    reduce it. NaN unless total debt is positive."""
+    if not total_debt > 0:
+        return float("nan")
+    return float(np.clip((floating_debt - pay_fixed_notional) / total_debt, 0.0, 1.0))
+
+
+def collateral_weighted(pool: Mapping[str, float], by_type: Mapping[str, float]) -> float:
+    """Value-weighted mean of a per-type score over a collateral pool (Benmelech and Bergman, w13874 and w15708).
+
+    `pool` maps an asset type to its weight, seats x count for aircraft. `by_type` maps a type to its score: other
+    operators with at least 5 of the type for redeployability, or failed operators for a peer shock. The caller removes
+    the issuer and bankrupt operators from the counts. A type with no score makes the result NaN, because a missing type
+    is not a zero. Our extension applies the same form to vessels, rigs, and rail cars."""
+    total = float(sum(pool.values()))
+    if not total > 0 or any(k not in by_type for k in pool):
+        return float("nan")
+    return float(sum(w * by_type[k] for k, w in pool.items()) / total)
+
+
+def peer_shock(pool: Mapping[str, float], failed_by_type: Mapping[str, float]) -> float:
+    """log(1 + seat-weighted failed operators of the pool's asset types), with the natural log.
+
+    Benmelech and Bergman (w15708) state a log form and then use mixed scales, so fit our own slope. Do not reuse theirs."""
+    v = collateral_weighted(pool, failed_by_type)
+    return float(np.log1p(v)) if v == v and v >= 0 else float("nan")
+
+
+def soft_revenue(run_rate: float, churn: float, horizon: int = 25) -> np.ndarray:
+    """Revenue grid with no contracts: today's run rate decays by `churn` a year, R0 (1 - churn)^t. Our extension.
+
+    It gives a revenue clock to issuers with no RPO, and `mismatch` accepts the grid. Gourio and Rudanko (w17191) set 0.15
+    from anecdote and test no credit outcome, so `churn` is a stated assumption. Report the result at several values. Each
+    year is the mean over the year, so the first year is below the run rate. Intuition: customers leave at a rate, and
+    fixed charges do not."""
+    if not 0.0 <= churn < 1.0 or not run_rate >= 0:
+        return np.full(horizon, np.nan)
+    if churn == 0.0:
+        return np.full(horizon, float(run_rate))
+    decay = np.log(1.0 - churn)
+    t = np.arange(horizon, dtype=float)
+    return run_rate * ((1.0 - churn) ** (t + 1) - (1.0 - churn) ** t) / decay
+
+
+def delta_drc(drc: float, drc_prior: float, assets: float, assets_prior: float) -> float:
+    """Change in the current deferred revenue liability over average assets (Prakash and Sinha 2009 draft, p. 13).
+
+    A rise depresses this year's margin and lifts next year's, because revenue waits and period costs do not. The source
+    finds a positive link to next-year margin and to next-year stock return. It has no bond test. ASC 606 renames and
+    remeasures the liability, so flag the adoption year. NaN unless all inputs exist and average assets are positive."""
+    avg = (assets + assets_prior) / 2.0
+    return (drc - drc_prior) / avg if avg > 0 and drc == drc and drc_prior == drc_prior else float("nan")
+
+
+def rev_abs_growth(revenue: float, revenue_prior: float) -> float:
+    """Absolute log change in yearly revenue. An outcome in Baker et al. (w27707, Table 5), and our proxy for revenue
+    instability where no RPO exists. It has no credit test. NaN unless both years are positive."""
+    return abs(float(np.log(revenue / revenue_prior))) if revenue > 0 and revenue_prior > 0 else float("nan")
+
+
+def sga_sales(sga: float, sales: float, sic: int | None = None) -> float:
+    """SG&A over sales, the customer capital proxy that Baker et al. test (w27707). NaN for SIC 5000 to 5999, because
+    the source calls the proxy poor in retail and restaurants. It has no credit test."""
+    if sic is not None and 5000 <= sic <= 5999:
+        return float("nan")
+    return sga / sales if sales > 0 else float("nan")
+
+
 @dataclass
 class ClockResult:
     """Annual grids and the mismatch metrics for one borrower."""
@@ -190,6 +444,7 @@ def mismatch(
       `renewal_refinance_share` (debt principal and interest: the market can roll it) and `renewal_recontract_share`
       (rent and purchase commitments: only customers can pay it). The two add up to the total. DBRS (2024) treats
       refinancing and recontracting as separate risks (research/cards/two-clocks-origin.md).
+      `renewal_<class>_amount` splits the same total by `OBLIGATION_CLASSES`. It reports only (Section 4.7.1).
     - `contracted_cash`: revenue x `cash_margin`, the cash the contracts throw off for fixed charges
       (use an EBITDAR-type margin, because rent is one of the obligations).
     - `first_shortfall_year`, `max_cum_shortfall`: first year cumulative contracted cash falls below cumulative
@@ -225,6 +480,9 @@ def mismatch(
         amt = share_after(g, run) * float(g.sum()) if g.sum() > 0 else 0.0
         m[f"renewal_{kind}_amount"] = amt
         m[f"renewal_{kind}_share"] = amt / float(total.sum()) if total.sum() > 0 else float("nan")
+    for cls in OBLIGATION_CLASSES:
+        g = sum((v for k, v in obs.items() if obligation_class(k) == cls), np.zeros(horizon))
+        m[f"renewal_{cls}_amount"] = share_after(g, run) * float(g.sum()) if g.sum() > 0 else 0.0
     m["duration_gap"] = m["dur_obligations"] - m["dur_revenue"]
     m["breakeven_margin"] = float(total.sum() / rev.sum()) if rev.sum() > 0 else float("nan")
     m["renewal_revenue_years"] = (
