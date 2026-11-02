@@ -567,3 +567,16 @@ The user supplied full text for papers that this review listed as unopened or ne
 4. Timing on the cost clock. Fixed cost times a macro forecast predicts next-quarter CDS changes in investment grade. The source finds no predictability in speculative grade, so this result does not transfer to our market.
 
 **What does not change.** No opened source shows that the clocks earn a return in US HY. The wrong sign on file stays unexplained. The 20% E5 question in Section 8 stays with the user.
+
+## 12. Second update, 2026-11-02
+
+The user added papers at the project root. The decision page, Addendum 2, holds the tables. No agent audited this section. Agents read the papers, and we checked a sample of numbers against the text.
+
+**What changes in Section 1.**
+
+1. The cost clock is not only filed schedules. Fixed cost also shows in labor and in how hard an asset is to resell.
+2. The revenue clock can run with no RPO, by a stated decay. This is our proposal, and no source tests it on credit.
+3. Two old leads return. The labor gate is lifted by the user, and the resale lead has a score for any industry.
+
+**What does not change.** No opened source shows that the clocks earn a return in US HY. The wrong sign on file stays unexplained. The 20% E5 question stays with the user. Chen et al. (unions), Ivashina et al., and Jankowitsch et al. are now opened, so read those lines of Section 4 as closed.
+
