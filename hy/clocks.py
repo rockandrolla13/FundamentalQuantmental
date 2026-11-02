@@ -321,28 +321,6 @@ def cost_elasticity(costs: Sequence[float], sales: Sequence[float], lag: int = 4
     return float(((dr - dr.mean()) * (dc - dc.mean())).sum() / var) if var > 0 else float("nan")
 
 
-def labor_share(labor_expense: float, ebitda: float) -> float:
-    """Labor expense over labor expense plus EBITDA, clipped to [0, 1] (Favilukis et al., 2017 draft, p. 13).
-
-    A non-positive denominator reads 1, by the same logic as the negative EBITDA leverage cap: the worst issuers must not
-    read as low labor risk. The clip is our rule. Intuition: wages are a claim that ranks ahead of the bond in practice,
-    so the larger their share of value added, the less cash the bond has behind it. NaN when labor expense is NaN."""
-    if labor_expense != labor_expense or ebitda != ebitda:
-        return float("nan")
-    denom = labor_expense + ebitda
-    return 1.0 if denom <= 0 else float(np.clip(labor_expense / denom, 0.0, 1.0))
-
-
-def stress_margin(margin: float, labor_to_revenue: float, revenue_fall: float, labor_elasticity: float) -> float:
-    """Cash margin after a revenue fall, when other costs flex fully and labor flexes by `labor_elasticity`. Our extension.
-
-    m - (L / R) x (1 - rho) / (1 - x). Use this for labor in the Section 4.7 downside. Do not add a labor line to the
-    obligations, because the EBITDAR margin is already after labor, so a line would count labor twice."""
-    if not 0.0 <= revenue_fall < 1.0:
-        return float("nan")
-    return margin - labor_to_revenue * revenue_fall * (1.0 - labor_elasticity) / (1.0 - revenue_fall)
-
-
 def float_unhedged(floating_debt: float, pay_fixed_notional: float, total_debt: float) -> float:
     """Share of debt that floats after pay-fixed swaps. Our extension of Campello et al. (w16622), who count gross notional.
 

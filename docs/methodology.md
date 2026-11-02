@@ -440,7 +440,6 @@ Intuition: credit premium and volatility together may say how much the market pa
 | M1.10 | Does the deferred revenue change reach the signal bar? | `delta_drc` does not forecast next-year margin in HY, or it misses the signal bar |
 | M1.11 | Do customer lists explain the residual? | `durable_share` and `dropped_share` miss the M2.2 bar in the pilot |
 | M1.13 | Does cost elasticity explain the HY residual? | `cost_elasticity` misses the M2.2 bar with a negative sign on spread |
-| M1.14 | Are labor amount and union voice two facts? | The signs fail, or neither adds beyond `cost_elasticity` |
 | M1.15 | Does resale change the lease bite by state? | The slopes on the lease bite do not differ between distressed and other issuers |
 | M1.16 | Does the industry clock explain the residual? | `coverage_contracted` on `soft_revenue` flips sign across decay rates, or misses the M2.2 bar inside its archetype |
 | M1.17 | Does competition carry to HY bonds? | `competition_flag` has no positive slope beyond the permutation null |
@@ -481,12 +480,12 @@ New fields in `hy/clocks.py`: `obligation_class`, `sp_present_value`, `moodys_le
 **Addendum 2, 2026-11-02: one clock by industry.** Status: proposed, not fitted. The decision page holds the map, the sources, and the tests. It changes no weight and no E5 setting.
 
 1. RPO answers "what revenue can it count on" only for contract businesses. The map names another answer per archetype: `soft_revenue` for A1, A2, and A4, a well decline and hedge ladder for A3, filed windows for A5, A6, and A7. The map is our proposal, and no source tests it.
-2. Labor stays out of `O_t`, because `C_t` is after labor. It enters by `stress_margin`. The evidence on labor conflicts: amount raises default risk (Favilukis et al.), and union voice narrows spreads (Chen et al.). So keep both as separate facts.
+2. Labor is out of the clocks, by user decision on 2026-11-02. `cost_elasticity` still reads total cash costs, which hold wages.
 3. Resale has a score for any industry (Kim and Kung), and a sharper one for aircraft (Benmelech and Bergman). The sign on a lease bite can flip in distress, so it stays unfixed.
 4. `adverse_competition` in Section 4.4 can read `competition_flag` (Valta), with a bond test still open.
 5. Recovery gains an outcome and controls for M1.6 (Jankowitsch et al.) and an industry distress term (Acharya et al.). Section 6.2 reads the longest same-rank bond, and long bonds trade lower in Jankowitsch et al. So report the median same-rank price beside it until M1.6 reads.
 
-More fields in `hy/clocks.py`: `labor_share`, `stress_margin`, `float_unhedged`, `collateral_weighted`, `peer_shock`, `industry_distress`, `competition_flag`, `borrowing_base_collateral`, `soft_revenue`. They report only.
+More fields in `hy/clocks.py`: `float_unhedged`, `collateral_weighted`, `peer_shock`, `industry_distress`, `competition_flag`, `borrowing_base_collateral`, `soft_revenue`. They report only.
 
 ## 5. Forward estimates
 

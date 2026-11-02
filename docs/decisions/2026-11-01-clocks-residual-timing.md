@@ -652,7 +652,7 @@ Each vintage reads only data available at its date. Do not use the published ser
 | Renewal survival curve (McCarthy et al., Fader and Hardie) | It covers only issuers that disclose counts or two retention rates | M1.2 fails, and the sticky book explanation stays open |
 | Re-marketability score (Gavazza), origin card item 4 | **Reopened 2026-11-02.** Kim and Kung give a score for any industry, and Benmelech and Bergman give one for aircraft. See Addendum 2, M1.15 | The trigger is met on coverage. The credit evidence stays open |
 | Slotting grade, origin card item 3 | It maps `revenue_runoff`, and Method 1 shows that this field reads format | Filed windows pass M1.1 |
-| Labor as a fourth class (Favilukis et al.) | **Gate lifted by the user on 2026-11-02**, who holds the data elsewhere. Labor still does not enter the obligations, because the margin is after labor. See Addendum 2, M1.14 | Not applicable |
+| Labor as a fourth class (Favilukis et al.) | **Closed by the user on 2026-11-02.** Labor is out of the clocks. `cost_elasticity` still reads total cash costs, which hold wages | A new user decision |
 | Rigid prices (Augustin et al.) | It needs an `FPA` source | A licensed price measure |
 | Holder demand (Bretscher et al.) | It needs a holdings feed. Gabaix et al. (2025) stays unopened | A holdings feed |
 | Intra-period debt (Kallen) | It needs an implied rate test on our panel, and it has no bond outcome | M1.7 passes |
@@ -756,12 +756,12 @@ The clocks now ask the same two questions of every issuer, and the answer depend
 
 | Archetype | Revenue clock | Cost clock additions | Resale and recovery |
 | --- | --- | --- | --- |
-| A1 Lease-heavy consumer | `soft_revenue` at a stated decay. Same-store sales in the memo | Lease classes, `lease_renewal_gap`, `stress_margin` | `redeploy_r`. Retail mean recovery is 33.40, N 33 (Jankowitsch et al., p. 40) |
-| A2 Health care services | `soft_revenue`. Payer mix and rate reset dates in the memo. No source here tests them | `labor_share`, `stress_margin`, `union_cic` | `redeploy_r`, `industry_distress` |
+| A1 Lease-heavy consumer | `soft_revenue` at a stated decay. Same-store sales in the memo | Lease classes, `lease_renewal_gap` | `redeploy_r`. Retail mean recovery is 33.40, N 33 (Jankowitsch et al., p. 40) |
+| A2 Health care services | `soft_revenue`. Payer mix and rate reset dates in the memo. No source here tests them | `cost_elasticity`, lease classes | `redeploy_r`, `industry_distress` |
 | A3 Commodity producers | Well decline in place of churn, and the hedge ladder. Gilje et al. note that output peaks in month one (n. 3) | Essential purchases such as pipeline capacity (Andrade et al., Appendix B), `float_unhedged` | `borrowing_base_collateral`, `redet_month`. `redeploy_r` is lowest for oil and gas, at 0.12 (Kim and Kung, p. 32) |
-| A4 Cyclical industrials | Backlog on assets and on sales, as revised in M1.8 | `cost_elasticity`, `labor_share`, `union_cic` | `asset_spec`, `industry_distress` (Acharya et al.) |
+| A4 Cyclical industrials | Backlog on assets and on sales, as revised in M1.8 | `cost_elasticity` | `asset_spec`, `industry_distress` (Acharya et al.) |
 | A5 Asset-heavy contracted | Filed RPO for cable and data centres. `delta_drc` on advance ticket sales for airlines, our proposal | Fleet leases, maintenance capex | `redeploy_operators_5`, `peer_shock`, `liquidity_facility` (Benmelech and Bergman) |
-| A6 Software and recurring | Filed RPO windows, `delta_drc`, `durable_share` | `labor_share` on reported and adjusted EBITDA | `redeploy_r` is high by the score, but value is the customer base (framework F2) |
+| A6 Software and recurring | Filed RPO windows, `delta_drc`, `durable_share` | Capitalised development, `cost_elasticity` | `redeploy_r` is high by the score, but value is the customer base (framework F2) |
 | A7 Project and single asset | Contract tenor against project debt | Debt service at the asset, essential purchases | The asset. `peer_shock` where the asset has a known type, our extension |
 
 ### What the sources say
@@ -773,8 +773,6 @@ The clocks now ask the same two questions of every issuer, and the answer depend
 | Benmelech, Bergman (2011) | 18,327 insurer trades, 127 tranches, 1994 to 2007. Spread level | Bankrupt Buyers 64.666 (se 27.984) (Table VI). Senior 41.566, junior 429.922 (Table IX). 120-240 days after exit -72.041 (se 14.136) (Table VII) | `peer_shock`. The first buyer is 19.5 bp in base 10 and 44.8 bp in natural log. The paper never states the base |
 | Acharya, Bharath, Srinivasan (2007) | 1,511 instruments, 778 in regressions, 1982 to 1999. Emergence price | Distress1 -11.11 cents (Table 3). Interaction with asset specificity -1.08 (se 0.36) (Table 4). Senior x Distress1 -21.08 (se 7.16) (Table 5) | Recovery by seniority, distress, and asset type |
 | Jankowitsch et al. (2014) | 2,235 event-bonds, 2002 to 2010. Recovery price, days 0 to 30 | Speculative grade (Table 5 Model 2): financing covenant +9.4359, market default rate -4.4021, industry default rate -0.6808, maturity -1.0109. Means: secured 49.27, unsecured 39.09, subordinated 15.13 | M1.6 outcome and controls. It has no lease or purchase variable |
-| Favilukis, Lin, Zhao (AER 2020) | EDF 1992 to 2011, CDS 2000 to 2013, many countries. No US firm regression, no industry effects, no firm bond test | Table 2D: `LS` on EDF 0.71 (se 0.08). Table 4: `LS` on 5-year CDS 1.78 (se 0.38). In Table 3, labor growth is -0.08 (se 0.06) and its interaction with rigidity is -0.21 (se 0.04), so the effect sits in rigid firms | `labor_share`, as an amount |
-| Chen, Kacperczyk, Ortiz-Molina (2010 author copy) | 996 firms, 5,557 firm-years, 1984 to 1998. Yield spread | Union -186.862 (t 3.33) (Table III). x HighPD -395.366 (t 4.93) (Table IV) | `union_cic`, as voice. **The sign opposes Favilukis et al.** |
 | Valta (2012) | 12,256 loans, 1992 to 2007. Loan spread | Competition 0.096 (t 3.00), about 17 bp (Table 3). Illiquid assets 0.243 (t 2.91), liquid 0.096 (t 2.28), difference p 0.11 (Table 11) | `competition_flag` for `adverse_competition` |
 | Gilje, Loutskina, Murphy (2020) | 3,557 wells, 69 shale firms, contango of 2014-15. Months to completion | Contango x top leverage -1.002 (se 0.383) (Table IV). It fails without the top 3 firms: -0.612 (se 0.406) (Table IX) | `borrowing_base_collateral`, `redet_month`. No price test |
 | Rajgopal et al. (2003) | 21,891 firm-years, 1981 to 1999. Stock return | Priced weight on backlog 0.039 against earnings weight 0.008. Backlog decile on next-year return -0.058 (t -2.38) | M1.8 revision |
@@ -788,14 +786,13 @@ Limits. No source here tests a US HY bond return. Only Jankowitsch et al. print 
 
 | Question | One side | Other side | When each is right (our reading) | Decision |
 | --- | --- | --- | --- | --- |
-| Do rigid labor costs widen spreads? | Favilukis et al.: yes, through a fixed claim, on EDF and CDS | Chen et al.: strong unions narrow bond spreads, more so in distress | The first reads the wage amount in a revenue fall. The second reads union voice against owners, with rating and leverage held. Both can hold (Chen et al., p. 8) | Keep both in `X`. Do not pool them into one labor sign. M1.14 |
 | Is a hard-to-resell asset worse for the bond? | Gavazza card: rent is harder to shed | Benmelech and Bergman (2009), who cite 2007 work that we did not open: a lessor with a poor outside option accepts lower rent in distress | The first fits a going concern. The second fits distress. Secured holders read a third way: worse | Do not fix a sign on `recontract_bite`. Split by distress. M1.15 |
 | Does sector-neutral value keep its pay in HY? | Houweling, van Zundert: HY value 3.72% falls to 2.43%, no longer significant | Correia et al.: inferences are, if anything, stronger, unreported and mostly IG | Houweling tabulates HY | Follow Houweling. Test within and between sector parts apart. M2.8 |
 | Which bond sets the recovery price? | Methodology 6.2 reads the longest same-rank bond (Gatto, p. 530) | Jankowitsch et al.: long bonds trade lower, -0.5651 (se 0.0686), days 31 to 90 | Long bonds may carry more than recovery | Read the median same-rank price beside it. Section 6.2 stays as written until M1.6 reads |
 
 ### What we decide
 
-1. **Labor stays out of `O_t`.** `C_t` uses an EBITDAR margin, which is already after labor. A labor line counts it twice, and it also shortens `D_O`. So labor enters by `stress_margin` in the downside, and `labor_share` reports the level. Non-positive `XLR + EBITDA` reads 1.
+1. **Labor is out of the clocks.** The user closed this on 2026-11-02. No labor field, labor flag, or labor test remains. The cards stay as a record.
 2. **Resale gets a score for every industry.** `redeploy_r` uses the Kim and Kung formula, `R_j = sum_a w_ja A_a`. Airlines use `redeploy_operators_5` instead. It has no sign on spread until M1.15 reads, and it has no weight.
 3. **Revenue clock works with no contracts.** `soft_revenue` feeds the same `mismatch` metrics at decay rates of 5%, 15%, and 30% (Our choice, v0). Read coverage and shortfall, and not run-off.
 4. **Competition fills an open flag.** `adverse_competition` in Section 4.4 reads `competition_flag`. It uses the SIC-3 form, because the source's result falls to 0.030 (t 1.92) within SIC-3 on the text form.
@@ -807,11 +804,11 @@ Limits. No source here tests a US HY bond return. Only Jankowitsch et al. print 
 
 | Step | Change | Source |
 | --- | --- | --- |
-| 2 Qualitative | Add `competition_flag`, `redeploy_r`, a labor rigidity flag, and text peers as a report | Valta, Kim and Kung, Hoberg and Phillips. The labor flag is ours |
-| 3a Profitability | Add EQ11. Report `labor_share` level and trend against peers | Prakash and Sinha, Favilukis et al. |
+| 2 Qualitative | Add `competition_flag`, `redeploy_r`, and text peers as a report | Valta, Kim and Kung, Hoberg and Phillips |
+| 3a Profitability | Add EQ11 | Prakash and Sinha |
 | 3b Liquidity | Add `redet_month` as a date and `borrowing_base_collateral` for A3. Add `float_unhedged` | Gilje et al. Campello et al. for the direction, and the field is ours |
-| 3c Capital structure | Read leverage beside `labor_share`, because high labor firms carry less debt (Favilukis et al.). Read tranche loan-to-value with resale | Favilukis et al., Benmelech and Bergman |
-| 4 Forecasting | Use `stress_margin` in the downside and `soft_revenue` where no contract exists | Ours |
+| 3c Capital structure | Read tranche loan-to-value with resale | Benmelech and Bergman |
+| 4 Forecasting | Use `soft_revenue` where no contract exists | Ours |
 | 5 Valuation | Haircut recovery by seniority, industry distress, and asset type. Add a peer filing check on collateral | Acharya et al., Jankowitsch et al., Benmelech and Bergman. No haircut size transfers, because the sample ends in 1999 |
 | 6 Documents | Name liquidity facility, seniority, and aircraft type. Report financing covenants on recovery | Benmelech and Bergman, Jankowitsch et al. |
 | 7 Recommendation | Split value into within and between sector parts | Houweling and van Zundert |
@@ -822,7 +819,6 @@ Each test follows rules 1 to 9 of this page. All thresholds are Our choice, v0. 
 
 | Test | Claim | Pass | Fail | Untestable |
 | --- | --- | --- | --- | --- |
-| M1.14 Labor | Amount and voice are two facts | `labor_share` has a positive slope and `union_cic` a negative slope with both in `X`, each with the M2.2 bar, with lagged spread in. Each must add beyond `cost_elasticity` | Either sign fails, or neither adds beyond `cost_elasticity`. Then labor stays a memo row | `mde` above the size of interest |
 | M1.15 Resale | Resale moves the lease bite, and the sign depends on the state | Report `amt_lease_after x (1 - redeploy_r)` apart in distressed and other issuers. The slopes differ by the permutation null | No difference. Then resale stays a recovery input | Under 30 distressed issuers in the median month |
 | M1.16 Sector clock | The industry clock explains the residual inside its archetype | `coverage_contracted` on `soft_revenue` meets the M2.2 bar inside A1, A2, and A4, with the same sign at all three decay rates | The sign flips across decay rates, or it misses the bar. Then the decay model is dropped | Under 60 issuers in an archetype in the median month |
 | M1.17 Competition | `competition_flag` carries to HY bonds | Positive slope clears the permutation null with `X` in, stronger for low `redeploy_r` | No slope. Then the flag stays a qualitative row | Not applicable |
@@ -830,9 +826,9 @@ Each test follows rules 1 to 9 of this page. All thresholds are Our choice, v0. 
 | M1.19 Float | Unhedged float bites near distress | `float_unhedged x` low coverage has a positive slope on spread, in a rate rise window | No slope | Not applicable |
 | M2.8 Value split | Between-sector value holds the HY pay | Report ICs after cost for the within and between parts of S1 and ESP | No claim. The result decides how S1, ESP, and the sector spread combine | Not applicable |
 
-**Sign table additions for Method 2.** `labor_share` positive. `union_cic` negative. `competition_flag` positive. `coverage_contracted` on `soft_revenue` negative. `redeploy_r`, `peer_shock` on unsecured bonds, and `delta_drc` on spread level have none, so they report only.
+**Sign table additions for Method 2.** `competition_flag` positive. `coverage_contracted` on `soft_revenue` negative. `redeploy_r`, `peer_shock` on unsecured bonds, and `delta_drc` on spread level have none, so they report only.
 
-**Source cards.** `kim-kung-2013-asset-redeployability`, `benmelech-bergman-2009-collateral-pricing`, `benmelech-bergman-2011-collateral-channel`, `acharya-bharath-srinivasan-2007-industry-distress`, `jankowitsch-nagler-subrahmanyam-2014-recovery-rates`, `favilukis-lin-zhao-2017-labor-obligations` (with its update), `chen-kacperczyk-ortiz-molina-2010-unions-debt`, `valta-2012-competition-cost-of-debt`, `gilje-loutskina-murphy-2020-drilling-debt`, `rajgopal-shevlin-venkatachalam-2003-order-backlog`, `campello-et-al-2011-corporate-hedging`, `hoberg-phillips-2010-text-based-industries`, `gourio-rudanko-2011-customer-capital`, `ivashina-iverson-smith-2016-chapter-11-claims`.
+**Source cards.** `kim-kung-2013-asset-redeployability`, `benmelech-bergman-2009-collateral-pricing`, `benmelech-bergman-2011-collateral-channel`, `acharya-bharath-srinivasan-2007-industry-distress`, `jankowitsch-nagler-subrahmanyam-2014-recovery-rates`, `valta-2012-competition-cost-of-debt`, `gilje-loutskina-murphy-2020-drilling-debt`, `rajgopal-shevlin-venkatachalam-2003-order-backlog`, `campello-et-al-2011-corporate-hedging`, `hoberg-phillips-2010-text-based-industries`, `gourio-rudanko-2011-customer-capital`, `ivashina-iverson-smith-2016-chapter-11-claims`.
 
 ## The tests that settle it
 
