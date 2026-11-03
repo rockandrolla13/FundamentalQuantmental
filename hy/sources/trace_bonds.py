@@ -1,7 +1,8 @@
 """TRACE bond reference data, daily volume-weighted quotes, and a high yield benchmark from WRDS (methodology Sections 1, 3.1, 3.6).
 
 Tables:
-- `trace.camasterfile`: one row per CUSIP and version. The current version is the row with the latest `enddt`.
+- `trace.camasterfile`: one row per CUSIP and version. The current version is the row with the latest `stdt`. A
+  correction replaces its parent from the day it starts, even when TRACE leaves the parent open (`master_in_force`).
 - `trace.trace` (public bonds) and `trace.trace_btds144a` (144A bonds): one row per trade report.
 
 Trade report status `trc_st`, as observed on this account: 'M' is a trade, 'N' cancels the report whose
@@ -32,6 +33,7 @@ from hy.sources import treasury
 from hy.sources.compustat_pit import SqlConnection, connect  # noqa: F401  (re-export the WRDS pattern)
 
 MASTER_TABLE = "trace.camasterfile"
+MASTER_RULE = "inforce2"  # cache tag of the master version rule; change it when `master_in_force` changes
 TRADE_TABLES = ("trace.trace", "trace.trace_btds144a")
 MIN_PAR = 100_000
 CAPPED_VOLUME = {"1MM+": 1_000_000.0, "5MM+": 5_000_000.0}
@@ -105,12 +107,57 @@ def seniority(debt_type: str | None, description: str | None, convertible: bool)
 
 
 def current_version(master: pd.DataFrame) -> pd.DataFrame:
-    """One row per CUSIP: the version with the latest `enddt`, ties broken by the latest `stdt`."""
+    """One row per CUSIP: the version with the latest `stdt`, ties broken by the latest `enddt`.
+
+    The latest start is the latest correction. The latest `enddt` is not: TRACE can keep a stale first version open
+    after a correction replaces it (see `master_in_force`).
+    """
     df = master.copy()
     df["enddt"] = pd.to_datetime(df["enddt"])
     df["stdt"] = pd.to_datetime(df["stdt"])
-    df = df.sort_values(["cusip_id", "enddt", "stdt"])
+    df = df.sort_values(["cusip_id", "stdt", "enddt"])
     return df.drop_duplicates("cusip_id", keep="last").reset_index(drop=True)
+
+
+def master_in_force(master: pd.DataFrame, start: Any, end: Any) -> pd.DataFrame:
+    """One row per CUSIP: the master version in force in the window [`start`, `end`] (Python form of the SQL rule).
+
+    Rule. Use only versions with `stdt` <= `end`, because a later version was not known at `end`. A version stops on
+    the day before the next version starts, even when its `enddt` is later. Keep the versions whose effective end is
+    on or after `start`, then take the latest `stdt`.
+    Intuition: a correction replaces its parent from the day it starts. TRACE often leaves the parent open: Apple
+    037833AJ9 reads grade H from 2013-04-30 to 2018-06-21 and grade I from 2013-05-01 to 2018-05-07. The old
+    latest-`enddt` rule read Apple as high yield for five years.
+    """
+    s, e = pd.Timestamp(start), pd.Timestamp(end)
+    df = master.copy()
+    df["stdt"] = pd.to_datetime(df["stdt"])
+    df["enddt"] = pd.to_datetime(df["enddt"])
+    df = df[df["stdt"] <= e].sort_values(["cusip_id", "stdt", "enddt"])
+    nxt = df.groupby("cusip_id")["stdt"].shift(-1) - pd.Timedelta(1, unit="D")
+    eff_end = df["enddt"].where(nxt.isna() | (df["enddt"] <= nxt), nxt)
+    df = df[eff_end >= s]
+    return df.drop_duplicates("cusip_id", keep="last").reset_index(drop=True)
+
+
+def master_in_force_sql(columns: Sequence[str], start: str, end: str) -> str:
+    """SQL for `master_in_force`: one row per CUSIP with `columns`, from the version in force in [`start`, `end`].
+
+    `start` and `end` are 'YYYY-MM-DD'. The text runs on WRDS Postgres and on DuckDB (the tests run it there).
+    """
+    for c in columns:
+        if not str(c).replace("_", "").isalnum():
+            raise ValueError(f"bad column name {c!r}")
+    for d in (start, end):
+        pd.Timestamp(d)  # raises on a value that is not a date
+    cols = ", ".join(columns)
+    return (
+        f"select distinct on (cusip_id) {cols} from (select *, lead(stdt) over (partition by cusip_id order by stdt, "
+        f"enddt) as next_stdt from {MASTER_TABLE} where stdt <= date '{end}') m "
+        "where case when next_stdt is not null and next_stdt - 1 < enddt then next_stdt - 1 else enddt end "
+        f">= date '{start}' "
+        "order by cusip_id, stdt desc, enddt desc"
+    )
 
 
 def bond_master(con: SqlConnection, tickers: Sequence[str], cache_root: Path | None = None, refresh: bool = False) -> pd.DataFrame:
@@ -144,7 +191,7 @@ def bond_master(con: SqlConnection, tickers: Sequence[str], cache_root: Path | N
         out["seniority"] = [seniority(d, s, c) for d, s, c in zip(out["debt_type"], out["description"], out["is_convertible"])]
         return out.sort_values(["ticker", "maturity", "cusip"]).reset_index(drop=True)
 
-    return _cached(cache_root, refresh, "master", ("master", *tick), pull)
+    return _cached(cache_root, refresh, "master", ("master", MASTER_RULE, *tick), pull)
 
 
 # ---------------------------------------------------------------- trades and daily quotes
@@ -331,7 +378,7 @@ def hy_benchmark(
 ) -> pd.DataFrame:
     """Market-wide high yield level per bond (Section 3.6, `hy_oas` proxy): VW yield over the window that ends at `end`.
 
-    Universe: the master version in force at `end` (latest `enddt` among versions with `stdt` <= end), grade 'H',
+    Universe: the master version in force in the window (`master_in_force`), grade 'H',
     fixed coupon, not convertible, maturity between `min_years` and `max_years` after `end`. Aggregation runs on the
     server, so the transfer is one row per bond.
     """
@@ -343,9 +390,10 @@ def hy_benchmark(
 
     def pull() -> pd.DataFrame:
         universe = (
-            f"select cusip_id, mtrty_dt, debt_type_cd, company_symbol from (select distinct on (cusip_id) cusip_id, mtrty_dt, "
-            f"grade, cpn_type_cd, cnvrb_fl, debt_type_cd, company_symbol from {MASTER_TABLE} "
-            f"where stdt <= '{es}' and enddt >= '{ss}' order by cusip_id, enddt desc, stdt desc) v "
+            "select cusip_id, mtrty_dt, debt_type_cd, company_symbol from ("
+            + master_in_force_sql(["cusip_id", "mtrty_dt", "grade", "cpn_type_cd", "cnvrb_fl", "debt_type_cd",
+                                   "company_symbol"], ss, es)
+            + ") v "
             f"where grade = 'H' and cpn_type_cd = 'FXPV' and cnvrb_fl = 'N' and mtrty_dt between '{los}' and '{his}'"
         )
         where = f"t.trd_exctn_dt between '{ss}' and '{es}' and t.cusip_id in (select cusip_id from u)"
@@ -374,7 +422,8 @@ def hy_benchmark(
         out["available_at"] = out["as_of"] + DISSEMINATION_LAG
         return out.sort_values("cusip").reset_index(drop=True)
 
-    return _cached(cache_root, refresh, "hy_benchmark", (es, int(window_days), min_years, max_years, float(min_par)), pull)
+    return _cached(cache_root, refresh, "hy_benchmark",
+                   (es, int(window_days), min_years, max_years, float(min_par), MASTER_RULE), pull)
 
 
 def benchmark_by_bucket(
