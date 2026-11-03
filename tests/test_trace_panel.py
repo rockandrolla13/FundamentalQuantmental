@@ -54,7 +54,7 @@ def test_month_sql_has_no_percent_sign_and_uses_all_status_eras():
     assert "'2008-06-24' and '2008-06-30'" in sql
     for code in ("T", "G", "M", "W", "I", "O", "C", "H", "N"):
         assert f"'{code}'" in sql
-    assert "stdt <= '2008-06-30'" in sql                 # master version in force then, not today's
+    assert "stdt <= date '2008-06-30'" in sql            # master version in force then, not today's
 
 
 def _curve(date="2020-06-30", level=0.01):

@@ -6,10 +6,12 @@ server, one query per month, so the transfer is one row per bond and month. Each
 
 Rules (each one is a decision, stated so a reader can change it):
 
-1. Universe per month. The `trace.camasterfile` version in force at the month end (the version with the latest
-   `enddt` among versions with `stdt <= t` and `enddt >=` the window start). We do not use today's master, so a bond
-   that is upgraded or downgraded later is classed as it was then. Keep grade 'H', coupon type 'FXPV' (fixed, plain
-   vanilla), not convertible, maturity after t.
+1. Universe per month. The `trace.camasterfile` version in force in the window (`trace_bonds.master_in_force`):
+   versions with `stdt <= t`, each one ended on the day before its successor starts, then the latest `stdt`. We do
+   not use today's master, so a bond that is upgraded or downgraded later is classed as it was then. The old rule
+   took the latest `enddt`. TRACE often leaves a stale first version open after its correction, so that rule read
+   39.4% of S&P-rated rows as investment grade in June 2015 (14.4% with this rule). Keep grade 'H', coupon type
+   'FXPV' (fixed, plain vanilla), not convertible, maturity after t.
 2. Trades. Status codes changed twice. Before February 2012: 'T' trade, 'C' cancel, 'W' correction. 2012 to
    mid-2012 transition files: 'G' trade, 'H' cancel, 'I' correction. After: 'M' trade, 'N' cancel, 'O' correction.
    A cancel or a correction removes the report whose `msg_seq_nb` equals its `orig_msg_seq_nb` (same CUSIP and
@@ -94,10 +96,10 @@ def month_sql(month_end: Any, window_days: int = WINDOW_DAYS, min_par: float = M
     """
     ss, es = window(month_end, window_days)
     universe = (
-        "select cusip_id, mtrty_dt, cpn_rt, company_symbol from (select distinct on (cusip_id) cusip_id, mtrty_dt, "
-        f"cpn_rt, grade, cpn_type_cd, cnvrb_fl, company_symbol from {tb.MASTER_TABLE} "
-        f"where stdt <= '{es}' and enddt >= '{ss}' order by cusip_id, enddt desc, stdt desc) v "
-        f"where grade = 'H' and cpn_type_cd = 'FXPV' and cnvrb_fl = 'N' and mtrty_dt > '{es}'"
+        "select cusip_id, mtrty_dt, cpn_rt, company_symbol from ("
+        + tb.master_in_force_sql(["cusip_id", "mtrty_dt", "cpn_rt", "grade", "cpn_type_cd", "cnvrb_fl",
+                                  "company_symbol"], ss, es)
+        + f") v where grade = 'H' and cpn_type_cd = 'FXPV' and cnvrb_fl = 'N' and mtrty_dt > '{es}'"
     )
     cols = (
         f"t.cusip_id, t.trd_exctn_dt, t.msg_seq_nb, t.orig_msg_seq_nb, t.trc_st, t.asof_cd, {tb.VOLUME_SQL} as par, "
@@ -292,7 +294,7 @@ def add_exit_rows(panel: pd.DataFrame) -> pd.DataFrame:
 
 def month_cache_path(root: Path, month_end: Any) -> Path:
     t = pd.Timestamp(month_end) + pd.offsets.MonthEnd(0)
-    return Path(root) / "trace_panel" / f"month_{t:%Y-%m}.parquet"
+    return Path(root) / "trace_panel" / f"month_{t:%Y-%m}_{tb.MASTER_RULE}.parquet"  # old-rule files stay unused
 
 
 def pull_month(con: cp.SqlConnection, month_end: Any, cache_root: Path | None = None, refresh: bool = False) -> pd.DataFrame:
