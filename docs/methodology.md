@@ -487,6 +487,35 @@ New fields in `hy/clocks.py`: `obligation_class`, `sp_present_value`, `moodys_le
 
 More fields in `hy/clocks.py`: `float_unhedged`, `collateral_weighted`, `peer_shock`, `industry_distress`, `competition_flag`, `borrowing_base_collateral`, `soft_revenue`. They report only.
 
+#### 4.7.2 Delivery delay (report only, not fitted)
+
+Status: report only. It changes no weight and no E5 setting. Source: card `junkbondinvestor-2026-who-funds-the-delay` (practitioner commentary, the lowest tier of the research protocol). Decision page: `2026-11-09-clocks-delivery-delay`. Code: `delay`, `delay_gap`, `delay_tolerance` in `hy/clocks.py`. Tests: `tests/test_clocks_delay.py`.
+
+A late building moves the revenue clock later. Debt coupons and principal stay on fixed dates. So the gap of Section 4.7 opens before any contract fails. The question is how many months of delay the cash set aside can carry.
+
+Assumptions:
+1. A delay of `d` moves every revenue bucket later by `d`. Amounts stay the same. The delay cuts no contract.
+2. The obligations of a tenant's signed leases not yet started move with `d`, because the tenant's rent also waits for the landlord. Debt never moves.
+3. A rent credit cuts cash one for one, because costs do not fall with it.
+4. Only cash already set aside counts as `reserve`. A promise to fund later does not count.
+
+```latex
+G_t(d) = \sum_{s \le t} \left( m \, R_{s-d} - O^{\text{fixed}}_s - O^{\text{shift}}_{s-d} - K_s(d) \right), \qquad N(d) = \max\left(0, -\min_{t < W} G_t(d)\right), \qquad d^{*} = \max \{ d : N(d) \le \text{reserve} \}
+```
+
+`K_s(d)` is the rent credit: `k d` months of rent, taken from the first cash after the delayed start. `W` is the window, for example the maturity of the notes. The grid is monthly. Intuition: the reserve buys months, and the delay takes months.
+
+| Feature | Formula | Intuition |
+| --- | --- | --- |
+| `delay_tolerance_months` | `d*`; NaN if `N(0)` exceeds the reserve | Months of slip before someone writes a new check |
+| `extra_need_12m` | `N(12) - N(0)` | Size of that check if delivery is one year late |
+| `outside_date_binds` | Lease outside date before `d*` | The tenant may walk away before the cash runs out |
+| `effective_tolerance_months` | `min(d*, outside date)` | The limit that comes first |
+
+Role split. A landlord (developer) carries the full gap, because only its revenue moves. A tenant (for example CoreWeave) carries less, because its uncommenced rent moves with delivery. Its debt still does not move.
+
+Tests on file: the worked example of the card holds on the monthly grid. A $300mm reserve sized to an 18-month rent start gives `d* = 0`. A 12-month delay opens $200mm. Each extra $100mm of reserve buys 6 months. No market test has run. The falsifiable claim: among data centre issuers with material uncommenced capacity, a lower `effective_tolerance_months` goes with a wider spread change in a delivery shock window. The first window is November 2026. The card holds the dated events.
+
 ## 5. Forward estimates
 
 Forward estimates turn the issuer state into paths of EBITDA, debt, liquidity, and covenant headroom under named scenarios. The book builds a management case, a base case, and one or more downside cases (p. 285), then assigns a probability to each case by judgement (p. 311). This section keeps the scenario structure and makes the probabilities a function of the macro state. The outputs are forward features that the fair spread model consumes.
