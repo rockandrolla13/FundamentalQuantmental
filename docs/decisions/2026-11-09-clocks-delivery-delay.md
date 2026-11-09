@@ -20,3 +20,15 @@ Among data centre issuers with material uncommenced capacity, rank by `effective
 
 ## Open inputs
 `reserve`, `rent_credit_ratio`, and `outside_date_months` come from indentures and leases, not from XBRL. They are analyst inputs with a citation, as in `scripts/clock_case.py`.
+
+## First case: CoreWeave, 10-Q June 2026
+Script: `scripts/clock_delay_case.py`. Inputs and the four analyst assumptions sit in its docstring. Reserve: $5.5bn of cash. Margin: 0.77 EBITDAR. Share of RPO that waits for unbuilt sites: 0.55. Window: 5 years.
+
+| Case | Tolerance (months) | Extra need, 12 months late ($m) |
+| --- | --- | --- |
+| Base | 22 | 4,065 |
+| Rent credits day for day | 8 | 6,608 |
+| All RPO late (upper bound) | 5 | 11,457 |
+| As if a landlord (rent does not move) | 15 | 4,602 |
+
+What the data says: the cash covers a one-year delay in the base case. Rent credits and the share of revenue that waits set the answer. The capex clock is absent, so each tolerance is an upper bound. The blended interest rate is 4.0%, from LTM cash interest over average debt.
