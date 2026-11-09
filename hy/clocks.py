@@ -514,3 +514,127 @@ def mismatch(
         if run_rate_revenue and cash_margin > 0 else float("nan")
     )
     return ClockResult(np.arange(horizon), obs, rev, cash_margin, m)
+
+
+# --- Delivery delay (Section 4.7.2) -------------------------------------------------------------------------------
+
+MONTHS = 12
+
+
+def delay(buckets: Sequence[Bucket] | np.ndarray, years: float) -> list[Bucket]:
+    """Move a schedule later by `years`. An annual array becomes one bucket per year first (Section 4.7.2).
+
+    Intuition: a late building moves the rent start and every rent payment after it. The amounts do not change."""
+    if isinstance(buckets, np.ndarray):
+        buckets = [Bucket(float(i), 1.0, float(a)) for i, a in enumerate(buckets)]
+    return [Bucket(b.start + years, b.length, b.amount) for b in buckets]
+
+
+def _monthly(buckets: Sequence[Bucket] | np.ndarray, horizon: int) -> np.ndarray:
+    """A schedule on a monthly grid of `horizon` years. Mass past the horizon goes to the last month."""
+    if isinstance(buckets, np.ndarray):
+        buckets = delay(buckets, 0.0)
+    scaled = [Bucket(b.start * MONTHS, b.length * MONTHS, b.amount) for b in buckets]
+    return to_grid(scaled, horizon * MONTHS)
+
+
+def delay_gap(
+    obligations: Mapping[str, Sequence[Bucket] | np.ndarray],
+    revenue: Sequence[Bucket] | np.ndarray,
+    cash_margin: float,
+    delay_years: float,
+    shift: Sequence[str] = (),
+    rent_credit_ratio: float = 0.0,
+    horizon: int = 25,
+) -> np.ndarray:
+    """Monthly cumulative cash gap, sum of (m R - O), when delivery is `delay_years` late (Section 4.7.2).
+
+    - The revenue clock moves by the delay. Obligations named in `shift` move with it. Use `shift` for a tenant's
+      signed leases not yet started, because the tenant's rent also waits for the landlord. Debt coupons and
+      principal never move: they fall due on fixed dates.
+    - `rent_credit_ratio`: months of rent the issuer credits back to its tenant per month of delay (1.0 is day for
+      day, 2.0 is two for one). The credit cuts cash one for one, not at the margin, because costs do not fall with
+      it. It applies from the delayed start, and it cannot exceed the cash of those months.
+    Intuition: a delay does not cut the contract. It moves the cash later than the debt was sized for."""
+    cash = cash_margin * _monthly(delay(revenue, delay_years), horizon)
+    if rent_credit_ratio > 0 and delay_years > 0:
+        base = _monthly(revenue, horizon)
+        on = np.nonzero(base > 0)[0]
+        if len(on):
+            credit = rent_credit_ratio * delay_years * base[on[0]] * MONTHS  # credited months x monthly rent
+            for i in range(on[0] + int(round(delay_years * MONTHS)), len(cash)):
+                take = min(credit, max(cash[i], 0.0))
+                cash[i] -= take
+                credit -= take
+                if credit <= 1e-12:
+                    break
+    out = np.zeros(horizon * MONTHS)
+    for k, v in obligations.items():
+        out += _monthly(delay(v, delay_years) if k in shift else v, horizon)
+    return np.cumsum(cash - out)
+
+
+@dataclass(frozen=True)
+class DelayResult:
+    """Funding need by months of delay, and the delay the cash set aside can carry (Section 4.7.2)."""
+
+    delay_months: np.ndarray
+    peak_need: np.ndarray
+    extra_need: np.ndarray
+    metrics: dict[str, float]
+
+
+def delay_tolerance(
+    obligations: Mapping[str, Sequence[Bucket] | np.ndarray],
+    revenue: Sequence[Bucket] | np.ndarray,
+    cash_margin: float,
+    reserve: float,
+    shift: Sequence[str] = (),
+    rent_credit_ratio: float = 0.0,
+    window_years: float | None = None,
+    max_months: int = 36,
+    outside_date_months: float | None = None,
+    horizon: int = 25,
+) -> DelayResult:
+    """How many months late can delivery be before someone must fund a gap (Section 4.7.2).
+
+    - `peak_need[d]`: the largest cumulative cash gap in the first `window_years` (default: the whole horizon) at a
+      delay of d months. Set the window to the maturity of the notes for a project financing.
+    - `extra_need[d]`: `peak_need[d] - peak_need[0]`, the gap that the delay alone opens.
+    - `reserve`: cash already set aside for the gap (interest reserve, funded completion support, cash on hand).
+      A promise to fund later does not count.
+    - `delay_tolerance_months`: the largest d with `peak_need[d] <= reserve`. NaN if the reserve is short at zero
+      delay. Equal to `max_months` and flagged `tolerance_censored` if no tested delay exhausts the reserve.
+    - `extra_need_12m`: the gap a 12-month delay opens, the size of the new check.
+    - `outside_date_binds`: 1.0 if `outside_date_months` (the lease date after which the tenant may walk away) comes
+      before the cash runs out, so the lease, not the reserve, sets the limit. NaN if no outside date is given.
+    - `effective_tolerance_months`: the smaller of the tolerance and the outside date.
+    The grid is monthly, so a reserve sized to the exact rent start reads 0 months, as it should.
+    Intuition: the reserve buys months. The question is whether it buys more months than the delay takes."""
+    n = int((window_years if window_years is not None else horizon) * MONTHS)
+    months = np.arange(max_months + 1)
+    peak = np.array([
+        max(0.0, -float(delay_gap(obligations, revenue, cash_margin, d / MONTHS, shift, rent_credit_ratio,
+                                  horizon)[:n].min()))
+        for d in months
+    ])
+    ok = np.nonzero(peak > reserve + 1e-9)[0]
+    if peak[0] > reserve + 1e-9:
+        tol = float("nan")
+    elif len(ok):
+        tol = float(ok[0] - 1)
+    else:
+        tol = float(max_months)
+    m = {
+        "delay_tolerance_months": tol,
+        "tolerance_censored": float(not len(ok)),
+        "peak_need_0": float(peak[0]),
+        "extra_need_12m": float(peak[12] - peak[0]) if max_months >= 12 else float("nan"),
+        "outside_date_binds": (
+            float(not np.isnan(tol) and outside_date_months < tol) if outside_date_months is not None else float("nan")
+        ),
+        "effective_tolerance_months": (
+            min(tol, float(outside_date_months)) if outside_date_months is not None and not np.isnan(tol) else tol
+        ),
+    }
+    return DelayResult(months, peak, peak - peak[0], m)
