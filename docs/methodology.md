@@ -512,6 +512,8 @@ G_t(d) = \sum_{s \le t} \left( m \, R_{s-d} - O^{\text{fixed}}_s - O^{\text{shif
 | `outside_date_binds` | Lease outside date before `d*` | The tenant may walk away before the cash runs out |
 | `effective_tolerance_months` | `min(d*, outside date)` | The limit that comes first |
 
+Funding source. `funding_source` fills a gap in a fixed order: cash set aside, committed money (undrawn committed facilities, callable sponsor capital), promised money (unfunded completion support), then the market (new stock or convertible bonds). It reports `last_source`, `market_share` (market amount over the gap), and `market_capacity_used` (market amount over 20% of market equity). The 20% comes from Nasdaq Rule 5635(d) for a discounted private placement without a shareholder vote. Public offerings have no such cap, so 20% is a stated assumption. Intuition: cash turns a delay into a cost. New stock turns it into a bet on the share price, and the news that causes the delay can also cut that price.
+
 Role split. A landlord (developer) carries the full gap, because only its revenue moves. A tenant (for example CoreWeave) carries less, because its uncommenced rent moves with delivery. Its debt still does not move.
 
 Tests on file: the worked example of the card holds on the monthly grid. A $300mm reserve sized to an 18-month rent start gives `d* = 0`. A 12-month delay opens $200mm. Each extra $100mm of reserve buys 6 months. No market test has run. The falsifiable claim: among data centre issuers with material uncommenced capacity, a lower `effective_tolerance_months` goes with a wider spread change in a delivery shock window. The first window is November 2026. The card holds the dated events.

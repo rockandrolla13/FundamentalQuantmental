@@ -8,9 +8,13 @@ Assumptions (analyst, not from the filing):
 4. Contract cash = RPO x the EBITDAR margin. Capex is not in the cost clock, so each need is a lower bound and each
    tolerance an upper bound (Section 4.7 rule 5).
 
-Run from the repo root: SEC_USER_AGENT="Name email" PYTHONPATH=. python3 scripts/clock_delay_case.py
+5. Funding order for the 12-month extra need: cash, committed, promised, market (`clocks.funding_source`). The
+   filing gives no undrawn committed facility and no sponsor promise, so both are 0. Market cap is an optional input.
+
+Run from the repo root: SEC_USER_AGENT="Name email" PYTHONPATH=. python3 scripts/clock_delay_case.py [market_cap_usd_m]
 """
 import sys
+MARKET_CAP = float(sys.argv[1]) if len(sys.argv) > 1 else None  # $m, analyst input with its date
 sys.path.insert(0, ".")
 from scripts.clock_case import build_case, RAW, OVERRIDES, _v
 from hy.sources import clock_inputs as ci
@@ -49,3 +53,6 @@ for label, frac, reserve, credit, shift in [
     en = r.extra_need
     print(f"{label:38s} need0={r.metrics['peak_need_0']:>8,.0f} tol={r.metrics['delay_tolerance_months']} "
           f"extra 6m={en[6]:>7,.0f} 12m={en[12]:>7,.0f} 24m={en[24]:>7,.0f}")
+    fs = clocks.funding_source(r.peak_need[12], cash=cash, market_cap=MARKET_CAP)
+    print(f"{'':38s} 12m late: cash {fs['from_cash']:,.0f}, market {fs['from_market']:,.0f} "
+          f"({fs['market_share']:.0%}), last source {fs['last_source']}, capacity used {fs['market_capacity_used']:.2f}")

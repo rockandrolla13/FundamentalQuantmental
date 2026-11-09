@@ -32,3 +32,14 @@ Script: `scripts/clock_delay_case.py`. Inputs and the four analyst assumptions s
 | As if a landlord (rent does not move) | 15 | 4,602 |
 
 What the data says: the cash covers a one-year delay in the base case. Rent credits and the share of revenue that waits set the answer. The capex clock is absent, so each tolerance is an upper bound. The blended interest rate is 4.0%, from LTM cash interest over average debt.
+
+## Addendum: funding source
+`funding_source` in `hy/clocks.py` fills the gap in the order cash, committed, promised, market. For CoreWeave, the filing gives no undrawn committed facility and no sponsor promise. A 12-month delay gives:
+
+| Case | From cash ($m) | From the market ($m) | Market share |
+| --- | --- | --- | --- |
+| Base | 4,065 | 0 | 0% |
+| Rent credits day for day | 5,524 | 1,084 | 16% |
+| All RPO late | 5,524 | 5,933 | 52% |
+
+`market_capacity_used` needs a market cap. The script takes it as an argument. No point-in-time market cap is on file, and the Alpha Vantage overview endpoint needs a premium key.
