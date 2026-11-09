@@ -638,3 +638,48 @@ def delay_tolerance(
         ),
     }
     return DelayResult(months, peak, peak - peak[0], m)
+
+
+FUNDING_ORDER = ("cash", "committed", "promised", "market")
+# Share of market equity that a sponsor can sell before it needs a shareholder vote on a discounted private placement.
+# Nasdaq Rule 5635(d) sets 20%. Public offerings have no such cap, so this is a stated assumption, not a limit.
+EQUITY_ISSUE_SHARE = 0.20
+
+
+def funding_source(
+    need: float,
+    cash: float = 0.0,
+    committed: float = 0.0,
+    promised: float = 0.0,
+    market_cap: float | None = None,
+    issue_share: float = EQUITY_ISSUE_SHARE,
+) -> dict[str, float | str]:
+    """Who funds a gap, in the order cash, committed, promised, market (Section 4.7.2).
+
+    - `cash`: cash already set aside (interest reserve, funded completion support, cash on hand).
+    - `committed`: money a counterparty must pay on request: undrawn committed facilities, sponsor capital that the
+      fund documents allow it to call.
+    - `promised`: a promise to fund later, for example unfunded completion support. Its value is the sponsor's credit.
+    - `market`: the rest, from new stock or convertible bonds.
+    Outputs: the amount from each source, `last_source` (the last source the gap reaches, "none" if no gap),
+    `market_share` (market amount over need), and `market_capacity_used` (market amount over `issue_share` x
+    `market_cap`; NaN without a market cap). Above 1, the raise is larger than a no-vote placement.
+    Intuition: a gap that cash fills is a delay. A gap that only new stock fills depends on the stock price, and the
+    same news that causes the delay can cut that price."""
+    left = max(0.0, float(need))
+    out: dict[str, float | str] = {}
+    last = "none"
+    for name, have in zip(FUNDING_ORDER[:-1], (cash, committed, promised)):
+        take = min(left, max(0.0, float(have)))
+        out[f"from_{name}"] = take
+        left -= take
+        if take > 0:
+            last = name
+    out["from_market"] = left
+    if left > 0:
+        last = "market"
+    out["last_source"] = last
+    out["market_share"] = left / need if need > 0 else 0.0
+    cap = issue_share * market_cap if market_cap is not None and market_cap > 0 else float("nan")
+    out["market_capacity_used"] = left / cap if cap == cap else float("nan")
+    return out
