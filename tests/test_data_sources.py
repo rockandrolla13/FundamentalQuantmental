@@ -66,7 +66,7 @@ def test_warehouse_source_satisfies_every_protocol():
         assert isinstance(w, p), p.__name__
 
 
-@pytest.mark.skipif(not (config.DEFAULT_ROOT / "compustat_pit" / "issuers.json").exists(), reason="no local cache")
+@pytest.mark.skipif(not any((config.DEFAULT_ROOT / "compustat_pit").glob("022260_*.parquet")), reason="no local HCA cache")
 def test_warehouse_source_reads_the_cache_offline():
     w = sources.WarehouseSource(config.DataConfig(allow_network=False))
     hca = w.issuers(["HCA"])[0]
