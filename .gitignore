@@ -19,3 +19,5 @@ docs/writeup/*.toc
 /.~lock.*
 /build/
 docs/high_yield_relative_value.pdf
+# Downloaded sector papers: never in git (licences).
+/papers/
