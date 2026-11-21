@@ -156,3 +156,60 @@ def test_peer_spread_dispersion_is_nan_without_any_peer_cell():
     out = peers.peer_signals(_cell(3, lambda i: 0.04 + 0.01 * i))
     assert out["esp_sr"].isna().all() and out["esp_sd_sr"].isna().all()
     assert (out["esp_n_sr"] == 0).all()
+
+
+def test_esp_mlev_removes_what_market_leverage_explains():
+    rng = np.random.default_rng(2)
+    n = 60
+    m = rng.uniform(0.1, 0.8, n)                              # market leverage
+    df = pd.DataFrame({"gvkey": [f"g{i}" for i in range(n)], "years": 5.0, "leverage": 4.0, "mlev": m,
+                       "spread": 0.01 * np.exp(3.0 * m), "sector": "20", "rclass": "B"})
+    df.loc[0, "spread"] *= 1.5                                # one bond pays 50% more than its leverage implies
+    out = peers.peer_signals(df)
+    assert out.attrs["esp_mlev_slope"]["sr"] == pytest.approx(3.0, abs=0.15)
+    assert out.loc[0, "esp_mlev_sr"] > 0.3
+    assert out.loc[1:, "esp_mlev_sr"].abs().max() < 0.1      # the rest is explained by market leverage
+    assert out.loc[1:, "esp_sr"].abs().max() > 0.3
+
+
+def test_esp_mlev_absent_without_mlev_column():
+    df = pd.DataFrame({"gvkey": [f"g{i}" for i in range(40)], "years": 5.0, "leverage": 4.0,
+                       "spread": np.linspace(0.02, 0.06, 40), "sector": "20", "rclass": "B"})
+    out = peers.peer_signals(df)
+    assert "esp_mlev_sr" not in out.columns and "esp_mlev_slope" not in out.attrs
+    assert "esp_lev_sr" in out.columns                       # the cash-flow version is unchanged
+
+
+def _meq():
+    return pd.DataFrame({
+        "gvkey": ["A", "A", "A", "B"],
+        "datadate": pd.to_datetime(["2020-03-31", "2020-06-30", "2020-09-30", "2019-03-31"]),
+        "mkt_equity": [300.0, 100.0, 50.0, 100.0],
+        "debt": [100.0, 100.0, 150.0, 100.0],
+        "available_at": pd.to_datetime(["2020-05-01", "2020-08-01", "2020-11-01", "2019-05-01"]),
+    })
+
+
+def test_market_leverage_uses_the_lagged_quarter():
+    # decision 2020-12-15: cut-off 2020-09-15, so the June quarter (public 2020-08-01) applies, not September
+    m = peers.market_leverage_at(_meq(), pd.Timestamp("2020-12-15"))
+    assert m["A"] == pytest.approx(100.0 / 200.0)
+    # three months later the September quarter is public by the cut-off
+    m2 = peers.market_leverage_at(_meq(), pd.Timestamp("2021-02-15"))
+    assert m2["A"] == pytest.approx(150.0 / 200.0)
+
+
+def test_market_leverage_drops_stale_and_bad_quarters():
+    m = peers.market_leverage_at(_meq(), pd.Timestamp("2020-12-15"))
+    assert "B" not in m.index                                 # B's last quarter is far older than 200 days
+    bad = _meq().assign(mkt_equity=[0.0, 0.0, 0.0, 0.0])
+    assert peers.market_leverage_at(bad, pd.Timestamp("2020-12-15")).isna().all()
+
+
+def test_market_leverage_has_no_lookahead():
+    meq = _meq()
+    late = pd.concat([meq, pd.DataFrame({"gvkey": ["A"], "datadate": pd.to_datetime(["2020-12-31"]),
+                                         "mkt_equity": [1.0], "debt": [999.0],
+                                         "available_at": pd.to_datetime(["2021-02-01"])})])
+    t = pd.Timestamp("2020-12-15")
+    assert peers.market_leverage_at(late, t)["A"] == peers.market_leverage_at(meq, t)["A"]

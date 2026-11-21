@@ -86,3 +86,27 @@ Every signal has a positive raw IC after cost in all four cycle windows. Buy the
 
 ### Test that settles the rest
 Rerun with OAS and amount outstanding (a Bloomberg or ICE index feed). If SPiDER beyond spread passes t 2 at 12 months, swap it for E13.
+
+## Amendment, 21 November 2026: ESP with the book's market leverage (`esp_mlev`)
+
+### Context
+The row "ESP with leverage control (book)" above does not use the book's ratio. `esp_lev` controls for excess log of debt over LTM EBITDA, a cash-flow leverage. The book controls for market leverage: book debt over market equity plus book debt, lagged 3 months (Dynkin et al. 2021, ch. 13, note 5, PDF p. 461). So result 2 above ("the leverage control halves the ESP edge") tests our ratio, not the book's. The book card lists this as mismatch 1.
+
+### What we built
+1. `peer_data.market_equity_quarterly`: `comp.fundq` price x shares (`prccq x cshoq`) and book debt (`dlcq + dlttq`) per quarter, 2006 onward. `available_at` = report date (`rdq`) + 1 day. Rows without `rdq` are dropped. Cache: `market_equity.parquet`. Panel name: `market_equity` (data contract 3.14, optional).
+2. `peers.market_leverage_at`: M = debt / (market equity + debt), from the latest quarter public at least 3 months before t (`MLEV_LAG_MONTHS`). A quarter that ends more than 200 days before the cut-off does not count (`MLEV_STALE_DAYS`).
+3. `esp_mlev_<cell>` = ESP minus b_t times XM, where XM is M minus the peer median of M in the cell that the ESP used. b_t is one pooled cross-section slope per month, as for `esp_lev`. M is a share in [0, 1], so XM is a difference in levels, not in logs.
+4. `esp_lev` stays as built, so the backtest scores both controls side by side.
+5. `scripts/pull_market_equity.py` pulls the panel. `scripts/backtest_peers.py` scores `esp_mlev_sr` and `esp_mlev_r` when the panel exists.
+
+Gap: `comp.fundq` is the restated view, not point in time. Price and shares rarely change on restatement. Book debt can change.
+
+### Test that settles it
+Run on the machine with WRDS access and the backtest panels:
+
+```bash
+PYTHONPATH=. python3 scripts/pull_market_equity.py
+PYTHONPATH=. python3 scripts/backtest_peers.py --tag full
+```
+
+Pass: `esp_mlev_sr` beyond spread at 12 months exceeds plain ESP (+0.096, t 2.6) with t at least 2. Then the leverage control returns, with the book's ratio. Fail: keep ESP as built, and record that the market leverage control also does not help in this HY panel.

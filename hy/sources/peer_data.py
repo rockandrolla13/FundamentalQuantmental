@@ -125,3 +125,38 @@ def equity_monthly(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd
     out = out.drop_duplicates(["gvkey", "datadate"], keep="last")
     out.to_parquet(path)
     return out
+
+
+def market_equity_quarterly(con: Any, gvkeys: Sequence[str], refresh: bool = False) -> pd.DataFrame:
+    """Quarterly market equity and book debt per gvkey, 2006 onward, for the market leverage of ESP (Dynkin et al.
+    2021, ch. 13, note 5 p. 461: book debt over market equity plus book debt). Source `comp.fundq`:
+    mkt_equity = prccq x cshoq (USD m), debt = dlcq + dlttq (USD m). Columns gvkey, datadate, rdq, mkt_equity, debt,
+    available_at (= rdq + 1 day: the quarter is public on its report date). Rows without rdq are dropped, because
+    their release date is unknown. Cached at data/raw/backtest/market_equity.parquet; only missing gvkeys are pulled
+    on a later call."""
+    path = CACHE / "market_equity.parquet"
+    keys = sorted({str(g) for g in gvkeys if g})
+    cached = pd.read_parquet(path) if path.exists() and not refresh else None
+    if cached is not None:
+        keys = sorted(set(keys) - set(cached["gvkey"]))
+        if not keys or con is None:
+            return cached
+    parts = [con.raw_sql("select gvkey, datadate, rdq, prccq, cshoq, dlcq, dlttq from comp.fundq "
+                         "where indfmt = 'INDL' and datafmt = 'STD' and popsrc = 'D' and consol = 'C' "
+                         f"and datadate >= '2006-01-01' and rdq is not null and gvkey in ({_in_list(c)})")
+             for c in _chunks(keys)]
+    out = pd.concat(parts, ignore_index=True)
+    for c in ("datadate", "rdq"):
+        out[c] = pd.to_datetime(out[c])
+    for c in ("prccq", "cshoq", "dlcq", "dlttq"):
+        out[c] = out[c].astype("float64")
+    out["mkt_equity"] = out["prccq"] * out["cshoq"]
+    out["debt"] = out["dlcq"].fillna(0.0) + out["dlttq"].fillna(0.0)
+    out["debt"] = out["debt"].where(out["dlcq"].notna() | out["dlttq"].notna())
+    out["available_at"] = out["rdq"] + pd.Timedelta(1, unit="D")
+    out = out.drop(columns=["prccq", "cshoq", "dlcq", "dlttq"])
+    if cached is not None:
+        out = pd.concat([cached, out], ignore_index=True)
+    out = out.sort_values(["gvkey", "datadate", "rdq"]).drop_duplicates(["gvkey", "datadate"], keep="last")
+    out.to_parquet(path)
+    return out

@@ -193,8 +193,9 @@ Every panel has an `available_at` column. The view drops rows that were not publ
 | `ratings` | `gvkey`, `datadate`, `splticrm` (S&P letter), `available_at` | text | the actual rating class |
 | `annual_ebitda` | `gvkey`, `datadate`, `fyear`, `oibdp`, `debt`, `available_at` | USD m | SPiDER, E15 |
 | `equity_monthly` | `gvkey`, `datadate` (month end), `ret` (monthly total return), `available_at` | decimal | OneScore, E16 |
+| `market_equity` | `gvkey`, `datadate` (quarter end), `rdq` (report date), `mkt_equity` (price x shares), `debt` (book), `available_at` (= rdq + 1 day) | USD m | ESP with market leverage (`esp_mlev`) |
 
-- When missing: without `bond_panel`, `leverage`, `gics` or `ratings`, step 9 has no peer cell. The fair spread then falls back to the HY index, and the memo says so. Without `annual_ebitda`, SPiDER (E15) is NaN. Without `equity_monthly`, OneScore (E16) is NaN, and ESP carries its weight.
+- When missing: without `bond_panel`, `leverage`, `gics` or `ratings`, step 9 has no peer cell. The fair spread then falls back to the HY index, and the memo says so. Without `annual_ebitda`, SPiDER (E15) is NaN. Without `equity_monthly`, OneScore (E16) is NaN, and ESP carries its weight. Without `market_equity`, `esp_mlev` is NaN.
 
 ### 3.15 Classifications and analyst inputs
 

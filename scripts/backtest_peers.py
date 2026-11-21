@@ -12,7 +12,9 @@ Steps:
 3. Form ESP and E13 against peers in three cells: sector x rating, sector only, rating only (each x maturity bucket).
    Also the run-wide spread per turn (E13 as built) and "buy the widest".
 4. Book versions (Dynkin et al. 2021): ESP with the excess-leverage control (ch. 13) and SPiDER with sustainable
-   EBITDA from `peer_data.annual_ebitda` (ch. 14), absolute and against sector x rating peers.
+   EBITDA from `peer_data.annual_ebitda` (ch. 14), absolute and against sector x rating peers. With the
+   `market_equity` panel (`peer_data.market_equity_quarterly`), also ESP with the book's market leverage
+   (esp_mlev, ch. 13 note 5).
 5. Score each like the alpha rules: rank IC after cost at h = 3, 6 and 12 months (Newey-West t), the IC beyond spread
    level, and the four cycle windows. SPiDER also on the book's annual schedule: February month ends only, h = 12.
    The h = 12 realised returns come from `backtest.realised_excess_return` and are cached as results_h12_<tag>. Write data/raw/backtest/peer_signals_<tag>.parquet and a "peers" block in
@@ -49,6 +51,8 @@ SIGNALS = {
     "e13_r": "E13 against peers: rating",
     "esp_lev_sr": "ESP with leverage control (book): sector x rating",
     "esp_lev_r": "ESP with leverage control (book): rating",
+    "esp_mlev_sr": "ESP with market leverage control (book ch. 13 ratio): sector x rating",
+    "esp_mlev_r": "ESP with market leverage control (book ch. 13 ratio): rating",
     "spider": "SPiDER (book): absolute, sustainable EBITDA",
     "spider_sr": "SPiDER against sector x rating peers",
 }
@@ -65,6 +69,12 @@ def build_signals(tag: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     lev = backtest_panel("leverage", tag, ["date", "gvkey", "leverage", "ltm_ebitda", "debt"], view)
     res = pd.read_parquet(OUT / f"results_h6_{tag}.parquet", columns=["date", "cusip", "gvkey", "g_spread"])
     gics, rat, ann = view.panel("gics"), view.panel("ratings"), view.panel("annual_ebitda")
+    try:  # optional: without it, esp_mlev is not built and not scored
+        meq = view.panel("market_equity")
+        meq["gvkey"] = meq["gvkey"].astype(str)
+    except Exception as e:  # DataUnavailable when the cache file is missing
+        log(f"market_equity panel unavailable ({e}); esp_mlev skipped")
+        meq = None
     lev["gvkey"] = lev["gvkey"].astype(str)
     lev["ebitda_pos"] = (lev["ltm_ebitda"].astype(float) > 0).astype(bool)
     base = res.merge(panel, on=["date", "cusip"], how="left").merge(lev.drop(columns="ltm_ebitda"),
@@ -85,8 +95,12 @@ def build_signals(tag: str) -> tuple[pd.DataFrame, pd.DataFrame]:
                                       np.where(b["rclass_implied"].notna(), "implied", "none"))
         b["spread"] = b["g_spread"]
         b["sust_ebitda"] = b["gvkey"].map(peers.sustainable_ebitda(ann, dt))
+        if meq is not None:
+            b["mlev"] = b["gvkey"].astype(str).map(peers.market_leverage_at(meq, dt))
         out = peers.peer_signals(b)
         slopes[t] = out.attrs["esp_lev_slope"]
+        if meq is not None:
+            slopes[t].update({f"m_{k}": v for k, v in out.attrs.get("esp_mlev_slope", {}).items()})
         out["spt_all"] = out["log_spt"]
         out["widest"] = out["g_spread"]
         rows.append(out)
@@ -121,7 +135,7 @@ def results_h12(tag: str) -> pd.DataFrame:
 
 
 def score(sig: pd.DataFrame, tag: str) -> dict:
-    cols = list(SIGNALS)
+    cols = [c for c in SIGNALS if c in sig.columns]
     out = {}
     for h in HORIZONS:
         res = (results_h12(tag) if h == 12 else pd.read_parquet(OUT / f"results_h{h}_{tag}.parquet"))[
@@ -145,7 +159,7 @@ def annual_spider(df: pd.DataFrame) -> dict:
     """The book's schedule: form at each February month end, hold 12 months; df holds the h = 12 rows."""
     feb = df[df["date"].dt.month == 2]
     out = {}
-    for c in ("widest", "spider", "spider_sr", "esp_lev_sr", "esp_sr"):
+    for c in [c for c in ("widest", "spider", "spider_sr", "esp_lev_sr", "esp_mlev_sr", "esp_sr") if c in df.columns]:
         d = feb.dropna(subset=[c])
         ic = bt.ic_series(d, c, "realised_net")
         beyond = bt.ic_beyond(d, c, "realised_net", "widest") if c != "widest" else None
@@ -179,7 +193,9 @@ def main() -> None:
         f"{(sl > 0).mean().round(2).to_dict()}")
     cover = {"spider_rows": float(sig["spider"].notna().mean()), "spider_issuer_months":
              int(sig.dropna(subset=["spider"]).drop_duplicates(["date", "gvkey"]).shape[0])}
-    log(f"SPiDER coverage: {cover}")
+    if "mlev" in sig.columns:
+        cover["mlev_rows"] = float(sig["mlev"].notna().mean())
+    log(f"SPiDER and market leverage coverage: {cover}")
     log(f"cell used (share of rows): {cells}")
     res = score(sig, a.tag)
     path = OUT / f"summary_{a.tag}.json"

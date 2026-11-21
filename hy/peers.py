@@ -14,6 +14,11 @@ Two versions follow the book definitions (Dynkin et al. 2021, Systematic Investi
     ESP_lev_i    = ESP_i - b_t * XL_i,  XL_i = log L_i - median over peers j of log L_j
                    b_t = cross-section OLS slope of ESP on XL at date t, pooled over all cells
                    (excess spread that excess leverage over the same peers does not explain; ch. 13)
+                   L is our cash-flow leverage, debt over LTM EBITDA, not the book's ratio.
+    ESP_mlev_i   = ESP_i - b_t * XM_i,  XM_i = M_i - median over peers j of M_j
+                   M_i = book debt / (market equity + book debt), from the latest quarter public at least
+                   MLEV_LAG_MONTHS before t (the book's market leverage, ch. 13 note 5 p. 461)
+                   b_t = cross-section OLS slope of ESP on XM at date t, pooled over all cells
     SPiDER_i     = s_i / (Debt_i / SustEBITDA_i)
                    SustEBITDA_i = mean of the last 10 annual EBITDA figures known at t, at least 6 (ch. 14)
                    absolute: one rank across all sectors; financials (GICS 40) and real estate (60) excluded
@@ -47,7 +52,9 @@ SUST_YEARS, SUST_MIN = 10, 6    # sustainable EBITDA: average of the last 10 ann
 SUST_STALE_DAYS = 550           # the latest annual figure must be at most 18 months old
 EMC_MONTHS = 3                  # equity momentum formation period; the book's main case (ch. 15)
 MIN_SECTOR = 5                  # issuers a sector needs for a within-sector rank
-FIN_SECTORS = ("40", "60")      # financials and real estate: SPiDER excludes them
+FIN_SECTORS = ("40", "60")
+MLEV_LAG_MONTHS = 3             # market leverage inputs public at least 3 months before t (ch. 13 note 5)
+MLEV_STALE_DAYS = 200           # the quarter used must end at most 200 days before the lagged cut-off      # financials and real estate: SPiDER excludes them
 FALLBACK = {"sr": ("sr", "r", "s", "all"), "s": ("s", "all"), "r": ("r", "all"), "all": ("all",)}
 
 
@@ -126,6 +133,26 @@ def sustainable_ebitda(annual: pd.DataFrame, decision_time: pd.Timestamp, n_year
     return m[ok].rename("sust_ebitda")
 
 
+def market_leverage_at(meq: pd.DataFrame, decision_time: pd.Timestamp, lag_months: int = MLEV_LAG_MONTHS,
+                       stale_days: int = MLEV_STALE_DAYS) -> pd.Series:
+    """Market leverage per gvkey at `decision_time` (methodology 7.2; Dynkin et al. 2021 ch. 13, note 5 p. 461).
+
+        M = debt / (mkt_equity + debt),  from the latest quarter with available_at <= decision_time - lag_months
+
+    `meq` is the `market_equity` panel (gvkey, datadate, mkt_equity, debt, available_at). Intuition: the Merton
+    driver of default risk, the share of the firm's value that debt holders own. NaN when market equity is not
+    positive, debt is negative or missing, or the quarter is older than `stale_days` at the cut-off."""
+    cut = pd.Timestamp(decision_time) - pd.DateOffset(months=lag_months)
+    q = meq[pd.to_datetime(meq["available_at"]) <= cut].copy()
+    q = q[pd.to_datetime(q["datadate"]) >= cut - pd.Timedelta(stale_days, unit="D")]
+    if q.empty:
+        return pd.Series(dtype="float64", name="mlev")
+    q = q.sort_values(["gvkey", "datadate", "available_at"]).groupby("gvkey").tail(1)
+    e, d = q["mkt_equity"].astype("float64"), q["debt"].astype("float64")
+    m = (d / (e + d)).where((e > 0) & (d >= 0))
+    return pd.Series(m.to_numpy(), index=q["gvkey"].astype(str).to_numpy(), name="mlev")
+
+
 def _cell_key(df: pd.DataFrame, level: str) -> pd.Series:
     m = df["mat"].astype(str)
     if level == "sr":
@@ -171,10 +198,12 @@ def _slope(y: pd.Series, x: pd.Series) -> float:
 def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) -> pd.DataFrame:
     """ESP and spread per turn against peers for one date; with `debt` and `sust_ebitda` columns also SPiDER.
 
-    `bonds` columns: gvkey, years, spread (decimal), leverage, sector, rclass; optional debt, sust_ebitda. Returns,
+    `bonds` columns: gvkey, years, spread (decimal), leverage, sector, rclass; optional debt, sust_ebitda, and
+    mlev (market leverage from `market_leverage_at`) for esp_mlev_<level>. Returns,
     per row: mat, log_s, log_spt, esp_<level>, esp_lev_<level>, e13_<level>, cell_<name>_<level> (the level used
     after FALLBACK), esp_sd_<level> and esp_n_<level> (robust sd and count of the peers' log spread in that cell), and, when SPiDER inputs exist, spider (log, absolute) and spider_<level> (against peers).
-    The ESP leverage slope per level is in attrs["esp_lev_slope"].
+    The ESP leverage slope per level is in attrs["esp_lev_slope"], and the market leverage slope in
+    attrs["esp_mlev_slope"] when `mlev` is given.
     """
     df = bonds.copy()
     df["mat"] = df["years"].map(maturity_bucket)
@@ -194,23 +223,29 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
         pairs.append(("spider", "spider"))
     cache: dict[tuple[str, str], pd.Series] = {}
     spread_disp: dict[str, tuple[pd.Series, pd.Series]] = {}  # level -> (peer sd, peer count) of log spread
-    for col in [c for c, _ in pairs] + ["log_lev"]:
+    has_mlev = "mlev" in df.columns
+    if has_mlev:
+        df["mlev"] = df["mlev"].astype("float64")
+    for col in [c for c, _ in pairs] + ["log_lev"] + (["mlev"] if has_mlev else []):
         for lvl in ("sr", "s", "r", "all"):
             med, npeer, sd = _peer_median(df, col, lvl)
             cache[(col, lvl)] = med
             if col == "log_s":
                 spread_disp[lvl] = (sd, npeer)
-    slopes = {}
+    slopes, mslopes = {}, {}
     for level in levels:
         for col, name in pairs:
             out = pd.Series(np.nan, index=df.index)
             used = pd.Series(None, index=df.index, dtype=object)
             xl = pd.Series(np.nan, index=df.index)
+            xm = pd.Series(np.nan, index=df.index)
             for lvl in FALLBACK[level]:
                 med = cache[(col, lvl)]
                 fill = out.isna() & med.notna() & df[col].notna()
                 out[fill] = df.loc[fill, col] - med[fill]
                 xl[fill] = df.loc[fill, "log_lev"] - cache[("log_lev", lvl)][fill]
+                if has_mlev:  # excess market leverage over the same cell that the ESP used
+                    xm[fill] = df.loc[fill, "mlev"] - cache[("mlev", lvl)][fill]
                 used[fill] = lvl
             df[f"{name}_{level}"] = out
             df[f"cell_{name}_{level}"] = used
@@ -222,7 +257,14 @@ def peer_signals(bonds: pd.DataFrame, levels: Iterable[str] = ("sr", "s", "r")) 
                 slopes[level] = b
                 df[f"xlev_{level}"] = xl
                 df[f"esp_lev_{level}"] = out - b * xl if b == b else np.nan
+                if has_mlev:
+                    bm = _slope(out, xm)
+                    mslopes[level] = bm
+                    df[f"xmlev_{level}"] = xm
+                    df[f"esp_mlev_{level}"] = out - bm * xm if bm == bm else np.nan
     df.attrs["esp_lev_slope"] = slopes
+    if has_mlev:
+        df.attrs["esp_mlev_slope"] = mslopes
     return df
 
 

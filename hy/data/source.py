@@ -87,7 +87,7 @@ class AnalystSource(Protocol):
 FORECAST_STATUS_COLUMNS = ("source", "status", "last_vintage", "last_available_at", "rows", "rows_after_decision_time")
 
 # Panel names: neutral names for the cross-sectional files the backtests and the peer step read.
-PANELS = ("bond_panel", "leverage", "gics", "ratings", "annual_ebitda", "equity_monthly")
+PANELS = ("bond_panel", "leverage", "gics", "ratings", "annual_ebitda", "equity_monthly", "market_equity")
 
 
 @runtime_checkable
@@ -117,6 +117,7 @@ PANEL_COLUMNS: dict[str, tuple[str, ...]] = {
     "ratings": ("gvkey", "datadate", "splticrm", "available_at"),
     "annual_ebitda": ("gvkey", "datadate", "fyear", "oibdp", "debt", "available_at"),
     "equity_monthly": ("gvkey", "datadate", "ret", "available_at"),
+    "market_equity": ("gvkey", "datadate", "rdq", "mkt_equity", "debt", "available_at"),
 }
 PANEL_BACKTEST_COLUMNS: dict[str, tuple[str, ...]] = {
     "bond_panel": ("price", "yield", "coupon", "maturity", "mod_dur", "tsy_yield", "bid_ask_pts", "n_trades",
