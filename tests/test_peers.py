@@ -213,3 +213,32 @@ def test_market_leverage_has_no_lookahead():
                                          "available_at": pd.to_datetime(["2021-02-01"])})])
     t = pd.Timestamp("2020-12-15")
     assert peers.market_leverage_at(late, t)["A"] == peers.market_leverage_at(meq, t)["A"]
+
+
+def test_esp_dur_removes_the_curve_inside_a_bucket():
+    rng = np.random.default_rng(3)
+    n = 60
+    dur = rng.uniform(3.0, 6.5, n)                           # all in the 3-7 year bucket
+    df = pd.DataFrame({"gvkey": [f"g{i}" for i in range(n)], "years": 5.0, "leverage": 4.0, "dur": dur,
+                       "spread": 0.02 * dur ** 0.5, "sector": "20", "rclass": "B"})
+    df.loc[0, "spread"] *= 1.5
+    out = peers.peer_signals(df)
+    assert out.attrs["esp_dur_slope"]["sr"] == pytest.approx(0.5, abs=0.05)
+    assert out.loc[0, "esp_dur_sr"] > 0.3
+    assert out.loc[1:, "esp_dur_sr"].abs().max() < 0.1       # the rest is the spread curve, not value
+    assert out.loc[1:, "esp_sr"].abs().max() > 0.15
+
+
+def test_esp_mlev_dur_fits_both_controls_together():
+    rng = np.random.default_rng(4)
+    n = 80
+    m, dur = rng.uniform(0.1, 0.8, n), rng.uniform(3.0, 6.5, n)
+    df = pd.DataFrame({"gvkey": [f"g{i}" for i in range(n)], "years": 5.0, "leverage": 4.0, "mlev": m, "dur": dur,
+                       "spread": 0.01 * np.exp(3.0 * m) * dur ** 0.5, "sector": "20", "rclass": "B"})
+    df.loc[0, "spread"] *= 1.5
+    out = peers.peer_signals(df)
+    b, c = out.attrs["esp_mlev_dur_slopes"]["sr"]
+    assert b == pytest.approx(3.0, abs=0.15) and c == pytest.approx(0.5, abs=0.05)
+    assert out.loc[0, "esp_mlev_dur_sr"] > 0.3
+    assert out.loc[1:, "esp_mlev_dur_sr"].abs().max() < 0.1
+    assert out.loc[1:, "esp_mlev_sr"].abs().max() > out.loc[1:, "esp_mlev_dur_sr"].abs().max()

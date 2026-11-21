@@ -14,7 +14,8 @@ Steps:
 4. Book versions (Dynkin et al. 2021): ESP with the excess-leverage control (ch. 13) and SPiDER with sustainable
    EBITDA from `peer_data.annual_ebitda` (ch. 14), absolute and against sector x rating peers. With the
    `market_equity` panel (`peer_data.market_equity_quarterly`), also ESP with the book's market leverage
-   (esp_mlev, ch. 13 note 5).
+   (esp_mlev, ch. 13 note 5). With bond modified duration, also ESP with a duration control inside the maturity
+   bucket (esp_dur) and both controls fitted together (esp_mlev_dur).
 5. Score each like the alpha rules: rank IC after cost at h = 3, 6 and 12 months (Newey-West t), the IC beyond spread
    level, and the four cycle windows. SPiDER also on the book's annual schedule: February month ends only, h = 12.
    The h = 12 realised returns come from `backtest.realised_excess_return` and are cached as results_h12_<tag>. Write data/raw/backtest/peer_signals_<tag>.parquet and a "peers" block in
@@ -53,6 +54,8 @@ SIGNALS = {
     "esp_lev_r": "ESP with leverage control (book): rating",
     "esp_mlev_sr": "ESP with market leverage control (book ch. 13 ratio): sector x rating",
     "esp_mlev_r": "ESP with market leverage control (book ch. 13 ratio): rating",
+    "esp_dur_sr": "ESP with duration control inside the maturity bucket: sector x rating",
+    "esp_mlev_dur_sr": "ESP with market leverage and duration controls (joint fit): sector x rating",
     "spider": "SPiDER (book): absolute, sustainable EBITDA",
     "spider_sr": "SPiDER against sector x rating peers",
 }
@@ -65,7 +68,7 @@ def log(msg: str) -> None:
 
 def build_signals(tag: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     view = history_view()  # raw panels through the data module; derived replay results stay files under CONFIG
-    panel = backtest_panel("bond_panel", tag, ["date", "cusip", "years"], view)
+    panel = backtest_panel("bond_panel", tag, ["date", "cusip", "years", "mod_dur"], view)
     lev = backtest_panel("leverage", tag, ["date", "gvkey", "leverage", "ltm_ebitda", "debt"], view)
     res = pd.read_parquet(OUT / f"results_h6_{tag}.parquet", columns=["date", "cusip", "gvkey", "g_spread"])
     gics, rat, ann = view.panel("gics"), view.panel("ratings"), view.panel("annual_ebitda")
@@ -95,12 +98,14 @@ def build_signals(tag: str) -> tuple[pd.DataFrame, pd.DataFrame]:
                                       np.where(b["rclass_implied"].notna(), "implied", "none"))
         b["spread"] = b["g_spread"]
         b["sust_ebitda"] = b["gvkey"].map(peers.sustainable_ebitda(ann, dt))
+        b["dur"] = b["mod_dur"]
         if meq is not None:
             b["mlev"] = b["gvkey"].astype(str).map(peers.market_leverage_at(meq, dt))
         out = peers.peer_signals(b)
         slopes[t] = out.attrs["esp_lev_slope"]
         if meq is not None:
             slopes[t].update({f"m_{k}": v for k, v in out.attrs.get("esp_mlev_slope", {}).items()})
+        slopes[t].update({f"d_{k}": v for k, v in out.attrs.get("esp_dur_slope", {}).items()})
         out["spt_all"] = out["log_spt"]
         out["widest"] = out["g_spread"]
         rows.append(out)
@@ -159,7 +164,7 @@ def annual_spider(df: pd.DataFrame) -> dict:
     """The book's schedule: form at each February month end, hold 12 months; df holds the h = 12 rows."""
     feb = df[df["date"].dt.month == 2]
     out = {}
-    for c in [c for c in ("widest", "spider", "spider_sr", "esp_lev_sr", "esp_mlev_sr", "esp_sr") if c in df.columns]:
+    for c in [c for c in ("widest", "spider", "spider_sr", "esp_lev_sr", "esp_mlev_sr", "esp_dur_sr", "esp_mlev_dur_sr", "esp_sr") if c in df.columns]:
         d = feb.dropna(subset=[c])
         ic = bt.ic_series(d, c, "realised_net")
         beyond = bt.ic_beyond(d, c, "realised_net", "widest") if c != "widest" else None

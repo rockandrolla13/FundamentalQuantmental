@@ -110,3 +110,13 @@ PYTHONPATH=. python3 scripts/backtest_peers.py --tag full
 ```
 
 Pass: `esp_mlev_sr` beyond spread at 12 months exceeds plain ESP (+0.096, t 2.6) with t at least 2. Then the leverage control returns, with the book's ratio. Fail: keep ESP as built, and record that the market leverage control also does not help in this HY panel.
+
+### Addition, 21 November 2026: duration control inside the maturity bucket (`esp_dur`, `esp_mlev_dur`)
+The peer cell has three maturity buckets only. So a 3-year and a 7-year bond share a cell, and their spread gap is partly curve, not value.
+
+1. `esp_dur_<cell>` = ESP minus c_t times XD. XD is log modified duration minus the peer median in the same cell. c_t is one pooled cross-section slope per month.
+2. `esp_mlev_dur_<cell>` = ESP minus b_t times XM minus c_t times XD, with b_t and c_t from one joint OLS per month.
+3. We control for duration. We do not divide by it. A spread is already a yearly rate, so a division would make every long bond read cheap.
+
+Pass: `esp_dur_sr` or `esp_mlev_dur_sr` beyond spread at 12 months exceeds plain ESP (+0.096, t 2.6) with t at least 2.
+A second check follows Dynkin et al. (2021, ch. 19): score the long-short with legs scaled to equal DTS. The duration control must not only move the DTS tilt between the legs.
