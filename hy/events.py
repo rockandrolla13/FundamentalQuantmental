@@ -872,3 +872,150 @@ def catalysts_in_horizon(events: Sequence[Mapping], decision, h_years: float) ->
         elif e.get("years") is not None and e["years"] == e["years"] and e["years"] <= h_years:
             out.append(dict(e))
     return out
+
+
+# ---------------------------------------------------------------------------
+# 9.2 Rate and inflation stress screen (hikes with sticky inflation)
+# ---------------------------------------------------------------------------
+
+WALL_SHARE = 0.5  # Coyle (2025) card: a wall is most of the debt due within one to two years
+STICKY_PASSTHROUGH = 0.5  # Our choice: below half of cost inflation passed to customers reads as sticky
+
+
+@dataclass(frozen=True)
+class RateInflationScenario:
+    """One stress: `d_sofr` and `d_tsy` are rate moves (decimals), `cost_inflation` is the annual rise in the cost
+    base above the base case, `h` is the horizon in quarters (8 = two years)."""
+
+    d_sofr: float = 0.02
+    d_tsy: float = 0.015
+    cost_inflation: float = 0.04
+    h: int = N_QUARTERS
+
+
+def cost_squeeze(cost_base: np.ndarray | float, cost_inflation: float, passthrough: np.ndarray | float) -> np.ndarray:
+    """dCost = cost_base * pi * (1 - passthrough): the annual EBITDA loss from cost inflation the issuer cannot pass on.
+
+    Section 9.2 outcome on the EBITDA side. Untested on spreads: `passthrough` is the sector page driver
+    `passthrough_share` (agency weight, docs/sectors/1510-materials.md). Augustin, Cong, Corhay and Weber (2026) card:
+    sticky-price firms' spreads rise more after monetary shocks.
+    Intuition: a cost rise that contracts do not pass to customers comes straight out of EBITDA.
+    """
+    pt = np.clip(np.asarray(passthrough, dtype=float), 0.0, 1.0)
+    return np.asarray(cost_base, dtype=float) * cost_inflation * (1.0 - pt)
+
+
+def quarterly_ladder(due_1y: float, due_2y: float, h: int = N_QUARTERS) -> np.ndarray:
+    """Spread Compustat `dd1` evenly over quarters 1 to 4 and `dd2` over quarters 5 to 8 (Our choice: no dates on file).
+
+    Intuition: annual buckets are the only maturity data in the panel, so each bucket refinances in equal parts.
+    """
+    m = np.zeros(max(h, N_QUARTERS))
+    m[:4] = due_1y / 4.0
+    m[4:8] = due_2y / 4.0
+    return m[:h]
+
+
+def stressed_coverage(ebitda: float, cash_interest: float, d_cash_interest: float, d_cost: float) -> float:
+    """cov_s = (EBITDA - dCost) / (CashInt + dCashInt). NaN when stressed interest is not positive (framework F8).
+
+    Intuition: hikes raise the denominator through floating debt and refinancing, sticky costs cut the numerator.
+    """
+    den = cash_interest + d_cash_interest
+    return float((ebitda - d_cost) / den) if den > 0 else float("nan")
+
+
+def rate_inflation_screen(issuers: pd.DataFrame, scenario: RateInflationScenario = RateInflationScenario()) -> pd.DataFrame:
+    """Score each issuer under one hike-and-sticky-inflation scenario (Section 9.2, `cash_interest_change`).
+
+    Input columns per gvkey: `debt`, `ebitda`, `cash_interest`, `due_1y`, `due_2y`, `tsy_yield`, `spread`,
+    `phi_float` (unhedged floating share, `hy.clocks.float_unhedged`), `passthrough`, `cost_base`.
+    Output adds `d_cash_int`, `d_cost`, `cov_base`, `cov_stress`, `cov_drop`, `wall_share`, `wall`, `sticky`,
+    `double_hit`, `pct_loss`, and two ranks:
+        rank           1 = lowest stressed coverage: who breaks first under the scenario
+        rank_exposure  1 = largest pct_loss = 1 - cov_stress / cov_base: who the scenario hurts most, at any start level
+    `double_hit` = wall and sticky. Augustin et al. (2026) find the monetary-shock effect strongest for sticky-price
+    firms with high rollover risk. Missing `phi_float` or `passthrough` reads as 0 and sets `terms_known` False.
+    Intuition: the level ranks today's weak names. The loss ranks the names the scenario itself exposes.
+    """
+    out = issuers.copy()
+    out["terms_known"] = out[["phi_float", "passthrough"]].notna().all(axis=1)
+    phi = out["phi_float"].fillna(0.0).to_numpy(float)
+    pt = out["passthrough"].fillna(0.0).to_numpy(float)
+    d_int, d_cost = [], []
+    for i, r in enumerate(out.itertuples(index=False)):
+        c_old = r.cash_interest / r.debt if r.debt > 0 else 0.0
+        h = scenario.h
+        d_int.append(cash_interest_change(
+            r.debt, phi[i], scenario.d_sofr, quarterly_ladder(r.due_1y, r.due_2y, h),
+            np.full(h, r.tsy_yield + scenario.d_tsy), r.spread, np.full(h, c_old), h))
+        d_cost.append(float(cost_squeeze(r.cost_base, scenario.cost_inflation, pt[i])))
+    out["d_cash_int"] = d_int
+    out["d_cost"] = d_cost
+    out["cov_base"] = [stressed_coverage(e, c, 0.0, 0.0) for e, c in zip(out["ebitda"], out["cash_interest"])]
+    out["cov_stress"] = [stressed_coverage(e, c, di, dc) for e, c, di, dc in
+                         zip(out["ebitda"], out["cash_interest"], out["d_cash_int"], out["d_cost"])]
+    out["cov_drop"] = out["cov_base"] - out["cov_stress"]
+    out["wall_share"] = np.where(out["debt"] > 0, (out["due_1y"] + out["due_2y"]) / out["debt"], np.nan)
+    out["wall"] = out["wall_share"] >= WALL_SHARE
+    out["sticky"] = out["terms_known"] & (pt < STICKY_PASSTHROUGH)
+    out["double_hit"] = out["wall"] & out["sticky"]
+    out["pct_loss"] = np.where(out["cov_base"] > 0, 1.0 - out["cov_stress"] / out["cov_base"], np.nan)
+    out["rank"] = out["cov_stress"].rank(method="first", na_option="bottom").astype(int)
+    out["rank_exposure"] = out["pct_loss"].rank(method="first", ascending=False, na_option="bottom").astype(int)
+    return out.sort_values("rank").reset_index(drop=True)
+
+
+def stress_inputs(panels: Mapping[str, pd.DataFrame], as_of) -> pd.DataFrame:
+    """Build the `rate_inflation_screen` input at month end `as_of` from the production panels (Section 9.2).
+
+    Reads, each filtered to `available_at` <= decision time (as_of + 1 day, `hy.backtest.decision_time`):
+        compustat_annual  latest per gvkey: dd1 -> due_1y, dd2 -> due_2y, dlc + dltt -> debt, xint -> cash_interest,
+                          cogs -> cost_base
+        leverage          latest ltm_ebitda -> ebitda
+        bond_panel        rows at as_of: median g_spread -> spread, median tsy_yield
+        gics              sector in force at as_of -> gsector
+        debt_terms        optional: phi_float, passthrough. Absent rows give NaN (see `terms_known`).
+    A guard raises `LookAheadError` if any filtered row is late. No row after the decision time enters.
+    Intuition: the screen must see only what an analyst could read the morning after month end.
+    """
+    from hy.data.pit import guard_frame
+
+    t = pd.Timestamp(as_of) + pd.offsets.MonthEnd(0)
+    dt = t + pd.Timedelta(1, unit="D")
+
+    def known(name: str) -> pd.DataFrame:
+        df = panels.get(name)
+        if df is None or df.empty:
+            return pd.DataFrame()
+        df = df[df["available_at"] <= dt]
+        guard_frame(df, dt, name, "available_at")
+        return df
+
+    ca = known("compustat_annual").sort_values("datadate").groupby("gvkey").tail(1)
+    lev = known("leverage").sort_values("date").groupby("gvkey").tail(1)
+    bp = known("bond_panel")
+    bp = bp[bp["date"] == t].groupby("gvkey")[["g_spread", "tsy_yield"]].median()
+    g = known("gics")
+    g = g[(g["indfrom"] <= t) & (g["indthru"].isna() | (g["indthru"] >= t))].groupby("gvkey")["gsector"].last()
+    out = pd.DataFrame({
+        "gvkey": ca["gvkey"].to_numpy(),
+        "debt": (ca["dlc"] + ca["dltt"]).to_numpy(float),
+        "cash_interest": ca["xint"].to_numpy(float),
+        "due_1y": ca["dd1"].to_numpy(float),
+        "due_2y": ca["dd2"].to_numpy(float),
+        "cost_base": ca["cogs"].to_numpy(float),
+    }).set_index("gvkey")
+    out["ebitda"] = lev.set_index("gvkey")["ltm_ebitda"]
+    out["spread"] = bp["g_spread"]
+    out["tsy_yield"] = bp["tsy_yield"]
+    out["gsector"] = g
+    terms = known("debt_terms")
+    if not terms.empty:
+        terms = terms.sort_values("available_at").groupby("gvkey").tail(1).set_index("gvkey")
+        out["phi_float"] = terms["phi_float"]
+        out["passthrough"] = terms["passthrough"]
+    else:
+        out["phi_float"] = np.nan
+        out["passthrough"] = np.nan
+    return out.dropna(subset=["ebitda", "spread", "tsy_yield"]).reset_index()
