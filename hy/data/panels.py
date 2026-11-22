@@ -10,7 +10,7 @@ can build the two large ones from the kinds it already serves, with the same rul
   day (`trace_panel.leverage_as_of`: four consecutive quarters, or 4/3 of three).
 
 The issuer key of both panels is `Issuer.gvkey`: on another machine, put your own issuer identifier there and use it
-in every panel. The small panels (`gics`, `ratings`, `annual_ebitda`, `equity_monthly`) are plain tables; the
+in every panel. The small panels (`gics`, `ratings`, `annual_ebitda`, `equity_monthly`, `market_equity`) are plain tables; the
 schemas in `hy.data.source.PANEL_COLUMNS` state their columns.
 """
 

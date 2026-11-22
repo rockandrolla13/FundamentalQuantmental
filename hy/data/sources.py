@@ -88,7 +88,8 @@ class WarehouseSource:
 
     # The cached panel files keep their historical names; the neutral names map onto them here only.
     PANEL_FILES = {"bond_panel": "panel_full", "leverage": "leverage_full", "gics": "gics_history",
-                   "ratings": "sp_ratings", "annual_ebitda": "annual_ebitda", "equity_monthly": "equity_monthly"}
+                   "ratings": "sp_ratings", "annual_ebitda": "annual_ebitda", "equity_monthly": "equity_monthly",
+                   "market_equity": "market_equity"}
 
     def panel(self, name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
         f = self.cfg.path("backtest", f"{self.PANEL_FILES.get(name, name)}.parquet")
