@@ -91,3 +91,40 @@ def test_support_frame_refuses_late_inputs():
     ok = clocks.support_frame(df, pd.Timestamp("2026-12-31"))
     assert ok["support_score"].iloc[0] == pytest.approx(clocks.support_score(**BASE))
     assert ok["basel_grade"].iloc[0] == "good"
+
+
+# --- Residual value guarantee term (Section 4.7.3, term r) ---------------------------------------------------------
+
+def test_rvg_cover_is_threshold_over_debt_capped():
+    assert clocks.rvg_cover(28.0, 27.3) == 1.0  # Hyperion at issue: threshold above the bond (Meta 10-K FY2025)
+    assert clocks.rvg_cover(10.0, 20.0) == pytest.approx(0.5)
+    assert clocks.rvg_cover(0.0, 20.0) == 0.0
+    assert clocks.rvg_cover(float("nan"), 20.0) == 0.0
+    assert clocks.rvg_cover(10.0, 0.0) == 0.0
+
+
+def test_no_guarantee_leaves_the_score_unchanged():
+    assert _s(rvg=0.0) == _s()
+    assert _s(rvg=float("nan")) == _s()
+
+
+def test_guarantee_raises_a_short_or_cancellable_contract_only():
+    short = dict(contract_years=1.0, non_cancellable=0.2)
+    assert _s(**short, rvg=1.0) > _s(**short)
+    assert _s(**short, rvg=1.0) > _s(**short, rvg=0.5)
+    # a contract that is already long and locked in gains nothing
+    full = dict(contract_years=10.0, non_cancellable=1.0)
+    assert _s(**full, rvg=1.0) == pytest.approx(_s(**full))
+
+
+def test_guarantee_fills_at_most_half_the_gap():
+    # tenor 0 and lock-in 0: with a full guarantee each part becomes RVG_CREDIT
+    s = clocks.support_score(1.0, 0.0, 5.0, 0.0, 1.0, 1.0, 1.0, rvg=1.0)
+    assert s == pytest.approx(clocks.RVG_CREDIT ** 2)
+
+
+def test_support_frame_reads_optional_rvg_column():
+    row = {**BASE, "contract_years": 1.0}
+    plain = clocks.support_frame(pd.DataFrame([row]))
+    with_rvg = clocks.support_frame(pd.DataFrame([{**row, "rvg_cover": 1.0}]))
+    assert with_rvg["support_score"].iloc[0] > plain["support_score"].iloc[0]
