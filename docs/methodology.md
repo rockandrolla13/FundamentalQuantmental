@@ -518,6 +518,46 @@ Role split. A landlord (developer) carries the full gap, because only its revenu
 
 Tests on file: the worked example of the card holds on the monthly grid. A $300mm reserve sized to an 18-month rent start gives `d* = 0`. A 12-month delay opens $200mm. Each extra $100mm of reserve buys 6 months. No market test has run. The falsifiable claim: among data centre issuers with material uncommenced capacity, a lower `effective_tolerance_months` goes with a wider spread change in a delivery shock window. The first window is November 2026. The card holds the dated events.
 
+#### 4.7.3 Support label against support contents (report only, not fitted)
+
+Status: report only. It changes no weight and no fair spread. Decision page: `2026-11-23-support-label-gap`. Code: `support_score`, `support_frame`, `basel_tenor_grade`, `label_test`, `label_gap`, `next_catalyst` in `hy/clocks.py`. Tests: `tests/test_clocks_support.py`. Script: `scripts/support_gap.py`.
+
+The claim under test: the market sorts AI-capacity borrowers by one label, "has a contract with a big-tech customer". Debt with the label weakened least, and debt without it weakened most. No source on file states or tests this claim. The user supplied it, on 2026-11-23. If the market prices the label and not the terms of the contract, two errors follow:
+
+1. The label is present but the terms are weak, so the spread is too tight. Examples: the contract ends before the debt, the customer can cancel, the service has not started, or the contract sits in a ring-fenced SPV that pays its own debt first.
+2. The label is absent but the support is real, so the spread is too wide. Examples: many contracted customers, short debt, or cash that already funds the gap.
+
+Assumptions:
+1. The parts of support multiply. One failed link removes the support, so a sum would overstate a cancellable contract.
+2. A contract beyond the debt maturity adds nothing to that debt. The Basel slotting text grades the same ratio (card `two-clocks-origin`, Source 2).
+3. Revenue from a sub-investment-grade customer and an unstarted contract each count at half value (`NONIG_CREDIT`, `UNSTARTED_CREDIT`). Both are Our choice. Section 4.7.2 holds the delivery risk of an unstarted contract.
+
+```latex
+S_i = \min(1, C_i) \cdot \min\!\left(1, \tfrac{T^c_i}{T^d_i}\right) \cdot q^{nc}_i \cdot \left(q^{ig}_i + (1 - q^{ig}_i)\, c_{ig}\right) \cdot \left(q^{on}_i + (1 - q^{on}_i)\, c_{on}\right) \cdot q^{reach}_i
+```
+
+`C` is `coverage_contracted` of Section 4.7. `T^c` and `T^d` are the contract and debt terms in years. The `q` terms are shares of contract value: non-cancellable, from investment-grade customers, in service, and able to reach this debt's obligor. Intuition: the share of the fixed charges that contracts this debt can rely on will pay.
+
+```latex
+g_i = p(s_i) - \left(1 - p(S_i)\right), \qquad p(x_i) = \frac{\operatorname{rank}(x_i) - 0.5}{n}
+```
+
+Intuition: strong contents should carry a tight spread, so a fair sort gives `g = 0`. A positive gap says the spread is wider than the contents imply.
+
+| Step | Feature | Formula | Intuition |
+| --- | --- | --- | --- |
+| 1 | `support_score`, `basel_grade` | `S_i`; tenor ratio graded strong at 1.25x or more, good above 1.0x, satisfactory at 0.9x or more, else weak | The terms, not the label |
+| 2 | `prices_label_only`, `r2_gain` | Log spread on `[1, label]`, then on `[1, label, S]`. The flag is true unless the `S` slope has `t < -2` | Does more support inside one label group tighten the spread? |
+| 3 | `gap`, `label_too_tight`, `unlabelled_too_wide` | `g_i`. Error 1: label, `S` below the median `S` of issuers without the label, `g <= -0.25`. Error 2: the mirror case | Label and contents disagree |
+| 4 | `next_catalyst` | First dated event after the decision time: terms filed, lease start, renewal, maturity | When the market must look at the terms |
+| 5 | Gap IC | Rank IC of `g_t` on the log spread change from `t + 1` to `t + 7` months | Does the gap close? |
+
+The one-month skip in step 5 keeps the spread at `t` out of the target. Without the skip, noise at `t` alone gives a negative IC in a market that prices the contents. The script's placebo showed this, with t at -2.29. Dickerson et al. (2026) name the same shared-price bias (decision page `2026-11-01-clocks-residual-timing`).
+
+Tests on file: the score rises with each part and falls to zero when one part is zero. The label test separates the two kinds of market on 60 synthetic issuers. The gap flags the two planted errors, and a fair sort gives no flags. `support_frame` refuses inputs that were not public by the decision time. `scripts/support_gap.py` passes six checks on seed 0. Over seeds 0 to 19, one check failed once: the label test rejected a market that prices the label, on seed 2. That rate matches a test at the 5% level. No market test has run.
+
+The falsifiable claim: among AI-capacity issuers, the gap at the decision time has a negative rank IC on the next six months of spread change, and most of that change falls within six months of each issuer's catalyst. If the IC is zero, the market already prices the terms, and the claim fails. A real cross-section holds 10 to 20 issuers. That is below `MIN_BONDS = 20` and cannot reach the 3-of-4-cycles bar, so the first use is a dated watch list. It is not a fitted signal.
+
 ## 5. Forward estimates
 
 Forward estimates turn the issuer state into paths of EBITDA, debt, liquidity, and covenant headroom under named scenarios. The book builds a management case, a base case, and one or more downside cases (p. 285), then assigns a probability to each case by judgement (p. 311). This section keeps the scenario structure and makes the probabilities a function of the macro state. The outputs are forward features that the fair spread model consumes.
