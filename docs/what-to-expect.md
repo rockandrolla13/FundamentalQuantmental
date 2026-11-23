@@ -20,6 +20,7 @@ Do not expect a trading system that you can trust today. Most methods have passe
 | A ticker, or several tickers | `scripts/process.py` runs the framework steps in order: frame, normalise, liquidity, claims, cases, value, gate, call. |
 | A request for a memo | A plain-English issuer memo from `scripts/memo.py`. The memo opens with the call and carries the claims table of framework F5. It must pass the gate of framework F9. |
 | Two issuers to compare | A relative value report from `scripts/rv_pair.py`: lease-adjusted leverage, cost-clock metrics and the bond curves. |
+| "Is this issuer a downgrade or upgrade candidate?" | A rating-drift screen (Section 4.5.1). It compares three ratings: the one the fundamentals give, the agency rating, and the one the bond price gives. It names one of two trades. "agency_lags": the price already agrees with the fundamentals, so the trade is the rating action. "market_misses": the price has not moved, so the trade is the spread. |
 | A question on a covenant, an add-back or a liability management risk | An answer from the credit skills (`covenant-compliance`, `ebitda-addback-treatment`, `credit-memo-standards`), applied to what public filings show. |
 
 ### 2. Ask about the market or the cycle
@@ -63,8 +64,8 @@ Every piece of work follows the same chain. Each link leaves a file that you can
 | --- | --- |
 | `docs/methodology.md` | The method. Section numbers never change. |
 | `docs/framework.md` | The rules for reading a filing. It holds no issuer figures. |
-| `docs/decisions/` | One page for each design choice. There are 38. |
-| `research/cards/` | One card for each source read. There are 136. |
+| `docs/decisions/` | One page for each design choice. There are 39. |
+| `research/cards/` | One card for each source read. There are 137. |
 | `hy/` | One module for each layer: inputs, state, forward, recovery, fair spread, signals, events and outputs. |
 | `tests/` | About 1,390 tests. They need no data. |
 | `scripts/` | Reports, backtests, memos and synthetic checks. |
