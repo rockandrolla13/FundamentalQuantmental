@@ -15,6 +15,7 @@ Build a best-in-class high yield bond analyst. The system finds mispriced bonds 
 - State the assumptions first. Put the intuition in one sentence beside each formula.
 - Prefer a falsifiable claim with a test over a description.
 - When two sources disagree, record both, state when each is right, choose one, and say why.
+- Always explain a disagreement between sources in plain words first: what each source says, why both can be partly right, and what we decide. Then give the detail.
 - Separate three things in every note: what the source says, what the data says, what we decide.
 
 ## Research protocol

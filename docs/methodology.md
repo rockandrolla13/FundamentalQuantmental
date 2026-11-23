@@ -556,6 +556,8 @@ The one-month skip in step 5 keeps the spread at `t` out of the target. Without 
 
 Tests on file: the score rises with each part and falls to zero when one part is zero. The label test separates the two kinds of market on 60 synthetic issuers. The gap flags the two planted errors, and a fair sort gives no flags. `support_frame` refuses inputs that were not public by the decision time. `scripts/support_gap.py` passes six checks on seed 0. Over seeds 0 to 19, one check failed once: the label test rejected a market that prices the label, on seed 2. That rate matches a test at the 5% level. No market test has run.
 
+Residual value guarantees get no credit in `S`. The two sources on file disagree on how much the Hyperion guarantee protects lenders, and neither gives its amount. A flag on an issuer with a guarantee of unknown size needs a manual check of the guaranteed amount before it enters a memo. The decision page explains the disagreement in plain words.
+
 The falsifiable claim: among AI-capacity issuers, the gap at the decision time has a negative rank IC on the next six months of spread change, and most of that change falls within six months of each issuer's catalyst. If the IC is zero, the market already prices the terms, and the claim fails. A real cross-section holds 10 to 20 issuers. That is below `MIN_BONDS = 20` and cannot reach the 3-of-4-cycles bar, so the first use is a dated watch list. It is not a fitted signal.
 
 ## 5. Forward estimates
