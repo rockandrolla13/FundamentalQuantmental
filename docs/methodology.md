@@ -520,7 +520,7 @@ Tests on file: the worked example of the card holds on the monthly grid. A $300m
 
 #### 4.7.3 Support label against support contents (report only, not fitted)
 
-Status: report only. It changes no weight and no fair spread. Decision page: `2026-11-23-support-label-gap`. Code: `support_score`, `support_frame`, `basel_tenor_grade`, `label_test`, `label_gap`, `next_catalyst` in `hy/clocks.py`. Tests: `tests/test_clocks_support.py`. Script: `scripts/support_gap.py`.
+Status: report only. It changes no weight and no fair spread. Decision page: `2026-11-23-support-label-gap`. Code: `support_score`, `rvg_cover`, `support_frame`, `basel_tenor_grade`, `label_test`, `label_gap`, `next_catalyst` in `hy/clocks.py`. Tests: `tests/test_clocks_support.py`. Script: `scripts/support_gap.py`.
 
 The claim under test: the market sorts AI-capacity borrowers by one label, "has a contract with a big-tech customer". Debt with the label weakened least, and debt without it weakened most. No source on file states or tests this claim. The user supplied it, on 2026-11-23. If the market prices the label and not the terms of the contract, two errors follow:
 
@@ -556,7 +556,13 @@ The one-month skip in step 5 keeps the spread at `t` out of the target. Without 
 
 Tests on file: the score rises with each part and falls to zero when one part is zero. The label test separates the two kinds of market on 60 synthetic issuers. The gap flags the two planted errors, and a fair sort gives no flags. `support_frame` refuses inputs that were not public by the decision time. `scripts/support_gap.py` passes six checks on seed 0. Over seeds 0 to 19, one check failed once: the label test rejected a market that prices the label, on seed 2. That rate matches a test at the 5% level. No market test has run.
 
-Residual value guarantees get no credit in `S`. The two sources on file disagree on how much the Hyperion guarantee protects lenders, and neither gives its amount. A flag on an issuer with a guarantee of unknown size needs a manual check of the guaranteed amount before it enters a memo. The decision page explains the disagreement in plain words.
+A residual value guarantee (RVG) fills part of the gap that a short or cancellable contract leaves. If the tenant leaves, the guarantor pays the shortfall of the asset value below a threshold.
+
+```latex
+r_i = \min\!\left(1, \tfrac{RVG_i}{D_i}\right), \qquad x' = x + (1 - x)\, r_i\, c_{rvg} \quad \text{for } x \in \left\{\min\!\left(1, \tfrac{T^c_i}{T^d_i}\right),\ q^{nc}_i\right\}
+```
+
+`RVG` is the guarantee threshold and `D` is the debt still owed. Intuition: the guarantee replaces part of the missing contract term and lock-in, up to the share of the debt it covers. `c_rvg = RVG_CREDIT = 0.5` is Our choice, because the guarantor pays only "if certain other conditions are met", and the filing does not name them (Meta 10-K FY2025, Note 5, printed p. 106). With no guarantee, `r = 0` and `S` is unchanged. A flag on an issuer with a guarantee still needs a manual check of the conditions and of how the threshold falls over time. The decision page explains in plain words why the two sources disagree on this guarantee.
 
 The falsifiable claim: among AI-capacity issuers, the gap at the decision time has a negative rank IC on the next six months of spread change, and most of that change falls within six months of each issuer's catalyst. If the IC is zero, the market already prices the terms, and the claim fails. A real cross-section holds 10 to 20 issuers. That is below `MIN_BONDS = 20` and cannot reach the 3-of-4-cycles bar, so the first use is a dated watch list. It is not a fitted signal.
 

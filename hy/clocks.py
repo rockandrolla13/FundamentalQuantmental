@@ -696,6 +696,10 @@ NONIG_CREDIT = 0.5
 UNSTARTED_CREDIT = 0.5
 # A gap of this many percentile ranks between the spread rank and the contents rank flags a mis-sort. Our choice.
 MISSORT_CUT = 0.25
+# Credit for a residual value guarantee (RVG). The guarantor pays the shortfall of the asset value below a threshold
+# when the tenant leaves, but only "if certain other conditions are met" (Meta 10-K FY2025, Note 5, printed p. 106).
+# The conditions are not public, so the guarantee counts at half value. Our choice.
+RVG_CREDIT = 0.5
 SUPPORT_COLUMNS = ("coverage", "contract_years", "debt_years", "non_cancellable", "ig_share", "commenced_share",
                    "reach_share")
 
@@ -708,8 +712,18 @@ def basel_tenor_grade(contract_years: float, debt_years: float) -> str:
     return next(g for cut, g in BASEL_TENOR_GRADES if r >= cut)
 
 
+def rvg_cover(threshold: float, debt_outstanding: float) -> float:
+    """Share of the debt still owed that a residual value guarantee threshold covers. Section 4.7.3, term `r`.
+
+    r = min(1, RVG threshold / debt outstanding). Intuition: if the building is worth nothing when the tenant leaves,
+    the guarantor pays up to the threshold. A threshold at or above the debt covers all of it."""
+    if not debt_outstanding or debt_outstanding <= 0 or not threshold or threshold != threshold:
+        return 0.0
+    return float(min(1.0, max(0.0, threshold / debt_outstanding)))
+
+
 def support_score(coverage: float, contract_years: float, debt_years: float, non_cancellable: float,
-                  ig_share: float, commenced_share: float, reach_share: float) -> float:
+                  ig_share: float, commenced_share: float, reach_share: float, rvg: float = 0.0) -> float:
     """Share of the fixed charges that contracts the debt can rely on will pay (Section 4.7.3, formula S).
 
     S = min(1, coverage) x min(1, T_c / T_d) x q_nc x (q_ig + (1 - q_ig) c_ig) x (q_on + (1 - q_on) c_on) x q_reach
@@ -721,9 +735,17 @@ def support_score(coverage: float, contract_years: float, debt_years: float, non
     - `commenced_share`: share of contract value already in service.
     - `reach_share`: share of contract cash that can reach this debt's obligor. A contract in a ring-fenced SPV gives
       the holding company notes only what the SPV can pay up after its own debt.
+    - `rvg`: `rvg_cover` of a residual value guarantee, 0 if none. The guarantee fills part of the gap that a short or
+      cancellable contract leaves: tenor and lock-in each become x + (1 - x) * rvg * RVG_CREDIT. With rvg = 0 the
+      score is unchanged.
     Intuition: a product, because one failed link (a cancellable or unreachable contract) removes the support."""
+    rvg = 0.0 if rvg is None or rvg != rvg else rvg  # missing or NaN counts as no guarantee
+    g = min(1.0, max(0.0, rvg)) * RVG_CREDIT
     tenor = min(1.0, contract_years / debt_years) if debt_years and debt_years > 0 else 1.0
-    parts = (min(1.0, max(0.0, coverage)), tenor, non_cancellable,
+    tenor = tenor + (1.0 - tenor) * g
+    lock = min(1.0, max(0.0, non_cancellable))
+    lock = lock + (1.0 - lock) * g
+    parts = (min(1.0, max(0.0, coverage)), tenor, lock,
              ig_share + (1.0 - ig_share) * NONIG_CREDIT,
              commenced_share + (1.0 - commenced_share) * UNSTARTED_CREDIT, reach_share)
     return float(np.prod([min(1.0, max(0.0, p)) for p in parts]))
@@ -732,13 +754,16 @@ def support_score(coverage: float, contract_years: float, debt_years: float, non
 def support_frame(issuers, decision_time=None):
     """`support_score` and `basel_grade` per row of `issuers` (pandas frame with SUPPORT_COLUMNS). Section 4.7.3.
 
+    An optional column `rvg_cover` (see `rvg_cover`) adds the residual value guarantee term. Missing means 0.
+
     With `decision_time`, every row must carry `available_at` on or before it (`hy.data.pit.guard_frame`)."""
     from hy.data.pit import guard_frame  # noqa: PLC0415 - clocks stays importable without the data layer
 
     if decision_time is not None:
         guard_frame(issuers, decision_time, "support inputs")
     out = issuers.copy()
-    out["support_score"] = [support_score(*(r[c] for c in SUPPORT_COLUMNS)) for _, r in out.iterrows()]
+    rvg = out["rvg_cover"] if "rvg_cover" in out else [0.0] * len(out)
+    out["support_score"] = [support_score(*(r[c] for c in SUPPORT_COLUMNS), rvg=g) for (_, r), g in zip(out.iterrows(), rvg)]
     out["basel_grade"] = [basel_tenor_grade(a, b) for a, b in zip(out["contract_years"], out["debt_years"])]
     return out
 

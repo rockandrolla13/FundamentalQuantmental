@@ -54,12 +54,22 @@ Our choice, with no source:
 
 **What the price says.** The Hyperion bonds priced at 225 bp over Treasuries. Two weeks later, Meta's own long bonds priced at 88 to 98 bp (BIS, p. 6). Investors asked for about 130 bp more than for Meta itself. That fits the BIS view better: lenders did not treat the bond as Meta debt. One deal is not a test.
 
-**What we decide.** We follow the BIS view for the score, and we give the guarantee no credit in `S` until the filings state its amount. Reasons:
-1. Credit for an unknown amount would make `S` too high. A score that is too high hides real risk.
-2. The cost is that `S` may be too low for a deal like Hyperion. Then step 3 may flag it as `label_too_tight` in error.
-3. So a flag on any issuer with a residual value guarantee of unknown size needs one manual check before it enters a memo. The check: find the guaranteed minimum value in the filing or the rating agency pre-sale report. Then compare it with the debt left at each renewal date.
+**What Meta's own filing says (added 2026-11-23).** Meta's annual report for 2025 gives the size (10-K, Note 5, printed p. 106). We read a full copy of the filing hosted by Fortune, because SEC.gov refused the request.
+1. The guarantee threshold totals about $28 billion, and it falls over time. The bonds are $27.3 billion.
+2. If Meta ends or does not renew a lease, Meta pays the gap between the building value and the threshold. Meta pays only "if certain other conditions are met". The filing does not name the conditions.
+3. Meta records no liability, because it judges a payment "not probable". Its maximum loss on the venture is $45.95 billion.
 
-**The test that settles it.** Find the guaranteed minimum values for Hyperion. If they cover most of the debt at each renewal date, add a guarantee term to `S` and recheck this decision.
+**In plain words, what this settles.** At the start, the guarantee is big enough to repay the whole bond, even if the building is worth nothing. So on size, Van Nieuwerburgh is closer to right. Two things remain unknown: how fast the threshold falls, and what the "other conditions" are. That is why the BIS calls the protection limited, and why lenders still asked for about 130 bp more than for Meta.
+
+**What we decide (replaces the first choice of "no credit").** The guarantee now gets half credit in `S`.
+1. Measure the cover: `rvg_cover = min(1, threshold / debt still owed)`. For Hyperion at issue, that is 1.
+2. Use the cover to fill part of the gap in contract term and in lock-in. Each part becomes `x + (1 - x) * cover * 0.5`.
+3. The 0.5 is Our choice. It stands for the unknown conditions. No source gives a number.
+4. A flag on an issuer with a guarantee still needs a manual check of the conditions and of the threshold schedule.
+
+Example, with our assumptions: a Hyperion-like bond has a 4-year firm lease against 20 years of debt from the lease start, full coverage, a top-rated tenant and no lease in service at issue. `S` rises from 0.10 to 0.30. The guarantee lifts the score but does not make the bond look like Meta debt. That matches the market price.
+
+**The test that settles it.** Find the threshold schedule and the conditions, for example in an S&P report or a later filing. If the threshold stays above the debt at each renewal date and the conditions are narrow, raise `RVG_CREDIT` and recheck this decision. Tests: `tests/test_clocks_support.py`, five tests for the guarantee term.
 
 ## Tests that settle it
 1. **Wiring (done):** `tests/test_clocks_support.py` holds 14 tests. `scripts/support_gap.py` passes 6 checks on seed 0. Over seeds 0 to 19, there was one false rejection by the label test (seed 2). That rate is the 5% size of the test.
