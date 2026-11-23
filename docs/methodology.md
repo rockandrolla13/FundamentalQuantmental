@@ -282,6 +282,25 @@ Fit an ordinal model of the agency rating on scale, leverage, coverage, margin, 
 
 Use the agency default table as the anchor for the probability of default by rating: speculative grade issuers default at 3.60% within one year and 14.16% within five years, 1981 to 2021 (Figure 9.19, p. 274).
 
+#### 4.5.1 Market-implied rating and the two drift templates
+
+The rating gap compares two ratings: the one the fundamentals give and the one the agency gives. Add a third: the rating that the bond price gives. The third rating tells us whether the price already agrees with the fundamentals. Source: the European single-name spec v. 080212, Step 4C, PDF p. 13 (card `european-single-name-spec-2012`). Decision page: `2026-11-23-market-implied-rating`. Code: `market_implied_rating`, `rating_drift` in `hy/state.py`. Tests: `tests/test_rating_drift.py`.
+
+In plain words: the fitted rating says where the agency should move. The market-implied rating says whether the price has moved there already. The two answers give two different trades.
+
+```latex
+m_i = \arg\min_j \left| \log s_i - \widetilde{med}^{(-i)}_j \right|, \qquad \widetilde{med}_j = \min_{k \le j} med_k
+```
+
+`med_j^(-i)` is the median log spread of the other issuers in agency notch `j`, leaving issuer `i` out. The running minimum forces the medians to fall as the rating improves. A notch needs `MIR_MIN_PEERS = 3` other issuers. Intuition: the rating that the price alone would give.
+
+| Template | Condition | What it means | Trade |
+| --- | --- | --- | --- |
+| `agency_lags` | Model gap at least 2 notches. Market gap at least 1 notch in the same direction. No watch or outlook in that direction | Fundamentals and price agree, the agency has not moved | The rating action and its forced flows (Section 9) |
+| `market_misses` | Model gap at least 2 notches. Market gap below 1 notch | The price has not moved | The spread |
+
+The cut-offs of 2 notches and 1 notch are Our choice. The spec gives none. The spec uses Moody's bond market implied ratings. We build our own from the cross-section, because the Moody's series is vendor data. Falsifiable claim: `market_misses` names have a larger spread change in the direction of the model gap over the next 6 months than `agency_lags` names. If the two groups move the same, the third rating adds nothing.
+
 ### 4.6 Covenant headroom
 
 For a maintenance covenant, headroom is the EBITDA decline that triggers a breach. For an incurrence covenant, the headroom is the remaining capacity under each basket. Compute both with the covenant definitions, not the analyst definitions (p. 354).

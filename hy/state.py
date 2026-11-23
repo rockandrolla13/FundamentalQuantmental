@@ -492,6 +492,79 @@ def rating_gap(fitted_rating: np.ndarray | int, agency_rating: np.ndarray | int)
         int(fitted_rating) - int(agency_rating)
 
 
+# Market-implied rating and the two rating-drift templates (Section 4.5.1). Source: European single-name spec
+# v. 080212, Step 4C, PDF p. 13 (card `european-single-name-spec-2012`). The cut-offs below are Our choice.
+MIR_MIN_PEERS = 3        # other issuers a notch needs before its median spread counts
+DRIFT_MODEL_CUT = 2      # notches between fitted and agency rating before the model calls a change
+DRIFT_MARKET_CUT = 1     # notches between market-implied and agency rating before the price "agrees"
+
+
+def market_implied_rating(log_spread: np.ndarray, agency_rating: np.ndarray,
+                          min_peers: int = MIR_MIN_PEERS) -> np.ndarray:
+    """Market-implied rating in notches (Section 4.5.1): the notch whose peer median spread is nearest.
+
+    For issuer i, take the median log spread of the other issuers in each agency notch, leaving i out. Force the
+    medians to fall as the rating improves (higher notch = better rating, as in `OrdinalLogit`). Then
+    m_i = argmin_j |log s_i - med_j^(-i)|. A notch with fewer than `min_peers` other issuers is skipped.
+    Returns -1 where no notch qualifies.
+
+    Intuition: the rating that the bond price alone would give, if the market priced every notch at its median.
+    """
+    ls = np.asarray(log_spread, dtype=float)
+    r = np.asarray(agency_rating, dtype=int)
+    notches = np.unique(r)
+    out = np.full(ls.size, -1, dtype=int)
+    for i in range(ls.size):
+        if not np.isfinite(ls[i]):
+            continue
+        keep, med = [], []
+        for j in notches:
+            peers = ls[(r == j) & (np.arange(ls.size) != i) & np.isfinite(ls)]
+            if peers.size >= min_peers:
+                keep.append(j)
+                med.append(float(np.median(peers)))
+        if not keep:
+            continue
+        med = np.minimum.accumulate(np.asarray(med))  # notches ascend, so spreads must not rise
+        out[i] = int(np.asarray(keep)[np.argmin(np.abs(ls[i] - med))])
+    return out
+
+
+def rating_drift(fitted_rating, agency_rating, implied_rating, watch=None,
+                 model_cut: int = DRIFT_MODEL_CUT, market_cut: int = DRIFT_MARKET_CUT) -> dict:
+    """Two rating-drift templates from three ratings (Section 4.5.1; spec v. 080212, Step 4C, PDF p. 13).
+
+    model_gap = r_hat - r_agency, market_gap = m - r_agency. `watch` is +1 for a positive outlook or watch, -1 for a
+    negative one, 0 for none. Per issuer:
+    - "agency_lags": |model_gap| >= model_cut, the market gap has the same sign and |market_gap| >= market_cut,
+      and no watch or outlook points that way. Fundamentals and price agree, the agency has not moved. The trade is
+      the rating action and its forced flows.
+    - "market_misses": |model_gap| >= model_cut and |market_gap| < market_cut. The price has not moved. The trade is
+      the spread.
+    - "none" otherwise, or where the implied rating is missing (-1).
+    `direction` is +1 for an upgrade candidate and -1 for a downgrade candidate.
+
+    Intuition: the fitted rating says where the agency should go, the market-implied rating says whether the price is
+    already there.
+    """
+    rh = np.atleast_1d(np.asarray(fitted_rating, dtype=int))
+    ra = np.atleast_1d(np.asarray(agency_rating, dtype=int))
+    rm = np.atleast_1d(np.asarray(implied_rating, dtype=int))
+    w = np.zeros(ra.size, dtype=int) if watch is None else np.atleast_1d(np.asarray(watch, dtype=int))
+    model_gap = rh - ra
+    market_gap = np.where(rm >= 0, rm - ra, 0)
+    direction = np.sign(model_gap)
+    called = np.abs(model_gap) >= model_cut
+    priced = (np.sign(market_gap) == direction) & (np.abs(market_gap) >= market_cut)
+    flagged_by_agency = (w != 0) & (np.sign(w) == direction)
+    template = np.full(ra.size, "none", dtype=object)
+    template[called & priced & ~flagged_by_agency] = "agency_lags"
+    template[called & (np.abs(market_gap) < market_cut)] = "market_misses"
+    template[rm < 0] = "none"
+    return {"model_gap": model_gap, "market_gap": market_gap, "direction": np.where(called, direction, 0),
+            "template": template}
+
+
 # ---------------------------------------------------------- 4.6 Covenant headroom
 
 
