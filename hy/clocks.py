@@ -683,3 +683,132 @@ def funding_source(
     cap = issue_share * market_cap if market_cap is not None and market_cap > 0 else float("nan")
     out["market_capacity_used"] = left / cap if cap == cap else float("nan")
     return out
+
+
+# --- Support contents against the support label (Section 4.7.3) --------------------------------------------------
+
+# Basel slotting grades for off-take tenor against debt tenor (research/cards/two-clocks-origin.md, Source 2). The
+# text gives words, not numbers. The cut-offs are Our choice: "comfortably exceeds" = 1.25x, "generally matches" = 0.9x.
+BASEL_TENOR_GRADES = ((1.25, "strong"), (1.0, "good"), (0.9, "satisfactory"), (0.0, "weak"))
+# Credit for contract cash from a sub-investment-grade customer, and for a contract that has not started. Our choice:
+# half credit. An unstarted contract still carries delivery risk (Section 4.7.2).
+NONIG_CREDIT = 0.5
+UNSTARTED_CREDIT = 0.5
+# A gap of this many percentile ranks between the spread rank and the contents rank flags a mis-sort. Our choice.
+MISSORT_CUT = 0.25
+SUPPORT_COLUMNS = ("coverage", "contract_years", "debt_years", "non_cancellable", "ig_share", "commenced_share",
+                   "reach_share")
+
+
+def basel_tenor_grade(contract_years: float, debt_years: float) -> str:
+    """Slotting grade of contract tenor over debt tenor (Basel 2003, Annex 4, off-take risk). Section 4.7.3."""
+    if not debt_years or debt_years <= 0:
+        return "strong"
+    r = contract_years / debt_years
+    return next(g for cut, g in BASEL_TENOR_GRADES if r >= cut)
+
+
+def support_score(coverage: float, contract_years: float, debt_years: float, non_cancellable: float,
+                  ig_share: float, commenced_share: float, reach_share: float) -> float:
+    """Share of the fixed charges that contracts the debt can rely on will pay (Section 4.7.3, formula S).
+
+    S = min(1, coverage) x min(1, T_c / T_d) x q_nc x (q_ig + (1 - q_ig) c_ig) x (q_on + (1 - q_on) c_on) x q_reach
+
+    - `coverage`: contracted cash over fixed charges (`mismatch` metric `coverage_contracted`).
+    - `contract_years`, `debt_years`: weighted remaining contract term and debt term.
+    - `non_cancellable`: share of contract value the customer cannot cancel without paying for it.
+    - `ig_share`: share of contract value from investment-grade customers.
+    - `commenced_share`: share of contract value already in service.
+    - `reach_share`: share of contract cash that can reach this debt's obligor. A contract in a ring-fenced SPV gives
+      the holding company notes only what the SPV can pay up after its own debt.
+    Intuition: a product, because one failed link (a cancellable or unreachable contract) removes the support."""
+    tenor = min(1.0, contract_years / debt_years) if debt_years and debt_years > 0 else 1.0
+    parts = (min(1.0, max(0.0, coverage)), tenor, non_cancellable,
+             ig_share + (1.0 - ig_share) * NONIG_CREDIT,
+             commenced_share + (1.0 - commenced_share) * UNSTARTED_CREDIT, reach_share)
+    return float(np.prod([min(1.0, max(0.0, p)) for p in parts]))
+
+
+def support_frame(issuers, decision_time=None):
+    """`support_score` and `basel_grade` per row of `issuers` (pandas frame with SUPPORT_COLUMNS). Section 4.7.3.
+
+    With `decision_time`, every row must carry `available_at` on or before it (`hy.data.pit.guard_frame`)."""
+    from hy.data.pit import guard_frame  # noqa: PLC0415 - clocks stays importable without the data layer
+
+    if decision_time is not None:
+        guard_frame(issuers, decision_time, "support inputs")
+    out = issuers.copy()
+    out["support_score"] = [support_score(*(r[c] for c in SUPPORT_COLUMNS)) for _, r in out.iterrows()]
+    out["basel_grade"] = [basel_tenor_grade(a, b) for a, b in zip(out["contract_years"], out["debt_years"])]
+    return out
+
+
+def _ols_r2(y: np.ndarray, X: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """OLS coefficients, classical standard errors and R-squared. Cross-section only."""
+    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+    e = y - X @ beta
+    dof = max(1, len(y) - X.shape[1])
+    s2 = float(e @ e) / dof
+    se = np.sqrt(np.diag(s2 * np.linalg.pinv(X.T @ X)))
+    tss = float(((y - y.mean()) ** 2).sum())
+    return beta, se, 1.0 - float(e @ e) / tss if tss > 0 else float("nan")
+
+
+def label_test(df, spread: str = "spread", label: str = "label", score: str = "support_score") -> dict[str, float]:
+    """Does the market price the label or the contents? Section 4.7.3, step 2.
+
+    Fit log spread on [1, label], then on [1, label, score]. Report both R-squared values, the score slope with its
+    t value, and `prices_label_only` = the score slope is not significantly negative (t > -2). Intuition: if more
+    support inside the same label group does not tighten the spread, the market reads the label and not the terms.
+    Classical errors: one cross-section, so no time correlation to correct. Small samples give wide errors."""
+    y = np.log(df[spread].to_numpy(float))
+    one = np.ones(len(y))
+    lab = df[label].astype(float).to_numpy()
+    _, _, r2_label = _ols_r2(y, np.column_stack([one, lab]))
+    beta, se, r2_both = _ols_r2(y, np.column_stack([one, lab, df[score].to_numpy(float)]))
+    t = float(beta[2] / se[2]) if se[2] > 0 else float("nan")
+    return {"r2_label": r2_label, "r2_label_score": r2_both, "r2_gain": r2_both - r2_label,
+            "label_slope": float(beta[1]), "score_slope": float(beta[2]), "score_t": t,
+            "prices_label_only": bool(not t < -2.0), "n": int(len(y))}
+
+
+def label_gap(df, spread: str = "spread", label: str = "label", score: str = "support_score",
+              cut: float = MISSORT_CUT):
+    """Mis-sort per issuer: spread rank against contents rank (Section 4.7.3, step 3).
+
+    gap = p(spread) - (1 - p(score)), with mid-rank percentiles p = (rank - 0.5) / n. Strong contents should carry a tight spread, so a fair sort gives
+    gap near 0. gap > 0: the spread is wider than the contents imply. gap < 0: tighter.
+    - `label_too_tight`: label True, score below the median score of issuers without the label, and gap <= -cut
+      (error 1: the label hides weak terms).
+    - `unlabelled_too_wide`: label False, score above the median score of label holders, and gap >= cut
+      (error 2: real support without the label).
+    The median condition keeps the flag to issuers where label and contents disagree. Without it, a market that
+    prices the label flags about half the sample, because the gap still holds the label effect.
+    Intuition: ranks, not a fitted curve, because 10 to 20 issuers cannot pin a curve that does not learn the label."""
+    out = df.copy()
+    n = len(out)
+    out["spread_pct"] = (out[spread].rank() - 0.5) / n  # mid-rank: a perfect sort gives gap 0 exactly
+    out["score_pct"] = (out[score].rank() - 0.5) / n
+    out["gap"] = out["spread_pct"] - (1.0 - out["score_pct"])
+    lab = out[label].astype(bool)
+    sc = out[score]
+    med_unlab = sc[~lab].median() if (~lab).any() else float("-inf")
+    med_lab = sc[lab].median() if lab.any() else float("inf")
+    out["label_too_tight"] = lab & (sc < med_unlab) & (out["gap"] <= -cut)
+    out["unlabelled_too_wide"] = ~lab & (sc > med_lab) & (out["gap"] >= cut)
+    return out.sort_values("gap")
+
+
+def next_catalyst(events: Mapping[str, object], as_of) -> tuple[str, object, float]:
+    """First dated event after `as_of` that can force a reprice (Section 4.7.3, step 4).
+
+    `events` maps a name (terms_filed, lease_start, renewal, maturity) to a date. Returns (name, date, months away);
+    ("none", NaT, NaN) if no event lies ahead."""
+    import pandas as pd  # noqa: PLC0415
+
+    t0 = pd.Timestamp(as_of)
+    ahead = {k: pd.Timestamp(v) for k, v in events.items() if v is not None and pd.Timestamp(v) > t0}
+    if not ahead:
+        return "none", pd.NaT, float("nan")
+    k = min(ahead, key=ahead.get)
+    return k, ahead[k], (ahead[k] - t0).days / 30.4375
