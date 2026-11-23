@@ -24,7 +24,7 @@ from hy.data import records as R
 from hy.data.pit import DataUnavailable
 from hy.data.source import FACT_KEYS, PANEL_COLUMNS, PROTOCOLS, SOURCE_METHODS
 from hy.data.sources import CompositeSource, FakeSource, PublicSource, WarehouseSource
-from hy.data.tables import TableSource, make_source, write_tables
+from hy.data.tables import TableSource, write_tables
 from hy.data.view import DataView
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -152,7 +152,7 @@ def _strip(d):
     return d
 
 
-def test_a_run_on_tables_selected_by_hy_source_equals_the_run_on_the_source(offline, tables, monkeypatch):
+def test_a_run_on_tables_selected_by_hy_source_equals_the_run_on_the_source(offline, tables, monkeypatch):  # noqa: F811 - pytest fixture
     import process  # scripts/ is on the path through the fake-source test module
 
     fake = world.fake_world()

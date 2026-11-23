@@ -31,13 +31,13 @@ DISC = flat_disc()
 
 def price_for_spread(c: float, T: float, s: float) -> float:
     """Price of a bond whose flat-hazard par-adjusted spread is s (inverse of Martin eq. 7)."""
-    g = lambda lam: (1 - R) * f6.flat_hazard_legs(T, lam, DISC)["xi"] / f6.flat_hazard_legs(T, lam, DISC)["pi"] - s
+    g = lambda lam: (1 - R) * f6.flat_hazard_legs(T, lam, DISC)["xi"] / f6.flat_hazard_legs(T, lam, DISC)["pi"] - s  # noqa: E731
     return f6.model_price(c, T, brentq(g, 1e-9, 3.0), R, DISC)
 
 
 def ytm(price: float, c: float, T: float) -> float:
     n = int(round(T * 2))
-    pv = lambda y: sum(c / 2 / (1 + y / 2) ** k for k in range(1, n + 1)) * 100 + 100 / (1 + y / 2) ** n - price
+    pv = lambda y: sum(c / 2 / (1 + y / 2) ** k for k in range(1, n + 1)) * 100 + 100 / (1 + y / 2) ** n - price  # noqa: E731
     return brentq(pv, -0.5, 5.0)
 
 
@@ -194,7 +194,7 @@ def test_curvature_forms():
 def test_ns_curvature_recovers_hump():
     T = np.array([1.5, 3.0, 5.0, 7.0, 10.0, 15.0])
     lam = f6.SHOCK_LAMBDA
-    ns = lambda t: 0.04 - 0.01 * f6.shock_basis(t) + 0.02 * (f6.shock_basis(t) - np.exp(-lam * t))
+    ns = lambda t: 0.04 - 0.01 * f6.shock_basis(t) + 0.02 * (f6.shock_basis(t) - np.exp(-lam * t))  # noqa: E731
     s2, s5, s10 = ns(np.array([2.0, 5.0, 10.0]))
     assert f22.ns_curvature(T, ns(T)) == pytest.approx(s5 - 0.5 * (s2 + s10), abs=1e-12)
     assert np.isnan(f22.ns_curvature(T[:3], ns(T[:3])))

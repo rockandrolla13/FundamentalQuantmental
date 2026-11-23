@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 from hy.backtest import decision_time
-from hy.factors.f01_ipca import (SKEW_MIN, SKEW_MONTHS, bond_return_features, bond_return_history, rank_scale,
+from hy.factors.f01_ipca import (SKEW_MONTHS, bond_return_features, bond_return_history, rank_scale,
                                  screen)
 
 HOLD = 1                   # one-month horizon of the managed portfolio returns (p. 14)

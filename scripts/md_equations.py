@@ -57,7 +57,7 @@ def restore(tex_path: Path, md_path: Path) -> dict:
     md = md_path.read_text().split("\n")
     blocks = [(re.sub(r"\\label\{[^}]*\}", "", (m.group(2) or m.group(3))).strip(), _plain(tex[m.end():m.end() + 300]))
               for m in EQ.finditer(tex)]
-    ph = [i for i, l in enumerate(md) if PLACEHOLDER in l]
+    ph = [i for i, ln in enumerate(md) if PLACEHOLDER in ln]
     eqs = [i for i in ph if not any("Start of picture text" in md[j] for j in range(i + 1, min(i + 4, len(md))))]
     idx = _align([_ctx(md, i) for i in eqs], [a for _, a in blocks])
     for i, k in zip(eqs, idx):
@@ -66,8 +66,8 @@ def restore(tex_path: Path, md_path: Path) -> dict:
     for k in (k for k in range(len(blocks)) if k not in set(idx)):
         lead = re.match(r"\\text\{([^}]*)\}", blocks[k][0])
         if lead:
-            for i, l in enumerate(md):
-                if l.strip().startswith(lead.group(1).strip()) and re.search(r"\(\d+\)\s*$", l):
+            for i, ln in enumerate(md):
+                if ln.strip().startswith(lead.group(1).strip()) and re.search(r"\(\d+\)\s*$", ln):
                     md[i] = "$$\n" + blocks[k][0] + "\n$$"
                     idx.append(k)
                     break

@@ -223,7 +223,7 @@ def group_box(cb: dict, g: str, extra: str) -> str:
 
 def memo(d: dict) -> str:
     st, t, name = d["steps"], d["ticker"], d["name"]
-    O = lambda k: st.get(k, {}).get("outputs", {})  # noqa: E731
+    O = lambda k: st.get(k, {}).get("outputs", {})  # noqa: E731, E741
     g, fr, nm, lq, cs, ck = O("11"), O("2"), O("3"), O("4"), O("5"), O("6")
     cases, va, rvo, al, pairs, panel = O("7"), O("8"), O("9"), O("10"), O("9b").get("pairs", []), O("13").get("panel", [])
     ev, dc, cb = O("12"), O("15"), O("14")

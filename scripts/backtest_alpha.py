@@ -37,7 +37,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from hy import backtest as bt  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_panel as tp  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402

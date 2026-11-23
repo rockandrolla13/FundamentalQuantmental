@@ -488,7 +488,7 @@ class MondrianConformal:
 
     def threshold(self, rating_bucket: Sequence, liquidity_bucket: Sequence) -> np.ndarray:
         """Section 7.6 `q_alpha_t` per row."""
-        return np.array([self.q_.get((r, l), self.q_pooled_) for r, l in zip(rating_bucket, liquidity_bucket)])
+        return np.array([self.q_.get((r, liq), self.q_pooled_) for r, liq in zip(rating_bucket, liquidity_bucket)])
 
     def flags(self, z: np.ndarray, rating_bucket: Sequence, liquidity_bucket: Sequence) -> tuple[np.ndarray, np.ndarray]:
         """Section 7.3: cheap = 1{z > q}, rich = 1{z < -q}."""

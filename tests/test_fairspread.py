@@ -123,16 +123,15 @@ def test_conformal_quantile_finite_sample():
 def test_conformal_coverage_per_mondrian_cell(rng):
     """Section 11, Conformal band row: realised coverage within 2 SE of 1 - alpha in every cell."""
     alpha = 0.1
-    ratings, liqs = ["BB", "B", "CCC"], ["liquid", "illiquid"]
     scale = {("BB", "liquid"): 0.05, ("BB", "illiquid"): 0.10, ("B", "liquid"): 0.10,
              ("B", "illiquid"): 0.20, ("CCC", "liquid"): 0.25, ("CCC", "illiquid"): 0.45}
 
     def draw(n_per_cell):
         rows = []
-        for (r, l), sc in scale.items():
+        for (r, liq), sc in scale.items():
             x = rng.uniform(0, 1, n_per_cell)
             eps = rng.standard_t(5, n_per_cell) * sc * (0.5 + 1.5 * x)  # heteroskedastic in x too
-            rows.append(pd.DataFrame({"r": r, "l": l, "x": x, "liq": float(l == "illiquid"),
+            rows.append(pd.DataFrame({"r": r, "l": liq, "x": x, "liq": float(liq == "illiquid"),
                                       "ccc": float(r == "CCC"), "eps": eps}))
         return pd.concat(rows, ignore_index=True)
 

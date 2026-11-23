@@ -29,7 +29,7 @@ import process  # noqa: E402
 
 from hy import walkforward as wf  # noqa: E402
 from hy.data.pit import DataUnavailable  # noqa: E402
-from hy.data.config import CONFIG
+from hy.data.config import CONFIG  # noqa: E402
 from hy.data.factory import open_source, open_view  # noqa: E402
 from hy.data.outcomes import RealisedOutcomes  # noqa: E402
 
@@ -141,7 +141,7 @@ def predictions() -> pd.DataFrame:
         run = json.loads((d / "_run.json").read_text())
         for t in run["tickers"]:
             st = json.loads((d / f"{t}.json").read_text())["steps"]
-            O = lambda k: st.get(k, {}).get("outputs", {})  # noqa: E731
+            O = lambda k: st.get(k, {}).get("outputs", {})  # noqa: E731, E741
             cb, gate, lq, cs, ck, cases = O("14"), O("11"), O("4"), O("5"), O("6"), O("7")
             r = {"date": q, "ticker": t, "new": t in NEW, "s_index_bp": run["macro"]["s_index_now"] * 1e4,
                  "phase": run["macro"]["phase"],

@@ -401,7 +401,7 @@ def walk_forward(features: pd.DataFrame, r: pd.Series, h: int, cost: float = COS
         need = [j for j in range(ca.start, t + 1) if j not in pred_cache]
         if need:
             md_n, lo_n, hi_n = predict(x_all[need] * w)
-            pred_cache.update({j: (m, l, u) for j, m, l, u in zip(need, md_n, lo_n, hi_n)})
+            pred_cache.update({j: (m, lo, u) for j, m, lo, u in zip(need, md_n, lo_n, hi_n)})
         lo_c = np.array([pred_cache[j][1] for j in range(ca.start, ca.stop)])
         hi_c = np.array([pred_cache[j][2] for j in range(ca.start, ca.stop)])
         okc = np.isfinite(y[ca])
