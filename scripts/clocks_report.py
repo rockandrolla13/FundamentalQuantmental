@@ -102,7 +102,8 @@ so the stress paths enlarge it; real stress often widens a gap before it closes.
 
 
 def _scen_tex(d, t, rows, a, have) -> str:
-    pct = lambda x: f"{x:.1%}".replace("%", "\\%")
+    def pct(x):
+        return f"{x:.1%}".replace("%", "\\%")
     return (f"\\section*{{{d['name']} ({t}): scenarios under each macro path}}\n"
             f"\\begin{{figure}}[H]\\centering\\includegraphics[width=\\linewidth]{{figures/scenarios_{t}.png}}\\end{{figure}}\n"
             "\\begin{center}\\footnotesize\\setlength{\\tabcolsep}{4pt}\n\\begin{tabular}{@{}lrrrrrrrr@{}}\\toprule\n"

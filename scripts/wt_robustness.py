@@ -528,7 +528,7 @@ def family_report(tests: list[dict], fd: dict, old: dict) -> dict:
     p_cw = np.array([r["cw_p"] for r in real])
     rep = {"n_tests": len(tests)}
     for name in ("circular", "bootstrap"):
-        P, T, H = fd[name]["pass"], fd[name]["cw_t"], fd[name]["hold_t_claimed"]
+        P, _T, _H = fd[name]["pass"], fd[name]["cw_t"], fd[name]["hold_t_claimed"]
         rep[name] = {"n_draws": int(P.shape[0]), "false_pass_rate_per_test": float(P.mean()),
                      "share_draws_with_any_pass": float((P.sum(1) > 0).mean()),
                      "mean_passes_per_draw": float(P.sum(1).mean()),

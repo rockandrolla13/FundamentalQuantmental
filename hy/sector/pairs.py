@@ -36,7 +36,7 @@ import numpy as np
 import pandas as pd
 
 from hy.backtest import decision_time
-from hy.factors.f06_issuer_curve_residual import CLASS_NOTCH, DEFAULT_NOTCH, recovery_rate
+from hy.factors.f06_issuer_curve_residual import CLASS_NOTCH, recovery_rate
 from hy.factors.f22_curve_shape import dts_hedge
 from hy.fairspread import expected_convergence_return, fit_ar1
 from hy.rv import SENIOR_UNSECURED_LGD

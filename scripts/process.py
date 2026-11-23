@@ -41,7 +41,7 @@ from hy import events as hev  # noqa: E402
 from hy import books, fairspread, forward, groups, peers, recovery, rv, skills, state  # noqa: E402
 from hy.sources import clock_inputs as ci  # noqa: E402
 from hy.sources import treasury as tr  # noqa: E402
-from hy.data.config import CONFIG
+from hy.data.config import CONFIG  # noqa: E402
 from hy.data.pit import DataUnavailable  # noqa: E402
 from hy.data.factory import open_view  # noqa: E402
 from hy.data.view import DataView  # noqa: E402  # noqa: E402
@@ -564,7 +564,7 @@ def step_capstructure(blk, liq: dict | None = None, mcap: float = float("nan"), 
         rows.append({"cusip": b["cusip"], "coupon": _f(b["coupon"], 4), "maturity": str(pd.Timestamp(b["maturity"]).date()),
                      "price": _f(b["price"], 1), "yield": _f(b["yield"], 4), "spread_bp": _f(b["g_spread"] * 1e4, 0),
                      "seniority": b["seniority"]})
-    v = ci.values(blk["inputs"])
+    ci.values(blk["inputs"])
     eb, rent = r.extra["ebitda_ltm"], r.extra["rent"] or 0.0
     intr = blk.get("_interest_ltm")
     capex, maint = blk.get("_capex_ltm"), blk.get("_maint_capex_ltm")

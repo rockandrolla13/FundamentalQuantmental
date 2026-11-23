@@ -35,7 +35,7 @@ def chart(bucket: str, data: dict[str, dict]) -> str:
     k = WIDTH_CM / top
     out = [r"\begin{tikzpicture}[x=1cm,y=0.42cm,font=\scriptsize]",
            rf"\draw[gray!60] (0,0.6) -- (0,{-len(TICKERS) + 0.4});",
-           rf"\node[gray,anchor=south] at (0,0.6) {{0}};"]
+           r"\node[gray,anchor=south] at (0,0.6) {0};"]
     for i, t in enumerate(TICKERS):
         v, y = vals[t], -i
         x = v * k

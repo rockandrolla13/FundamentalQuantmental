@@ -109,7 +109,7 @@ def test_downside_shapes_and_main_risk():
         assert downside_scenario(base, recession_annual=(-0.2,), recovery_shape=shape).recovery_shape == shape
     v = downside_scenario(base, recession_annual=(-0.2,), recovery_shape="v")
     s = downside_scenario(base, recession_annual=(-0.2,), recovery_shape="structural")
-    lvl = lambda sc: np.cumprod(1 + sc.g)[-1]
+    lvl = lambda sc: np.cumprod(1 + sc.g)[-1]  # noqa: E731
     assert lvl(v) == pytest.approx(1.0)  # back to the base level
     assert lvl(s) == pytest.approx(0.8)  # new lower level
     cc = downside_scenario(base, main_risk="customer_concentration", customer_share=0.25)

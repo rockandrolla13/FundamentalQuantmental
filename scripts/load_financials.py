@@ -10,7 +10,6 @@ Writes data/raw/ caches and data/raw/financials_<tickers>.parquet (git ignores d
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import pandas as pd
 

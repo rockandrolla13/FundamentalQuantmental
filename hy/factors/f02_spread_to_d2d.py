@@ -327,8 +327,8 @@ def _rating_bucket(gvkeys: pd.Index, ratings: pd.DataFrame | None, leverage: pd.
         cut = fit_cutoffs(np.log(hist["leverage"].astype(float)), hist["rclass"])
         lv = leverage[leverage["date"] <= as_of].sort_values("date").drop_duplicates("gvkey", keep="last") \
             .set_index("gvkey").reindex(gvkeys)
-        imp = pd.Series([implied_class(l, bool(e > 0), cut) if e == e else None
-                         for l, e in zip(lv["leverage"], lv["ltm_ebitda"].astype(float))], index=gvkeys)
+        imp = pd.Series([implied_class(lev, bool(e > 0), cut) if e == e else None
+                         for lev, e in zip(lv["leverage"], lv["ltm_ebitda"].astype(float))], index=gvkeys)
         out = out.fillna(imp)
     return out
 

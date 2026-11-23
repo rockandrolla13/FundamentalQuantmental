@@ -10,7 +10,6 @@ requests without a contact in the User-Agent; set $SEC_USER_AGENT to "Name email
 
 from __future__ import annotations
 
-import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

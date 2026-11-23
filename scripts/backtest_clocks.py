@@ -36,7 +36,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from hy import backtest as bt  # noqa: E402
 from hy.sources import clock_facts as cf  # noqa: E402
-from hy.sources import compustat_pit as cp  # noqa: E402
 from hy.sources import trace_panel as tp  # noqa: E402
 from hy.data.config import CONFIG  # noqa: E402
 
@@ -130,7 +129,9 @@ def renewal_split_test(d: pd.DataFrame, h: int) -> dict:
             continue
         X = np.column_stack([np.ones(len(g)), -g["refi"], -g["recon"]])   # undo the score sign: shares, not -shares
         coef, *_ = np.linalg.lstsq(X, np.log(g["s"].to_numpy()), rcond=None)
-        b["refi"].append(coef[1]); b["recon"].append(coef[2]); b["diff"].append(coef[2] - coef[1])
+        b["refi"].append(coef[1])
+        b["recon"].append(coef[2])
+        b["diff"].append(coef[2] - coef[1])
     return {k: bt.hac_mean(pd.Series(v), h - 1) for k, v in b.items()} | {"months": len(b["refi"]),
                                                                           "issuer_months": int(len(x))}
 

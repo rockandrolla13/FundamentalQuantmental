@@ -343,4 +343,5 @@ def test_book_legs_match_the_long_short_legs():
                                 ("widest", 5, bt.spread_neutral_long_short(df, "sig", "real", "cost", "widest"))):
         legs = bt.book_legs(df, "sig", "id", control=control, n_bins=n_bins).merge(df[["id", "real"]], on="id")
         got = legs.groupby(["date", "leg"])["real"].mean().unstack()
-        np.testing.assert_allclose(got["long"], ls["long"]); np.testing.assert_allclose(got["short"], ls["short"])
+        np.testing.assert_allclose(got["long"], ls["long"])
+        np.testing.assert_allclose(got["short"], ls["short"])

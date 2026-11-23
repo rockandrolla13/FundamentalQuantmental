@@ -167,7 +167,7 @@ def rating_classes(ratings: pd.DataFrame, leverage: pd.DataFrame | None, month_e
         hist = hist[(hist["leverage"] > 0) & (hist["ltm_ebitda"].astype(float) > 0)]
         cut = fit_cutoffs(np.log(hist["leverage"].astype(float)), hist["rclass"])
         now = lv[lv["date"] == month_end].sort_values("available_at").drop_duplicates("gvkey", keep="last")
-        imp = pd.Series([implied_class(l, bool(e > 0), cut) for l, e in zip(now["leverage"], now["ltm_ebitda"])],
+        imp = pd.Series([implied_class(lev, bool(e > 0), cut) for lev, e in zip(now["leverage"], now["ltm_ebitda"])],
                         index=now["gvkey"].to_numpy(), dtype=object)
         out = out.reindex(out.index.union(imp.index))
         out["rclass"] = out["rclass"].fillna(imp.reindex(out.index))

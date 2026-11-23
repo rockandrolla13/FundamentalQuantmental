@@ -163,7 +163,7 @@ def issuer_start(inputs: dict, case: dict, decision: pd.Timestamp,
         mq = int(round(t_end * 4))
         if amt and i < len(lad) - 1 and 1 <= mq <= H:
             lines.append(forward.DebtLine(f"due_q{mq}", face=float(amt), coupon=rate, maturity_q=mq))
-    inside = sum(l.face for l in lines)
+    inside = sum(d.face for d in lines)
     total = _nz(q.debt, sum(lad or []))
     if total - inside > 0:
         lines.append(forward.DebtLine("later", face=float(total - inside), coupon=rate))
@@ -263,7 +263,7 @@ def issuer_scenarios(start, drivers: dict, archetype: str, mac: Macro, s_now: fl
         # Default risk the cases add: the share of debt that must refinance inside the horizon, times the chance
         # the market is shut to this issuer on the path, times the chance a failed refinancing defaults; plus the
         # liquidity shortfall channel. Probability, not the F6.3 cliff (the cliff still drives the claims view).
-        need = sum(l.face for l in start.debt_lines if l.maturity_q) / max(1e-9, sum(l.face for l in start.debt_lines))
+        need = sum(d.face for d in start.debt_lines if d.maturity_q) / max(1e-9, sum(d.face for d in start.debt_lines))
         p_shut = 1.0 - V0["refi_score_to_p"][refi_score(pts, p, 4, S, s_now)]
         pd_engine = (V0["p_default_given_refi_fail"] * need * p_shut
                      + V0["p_default_given_liq_short"] * float(fr.get("p_liq_short_8", 0.0)))

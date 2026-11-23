@@ -30,7 +30,7 @@ def flat_disc():
 
 def price_for_spread(c: float, T: float, s: float, R: float, disc) -> float:
     """Price of a bond whose flat-hazard par-adjusted spread is s (inverse of eq. 7)."""
-    g = lambda lam: (1 - R) * f6.flat_hazard_legs(T, lam, disc)["xi"] / f6.flat_hazard_legs(T, lam, disc)["pi"] - s
+    g = lambda lam: (1 - R) * f6.flat_hazard_legs(T, lam, disc)["xi"] / f6.flat_hazard_legs(T, lam, disc)["pi"] - s  # noqa: E731
     lam = brentq(g, 1e-9, 3.0)
     return f6.model_price(c, T, lam, R, disc)
 
@@ -38,7 +38,7 @@ def price_for_spread(c: float, T: float, s: float, R: float, disc) -> float:
 def ytm(price: float, c: float, T: float) -> float:
     """Semiannual yield to maturity, for the G-spread column."""
     n = int(round(T * 2))
-    pv = lambda y: sum(c / 2 / (1 + y / 2) ** k for k in range(1, n + 1)) * 100 + 100 / (1 + y / 2) ** n - price
+    pv = lambda y: sum(c / 2 / (1 + y / 2) ** k for k in range(1, n + 1)) * 100 + 100 / (1 + y / 2) ** n - price  # noqa: E731
     return brentq(pv, -0.5, 5.0)
 
 

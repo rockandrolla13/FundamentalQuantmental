@@ -16,15 +16,15 @@ Run from the repo root: SEC_USER_AGENT="Name email" PYTHONPATH=. python3 scripts
 import sys
 MARKET_CAP = float(sys.argv[1]) if len(sys.argv) > 1 else None  # $m, analyst input with its date
 sys.path.insert(0, ".")
-from scripts.clock_case import build_case, RAW, OVERRIDES, _v
-from hy.sources import clock_inputs as ci
-from hy import clocks
+from scripts.clock_case import build_case, RAW, OVERRIDES, _v  # noqa: E402
+from hy.sources import clock_inputs as ci  # noqa: E402
+from hy import clocks  # noqa: E402
 inp = ci.derive_inputs("CRWV", RAW, str(OVERRIDES), None)
 case = build_case(inp)
 res = case["_res"]
 print("as_of", case["as_of"], "margin", round(case["metrics"]["ebitdar_margin"], 3))
-from scripts.clock_case import open_view
-import pandas as pd
+from scripts.clock_case import open_view  # noqa: E402
+import pandas as pd  # noqa: E402
 view = open_view(pd.Timestamp(_v(inp, "available_at")))
 q = view.balance_sheet(view.issuer("CRWV"), _v(inp, "q"))
 cash, rcf = q.cash, q.revolver_capacity
@@ -32,7 +32,8 @@ print("cash", cash, "revolver", rcf)
 margin = case["metrics"]["ebitdar_margin"]
 ob = res.obligations  # annual grids
 rev = clocks.rpo(_v(inp, "rpo_total"), _v(inp, "rpo_windows"), _v(inp, "rpo_tail_years"))
-lease_new = ob["Signed leases not yet started"].sum(); lease_all = lease_new + ob["Leases in force"].sum()
+lease_new = ob["Signed leases not yet started"].sum()
+lease_all = lease_new + ob["Leases in force"].sum()
 f = lease_new / lease_all
 print(f"share of rent on unbuilt sites f = {f:.2f}")
 SH = ("Signed leases not yet started",)

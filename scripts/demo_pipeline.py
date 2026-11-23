@@ -172,9 +172,9 @@ def main() -> None:
 
     print("HY Analyst demo: synthetic universe")
     print(f"  issuers {N_ISSUERS}, dates {N_DATES}, planted cheap bonds {N_PLANTED} at +{PLANT_LOG:.2f} log spread")
-    print(f"  PD by rating (model mean): " + ", ".join(
+    print("  PD by rating (model mean): " + ", ".join(
         f"{r} {pd12[issuers.rating == r].mean():.2%}" for r in ("BB", "B", "CCC")))
-    print(f"  kappa by rating: " + ", ".join(f"{k} {v:.2f}" for k, v in kappa.items()))
+    print("  kappa by rating: " + ", ".join(f"{k} {v:.2f}" for k, v in kappa.items()))
     print(f"  conformal threshold |z| range: {q.min():.2f} to {q.max():.2f}")
     print(f"  planted bonds found in top {N_PLANTED} of the force rank: {hits} of {N_PLANTED}")
     print(f"  cheap flags: {int(cheap.sum())}, of which false: {false_flags} "

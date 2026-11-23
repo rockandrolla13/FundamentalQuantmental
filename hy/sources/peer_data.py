@@ -15,7 +15,6 @@ Each pull is cached as parquet under data/raw/backtest/.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Sequence
 
 import pandas as pd

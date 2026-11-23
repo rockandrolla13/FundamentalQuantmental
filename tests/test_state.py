@@ -146,7 +146,7 @@ def test_q_vector_keeps_order_and_bounds():
 
 
 def test_ordinal_model_recovers_ratings(rng):
-    n, k = 3000, 5
+    n, _k = 3000, 5
     X = rng.normal(size=(n, 3))
     beta = np.array([1.5, -1.0, 0.5])
     theta = np.array([-2.0, -0.7, 0.7, 2.0])

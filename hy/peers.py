@@ -339,7 +339,7 @@ def live_peers(issuers: pd.DataFrame, panel: pd.DataFrame, leverage: pd.DataFram
     act = rating_at(ratings, as_of)
     allb["sector"] = allb["gvkey"].map(sec)
     allb["rclass_actual"] = allb["gvkey"].map(act)
-    allb["rclass_implied"] = [implied_class(l, bool(e), cut) for l, e in zip(allb["leverage"], allb["ebitda_pos"])]
+    allb["rclass_implied"] = [implied_class(lev, bool(e), cut) for lev, e in zip(allb["leverage"], allb["ebitda_pos"])]
     allb["rclass"] = allb["rclass_actual"].fillna(allb["rclass_implied"])
     allb["rclass_source"] = np.where(allb["rclass_actual"].notna(), "actual", "implied")
     if annual is not None:
